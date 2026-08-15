@@ -22,7 +22,7 @@
     "publish": {
       "provider": "github",
       "owner": "cook0001",
-      "repo": "ArmouryVault",
+      "repo": "ArmoryVault",
       "releaseType": "release"
     },
     "directories": {
