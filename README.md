@@ -1,14 +1,14 @@
-# ArmouryVault 🛡️
+# ArmoryVault 🛡️
 
-A secure, premium, cross-platform desktop application designed for serious collectors and firearms owners. ArmouryVault provides local inventory tracking, maintenance logs, and printable "Bound Book" ledgers wrapped in a stunning, modern Glassmorphism interface.
+A secure, premium, cross-platform desktop application designed for serious collectors and firearms owners. ArmoryVault provides local inventory tracking, maintenance logs, and printable "Bound Book" ledgers wrapped in a stunning, modern Glassmorphism interface.
 
 ## ✨ Features
 
 - **End-to-End Inventory Tracking**: Log make, model, caliber, serial number, purchase price, and attach high-res local photos to your records.
 - **Maintenance & Range Logs**: Keep detailed notes of gunsmithing work, deep cleanings, and range trips. The app automatically tallies the lifetime "rounds fired" count for every weapon.
-- **A&D Bound Book**: Need physical records? ArmouryVault generates a stark, professional Acquisition & Disposition (A&D) ledger view specifically optimized with custom CSS for printing standard 8.5x11 records.
+- **A&D Bound Book**: Need physical records? ArmoryVault generates a stark, professional Acquisition & Disposition (A&D) ledger view specifically optimized with custom CSS for printing standard 8.5x11 records.
 - **Data Export**: Instantly export your entire inventory to a cleanly formatted `.csv` file for insurance backups and spreadsheets.
-- **Completely Private**: Built with Electron, ArmouryVault is a 100% offline desktop application. Your inventory data and photos never leave your machine; they are saved securely in your OS's native Application Data folder.
+- **Completely Private**: Built with Electron, ArmoryVault is a 100% offline desktop application. Your inventory data and photos never leave your machine; they are saved securely in your OS's native Application Data folder.
 - **Over-The-Air Updates**: Features a seamless auto-update pipeline backed by GitHub Releases. The app will detect, download, and install updates automatically.
 
 ## 🛠 Tech Stack
@@ -20,11 +20,11 @@ A secure, premium, cross-platform desktop application designed for serious colle
 
 ## 📥 Installation
 
-ArmouryVault is an open-source project and is not distributed with expensive code-signing certificates. Because of this, your operating system will display a security warning the first time you run it. 
+ArmoryVault is an open-source project and is not distributed with expensive code-signing certificates. Because of this, your operating system will display a security warning the first time you run it. 
 
 ### macOS
-When you open ArmouryVault, you will likely see a message saying the app "is damaged and can't be opened" or "cannot be verified."
-1. Drag `ArmouryVault.app` from the `.dmg` into your **Applications** folder.
+When you open ArmoryVault, you will likely see a message saying the app "is damaged and can't be opened" or "cannot be verified."
+1. Drag `ArmoryVault.app` from the `.dmg` into your **Applications** folder.
 2. Open your Terminal and run the following command to strip the quarantine attribute:
    ```bash
    xattr -cr /Applications/ArmoryVault.app
@@ -38,17 +38,17 @@ Windows Defender SmartScreen may display a blue warning box saying it "protected
 
 ### Linux (.AppImage)
 1. Download the `.AppImage` file.
-2. Make it executable by running `chmod +x ArmouryVault-1.0.8.AppImage` in your terminal (or right-click the file > Properties > Permissions > "Allow executing file as program").
+2. Make it executable by running `chmod +x ArmoryVault-1.0.8.AppImage` in your terminal (or right-click the file > Properties > Permissions > "Allow executing file as program").
 3. Double click to run!
 
 ## 🚀 Getting Started (Development)
 
-To run ArmouryVault locally on your machine for development:
+To run ArmoryVault locally on your machine for development:
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/cook0001/ArmouryVault.git
-   cd ArmouryVault
+   git clone https://github.com/cook0001/ArmoryVault.git
+   cd ArmoryVault
    ```
 
 2. **Install dependencies:**
@@ -63,7 +63,7 @@ To run ArmouryVault locally on your machine for development:
 
 ## 📦 Building for Production
 
-ArmouryVault uses `electron-builder` coupled with **GitHub Actions** to automatically compile native installers for Windows (`.exe`), macOS (`.dmg`), and Linux (`.AppImage`).
+ArmoryVault uses `electron-builder` coupled with **GitHub Actions** to automatically compile native installers for Windows (`.exe`), macOS (`.dmg`), and Linux (`.AppImage`).
 
 ### Automated CI/CD Pipeline
 You do not need to manually compile the application on your local machine. The repository is configured with a GitHub Actions workflow that automatically handles the heavy cross-platform compilation process.
