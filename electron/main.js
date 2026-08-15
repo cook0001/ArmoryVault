@@ -16,16 +16,22 @@ protocol.registerSchemesAsPrivileged([
 let mainWindow;
 
 function createWindow() {
-  mainWindow = new BrowserWindow({
+  const iconPath = path.join(__dirname, '../build/icon.png');
+  const windowConfig = {
     width: 1200,
     height: 800,
-    icon: path.join(__dirname, '../build/icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false
     }
-  });
+  };
+  
+  if (fs.existsSync(iconPath)) {
+    windowConfig.icon = iconPath;
+  }
+
+  mainWindow = new BrowserWindow(windowConfig);
 
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
@@ -46,8 +52,12 @@ app.whenReady().then(() => {
     return net.fetch('file://' + path.join(__dirname, '../dist', url));
   });
 
-  if (process.platform === 'darwin') {
-    app.dock.setIcon(path.join(__dirname, '../build/icon.png'));
+  if (process.platform === 'darwin' && isDev) {
+    try {
+      app.dock.setIcon(path.join(__dirname, '../build/icon.png'));
+    } catch (e) {
+      console.log('Icon not found, skipping dock icon set');
+    }
   }
 
   const { session } = require('electron');
