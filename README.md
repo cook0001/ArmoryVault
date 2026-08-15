@@ -27,7 +27,7 @@ When you open ArmouryVault, you will likely see a message saying the app "is dam
 1. Drag `ArmouryVault.app` from the `.dmg` into your **Applications** folder.
 2. Open your Terminal and run the following command to strip the quarantine attribute:
    ```bash
-   xattr -cr /Applications/ArmouryVault.app
+   xattr -cr /Applications/ArmoryVault.app
    ```
 3. You can now launch the app normally! (Alternatively, you can go to *System Settings > Privacy & Security* and click "Open Anyway").
 
