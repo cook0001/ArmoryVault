@@ -39,7 +39,10 @@
       "icon": "build/icon.png"
     },
     "linux": {
-      "icon": "build/icon.png"
+      "icon": "build/icon.png",
+      "target": ["AppImage"],
+      "desktopName": "ArmouryVault",
+      "syncDesktopName": true
     }
   },
   "keywords": [],
