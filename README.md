@@ -40,18 +40,18 @@ To run ArmouryVault locally on your machine for development:
 
 ## 📦 Building for Production
 
-ArmouryVault uses `electron-builder` to package standalone, native installers for Windows (`.exe`), macOS (`.dmg`), and Linux (`.AppImage`).
+ArmouryVault uses `electron-builder` coupled with **GitHub Actions** to automatically compile native installers for Windows (`.exe`), macOS (`.dmg`), and Linux (`.AppImage`).
 
-To compile a standalone binary locally without publishing:
-```bash
-npm run package:mac   # For macOS
-npm run package:win   # For Windows
-npm run package:linux # For Linux
-```
+### Automated CI/CD Pipeline
+You do not need to manually compile the application on your local machine. The repository is configured with a GitHub Actions workflow that automatically handles the heavy cross-platform compilation process.
 
-**To publish an Auto-Updating Release to GitHub:**
-```bash
-export GH_TOKEN="your_personal_access_token_here"
-npm run release
-```
-*This command bundles the app, generates the installers, and uploads them directly to your repository's Releases page to trigger auto-updates for your users.*
+To trigger a new production build and release:
+1. Update the `"version"` field in your `package.json` (e.g., `"version": "1.0.1"`).
+2. Commit your changes and create a git tag matching the version prefix with `v`:
+   ```bash
+   git tag v1.0.1
+   git push origin v1.0.1
+   ```
+3. GitHub Actions will automatically spin up Windows, macOS, and Linux runners, securely compile the application, and upload the finalized `.exe`, `.dmg`, and `.AppImage` files directly to your GitHub Releases page!
+
+This seamlessly powers the auto-updater for your users without requiring any local build dependencies (like Wine).
