@@ -147,7 +147,11 @@ export function setupMockBackend() {
       },
       restartApp: () => {
         window.location.reload();
-      }
+      },
+      openUrl: async (url: string) => {
+        window.open(url, '_blank');
+      },
+      getPlatform: () => 'browser'
     };
   }
 }
