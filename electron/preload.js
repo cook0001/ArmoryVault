@@ -30,9 +30,11 @@ contextBridge.exposeInMainWorld('api', {
   selectAndSaveDocument: () => ipcRenderer.invoke('select-and-save-document'),
   selectAndSavePhoto: () => ipcRenderer.invoke('select-and-save-photo'),
   openExternalFile: (filePath) => ipcRenderer.invoke('open-external-file', filePath),
+  openUrl: (url) => ipcRenderer.invoke('open-url', url),
   lookupUPC: (upc) => ipcRenderer.invoke('lookup-upc', upc),
   
   exportData: (dataString, filename) => ipcRenderer.invoke('export-data', dataString, filename),
   onUpdateMessage: (callback) => ipcRenderer.on('updater-event', (_, data) => callback(data)),
-  restartApp: () => ipcRenderer.send('restart-app')
+  restartApp: () => ipcRenderer.send('restart-app'),
+  getPlatform: () => process.platform
 });

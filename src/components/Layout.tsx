@@ -10,6 +10,7 @@ export const Layout = () => {
   
   const [updateStatus, setUpdateStatus] = useState<'idle' | 'downloading' | 'ready'>('idle');
   const [downloadProgress, setDownloadProgress] = useState(0);
+  const [platform, setPlatform] = useState('');
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [backupPath, setBackupPath] = useState<string | null>(null);
@@ -34,6 +35,9 @@ export const Layout = () => {
           setUpdateStatus('ready');
         }
       });
+    }
+    if (window.api && window.api.getPlatform) {
+      setPlatform(window.api.getPlatform());
     }
     loadSettings();
   }, []);
@@ -160,9 +164,22 @@ export const Layout = () => {
               </div>
             )}
             {updateStatus === 'ready' && (
-              <button className="btn-primary" onClick={handleRestart} style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
-                Restart & Install
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                {platform !== 'darwin' && (
+                  <button className="btn-primary" onClick={handleRestart} title="Restart to install the update automatically" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+                    Restart & Install
+                  </button>
+                )}
+                {platform === 'darwin' && (
+                  <button className="btn-primary" onClick={() => {
+                    if (window.api && window.api.openUrl) {
+                      window.api.openUrl('https://github.com/cook0001/ArmouryVault/releases/latest');
+                    }
+                  }} title="Download the newest installer from GitHub" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+                    Download Mac Update
+                  </button>
+                )}
+              </div>
             )}
           </div>
         )}

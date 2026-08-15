@@ -100,11 +100,13 @@ declare global {
       selectAndSaveDocument: () => Promise<{name: string, path: string} | null>;
       selectAndSavePhoto: () => Promise<string | null>;
       openExternalFile: (filePath: string) => Promise<string>;
+      openUrl: (url: string) => Promise<void>;
       lookupUPC: (upc: string) => Promise<any>;
       
       exportData: (dataString: string, filename: string) => Promise<boolean>;
       onUpdateMessage: (callback: (message: any) => void) => void;
       restartApp: () => void;
+      getPlatform: () => string;
     };
   }
 }

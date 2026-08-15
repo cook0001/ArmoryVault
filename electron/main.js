@@ -160,9 +160,12 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('open-external-file', async (_, filePath) => {
-    // Strip file:// prefix if present
     const cleanPath = filePath.startsWith('file://') ? filePath.replace('file://', '') : filePath;
     return await shell.openPath(cleanPath);
+  });
+
+  ipcMain.handle('open-url', async (_, url) => {
+    return await shell.openExternal(url);
   });
 
   ipcMain.handle('export-data', async (_, dataString, filename) => {
