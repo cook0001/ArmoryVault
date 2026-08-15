@@ -1,7 +1,7 @@
 {
   "name": "armoryvault",
   "productName": "ArmoryVault",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "description": "",
   "main": "electron/main.js",
   "scripts": {

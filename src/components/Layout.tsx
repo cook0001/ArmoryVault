@@ -226,6 +226,20 @@ export const Layout = () => {
               </button>
             </div>
 
+            <div style={{ marginBottom: '2rem' }}>
+              <h3 style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>Application Updates</h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1rem' }}>
+                Currently running ArmoryVault v{packageJson.version}. You can manually download the newest release directly from GitHub at any time.
+              </p>
+              <button className="btn-secondary" onClick={() => {
+                if (window.api && window.api.openUrl) {
+                  window.api.openUrl('https://github.com/cook0001/ArmouryVault/releases/latest');
+                }
+              }} style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: '0.5rem', alignItems: 'center' }}>
+                <DownloadCloud size={18} /> Download Latest Release
+              </button>
+            </div>
+
             <div className="modal-actions">
               <button className="btn-primary" onClick={() => setIsSettingsOpen(false)}>Done</button>
             </div>
