@@ -36,7 +36,7 @@ function createWindow() {
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
   } else {
-    mainWindow.loadURL('app://index.html');
+    mainWindow.loadURL('app://-/index.html');
   }
 
   mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
@@ -46,7 +46,7 @@ function createWindow() {
 
 app.whenReady().then(() => {
   protocol.registerFileProtocol('app', (request, callback) => {
-    let url = request.url.slice('app://'.length);
+    let url = request.url.replace(/^app:\/\/[^/]+\//, '');
     if (!url || url === '/') url = 'index.html';
     url = url.split('?')[0].split('#')[0];
     callback({ path: path.normalize(path.join(__dirname, '../dist', url)) });
