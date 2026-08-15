@@ -45,11 +45,11 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  protocol.handle('app', (request) => {
+  protocol.registerFileProtocol('app', (request, callback) => {
     let url = request.url.slice('app://'.length);
-    if (!url) url = 'index.html';
+    if (!url || url === '/') url = 'index.html';
     url = url.split('?')[0].split('#')[0];
-    return net.fetch('file://' + path.join(__dirname, '../dist', url));
+    callback({ path: path.normalize(path.join(__dirname, '../dist', url)) });
   });
 
   if (process.platform === 'darwin' && isDev) {
