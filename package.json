@@ -22,7 +22,8 @@
     "publish": {
       "provider": "github",
       "owner": "cook0001",
-      "repo": "ArmouryVault"
+      "repo": "ArmouryVault",
+      "releaseType": "release"
     },
     "directories": {
       "output": "dist-electron"
