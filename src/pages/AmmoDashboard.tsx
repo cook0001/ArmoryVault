@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Ammo } from '../types';
-import { PlusCircle, Target, Package, Trash2, Edit } from 'lucide-react';
+import { PlusCircle, Target, Package, Trash2, Edit, Printer } from 'lucide-react';
 
 const getStandardPelletCount = (caliber?: string, shell_length?: string, shot_size?: string): number | '' => {
   if (!caliber || !shell_length || !shot_size) return '';
@@ -166,6 +166,22 @@ export const AmmoDashboard = () => {
     setIsModalOpen(true);
     setCalcRds(ammo.count);
     setCalcBoxes(1);
+  };
+
+  const handlePrintAmmoQR = async (ammo: Ammo) => {
+    if (!window.api) return;
+    try {
+      const QRCode = (await import('qrcode')).default;
+      const qrDataUrl = await QRCode.toDataURL(`armoryvault://ammo/${ammo.id}`, { width: 300, margin: 1 });
+      await window.api.printQRLabel({
+        itemName: `${ammo.caliber} ${ammo.manufacturer || 'Ammo'}`,
+        itemDetails: `Type: ${ammo.type}\nQuantity: ${ammo.count || 0}`,
+        qrDataUrl
+      });
+    } catch (err) {
+      console.error('Failed to print QR label', err);
+      alert('Failed to print QR label.');
+    }
   };
 
   const handleShotgunChange = (field: 'caliber' | 'shell_length' | 'shot_size', value: string) => {
@@ -508,6 +524,7 @@ export const AmmoDashboard = () => {
                 {categoryAmmo.map(ammo => (
                   <div key={ammo.id} className="card ammo-card" onClick={() => setInspectingAmmo(ammo)} style={{ position: 'relative', cursor: 'pointer' }}>
                     <div style={{ position: 'absolute', top: '1rem', right: '1rem', display: 'flex', gap: '0.5rem' }}>
+                      <button onClick={(e) => { e.stopPropagation(); handlePrintAmmoQR(ammo); }} style={{ background: 'transparent', border: 'none', color: '#60a5fa', cursor: 'pointer' }} title="Print QR Label"><Printer size={16} /></button>
                       <button onClick={(e) => { e.stopPropagation(); openEditModal(ammo); }} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}><Edit size={16} /></button>
                       <button onClick={(e) => { e.stopPropagation(); handleDelete(ammo.id!); }} style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><Trash2 size={16} /></button>
                     </div>
@@ -535,15 +552,36 @@ export const AmmoDashboard = () => {
                       })()}
                     </p>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px' }}>
-                      <div>
-                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', display: 'block' }}>Rounds in Stock</span>
-                        <strong style={{ fontSize: '1.5rem', color: 'var(--text-primary)' }}>{ammo.count}</strong>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', display: 'block' }}>Rounds in Stock</span>
+                          <strong style={{ fontSize: '1.5rem', color: ammo.target_stock_goal && (ammo.count / ammo.target_stock_goal * 100) <= (ammo.alert_percentage || 0) ? 'var(--danger)' : 'var(--accent)' }}>
+                            {ammo.count.toLocaleString()}
+                          </strong>
+                        </div>
+                        {ammo.costPerRound && (
+                          <div style={{ textAlign: 'right' }}>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', display: 'block' }}>Cost / Rnd</span>
+                            <strong style={{ fontSize: '1.2rem', color: 'var(--success)' }}>${ammo.costPerRound.toFixed(2)}</strong>
+                          </div>
+                        )}
                       </div>
-                      {ammo.costPerRound && (
-                        <div style={{ textAlign: 'right' }}>
-                          <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', display: 'block' }}>Cost / Round</span>
-                          <strong style={{ fontSize: '1.2rem', color: 'var(--success)' }}>${ammo.costPerRound.toFixed(2)}</strong>
+                      
+                      {ammo.target_stock_goal && (
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                            <span>Stock Goal</span>
+                            <span>{Math.round((ammo.count / ammo.target_stock_goal) * 100)}% ({ammo.target_stock_goal})</span>
+                          </div>
+                          <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                            <div style={{ 
+                              height: '100%', 
+                              width: `${Math.min(100, (ammo.count / ammo.target_stock_goal) * 100)}%`, 
+                              background: (ammo.count / ammo.target_stock_goal * 100) <= (ammo.alert_percentage || 0) ? 'var(--danger)' : 'var(--accent)',
+                              transition: 'width 0.3s ease'
+                            }} />
+                          </div>
                         </div>
                       )}
                     </div>
@@ -903,12 +941,37 @@ export const AmmoDashboard = () => {
                 })()}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1.5rem' }}>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label>Cost per Round ($)</label>
-                  <input type="number" step="0.01" className="form-input" value={formData.costPerRound ?? ''} onChange={e => setFormData({...formData, costPerRound: e.target.value === '' ? ('' as any) : parseFloat(e.target.value)})} placeholder="0.25" />
+              <div style={{ padding: '1.5rem', background: 'rgba(0,0,0,0.1)', borderRadius: '12px', border: '1px solid var(--border-light)', marginBottom: '1.5rem' }}>
+                <h4 style={{ margin: '0 0 1rem 0', color: 'var(--text-secondary)' }}>Inventory Tracking</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.5rem' }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>Target Stock Goal</label>
+                    <input type="number" className="form-input" value={formData.target_stock_goal ?? ''} onChange={e => setFormData({...formData, target_stock_goal: e.target.value === '' ? ('' as any) : parseInt(e.target.value)})} placeholder="e.g. 1000" />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>Low Stock Alert (%)</label>
+                    <input type="number" className="form-input" value={formData.alert_percentage ?? ''} onChange={e => setFormData({...formData, alert_percentage: e.target.value === '' ? ('' as any) : parseInt(e.target.value)})} placeholder="e.g. 20" />
+                  </div>
                 </div>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '1.5rem' }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>Total Box Price ($) <span style={{fontSize:'0.75rem', fontWeight:'normal'}}>(Auto-calcs CPR)</span></label>
+                    <input type="number" step="0.01" className="form-input" placeholder="e.g. 25.00" onChange={e => {
+                      const val = parseFloat(e.target.value);
+                      if (!isNaN(val) && formData.count) {
+                        setFormData({...formData, costPerRound: parseFloat((val / formData.count).toFixed(3))});
+                      }
+                    }} />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>Cost per Round ($)</label>
+                    <input type="number" step="0.01" className="form-input" value={formData.costPerRound ?? ''} onChange={e => setFormData({...formData, costPerRound: e.target.value === '' ? ('' as any) : parseFloat(e.target.value)})} placeholder="0.25" />
+                  </div>
+                </div>
+              </div>
 
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
                 <div className="form-group" style={{ marginBottom: 0, gridColumn: '1 / -1' }}>
                   <label>Notes / Description</label>
                   <textarea className="form-input" rows={2} value={formData.notes || ''} onChange={e => setFormData({...formData, notes: e.target.value})} placeholder="Accuracy notes, velocity data, etc."></textarea>

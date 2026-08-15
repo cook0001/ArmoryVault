@@ -1,7 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Firearm, MaintenanceLog, Ammo } from '../types';
-import { ArrowLeft, Edit, Trash2, DollarSign, ClipboardList, FileText, Upload } from 'lucide-react';
+import { Firearm, MaintenanceLog, Ammo, Accessory } from '../types';
+import { ArrowLeft, Edit, Trash2, DollarSign, ClipboardList, FileText, Upload, Crosshair, PlusCircle, Printer } from 'lucide-react';
+import { AccessoryModal } from '../components/AccessoryModal';
+import { Lightbox } from '../components/Lightbox';
+import { DocumentViewer } from '../components/DocumentViewer';
 
 export const FirearmDetails = () => {
   const { id } = useParams();
@@ -9,10 +12,17 @@ export const FirearmDetails = () => {
   const [firearm, setFirearm] = useState<Firearm | null>(null);
   const [isSelling, setIsSelling] = useState(false);
   const [isLogging, setIsLogging] = useState(false);
-  const [sellForm, setSellForm] = useState({ sold_to_name: '', sold_date: '', sold_price: '', sale_notes: '' });
-  const [logForm, setLogForm] = useState<Partial<MaintenanceLog>>({ date: new Date().toISOString().split('T')[0], type: 'Range', notes: '', rounds_fired: 0, ammo_used: '', malfunctions: 0, cost: 0, image_path: '' });
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+  const [viewerTitle, setViewerTitle] = useState<string>('');
+  const [sellForm, setSellForm] = useState({ seller_name: '', sold_to_name: '', sold_date: '', sold_price: '', sale_notes: '' });
+  const [logForm, setLogForm] = useState<Partial<MaintenanceLog>>({ date: new Date().toISOString().split('T')[0], type: 'Range', notes: '', rounds_fired: '' as any, ammo_used: '', malfunctions: '' as any, repaired_part: '', part_manufacturer: '', installed_part_details: '', cost: '' as any, image_path: '' });
   const [editingLogId, setEditingLogId] = useState<number | null>(null);
   const [inventoryAmmo, setInventoryAmmo] = useState<Ammo[]>([]);
+  const [attachedAccessories, setAttachedAccessories] = useState<Accessory[]>([]);
+  const [showTotalSetupValue, setShowTotalSetupValue] = useState(false);
+  const [isAccessoryModalOpen, setIsAccessoryModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const getAmmoString = (a: Ammo) => {
@@ -43,6 +53,16 @@ export const FirearmDetails = () => {
       
       const ammo = await window.api.getAmmo();
       setInventoryAmmo(ammo);
+
+      if (window.api.getAccessories) {
+        const allAcc = await window.api.getAccessories();
+        setAttachedAccessories(allAcc.filter(a => a.mounts?.some(m => m.firearmId === Number(id))));
+      }
+
+      if (window.api.getConfig) {
+        const showSetup = await window.api.getConfig('showTotalSetupValue');
+        setShowTotalSetupValue(!!showSetup);
+      }
     }
   };
 
@@ -56,6 +76,24 @@ export const FirearmDetails = () => {
   const handleSell = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!firearm) return;
+    const pdfPath = await window.api.generateBillOfSale({
+      ...firearm,
+      seller_name: sellForm.seller_name,
+      sold_to_name: sellForm.sold_to_name,
+      sold_date: sellForm.sold_date,
+      sold_price: sellForm.sold_price,
+      sale_notes: sellForm.sale_notes
+    });
+
+    const updatedDocs = [...(firearm.documents || [])];
+    if (pdfPath) {
+      updatedDocs.push({
+        name: `Bill of Sale - ${sellForm.sold_to_name}`,
+        path: pdfPath,
+        date_added: new Date().toISOString()
+      });
+    }
+
     const updated = {
       ...firearm,
       is_sold: true,
@@ -63,6 +101,7 @@ export const FirearmDetails = () => {
       sold_date: sellForm.sold_date,
       sold_price: Number(sellForm.sold_price),
       sale_notes: sellForm.sale_notes,
+      documents: updatedDocs
     };
     await window.api.updateFirearm(firearm.id!, updated);
     setFirearm(updated);
@@ -107,12 +146,23 @@ export const FirearmDetails = () => {
   if (!firearm) return <div className="loading">Loading...</div>;
 
   return (
-    <div className="details-page">
+    <>
+      <div className="details-page">
       <div className="page-header">
         <button className="btn-icon" onClick={() => navigate('/')}>
           <ArrowLeft size={24} />
         </button>
-        <h1>{firearm.make} {firearm.model}</h1>
+        <div>
+          <h1 style={{ margin: 0 }}>{firearm.make} {firearm.model}</h1>
+            {showTotalSetupValue && (
+              <div style={{ fontSize: '1rem', color: 'var(--text-secondary)', marginTop: '0.5rem', fontWeight: 500 }}>
+                Setup Value: ${((firearm.purchase_price || 0) + attachedAccessories.reduce((sum, a) => {
+                  const allocatedQty = a.mounts?.find(m => m.firearmId === Number(id))?.quantity || 1;
+                  return sum + ((a.value || 0) * allocatedQty);
+                }, 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+            )}
+        </div>
         <div className="header-actions" style={{ gap: '0.5rem', background: 'rgba(0,0,0,0.2)', padding: '0.4rem', borderRadius: '12px', border: '1px solid var(--border-light)' }}>
           {!firearm.is_sold && (
             <button className="btn-success" onClick={() => setIsSelling(true)} style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', background: 'transparent', border: 'none', color: '#4ade80' }}>
@@ -121,6 +171,23 @@ export const FirearmDetails = () => {
           )}
           <button className="btn-secondary" onClick={() => navigate(`/edit/${firearm.id}`)} style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', background: 'transparent', border: 'none' }}>
             <Edit size={14} /> Edit
+          </button>
+          <button className="btn-secondary" onClick={async () => {
+            if (!window.api || !firearm) return;
+            try {
+              const QRCode = (await import('qrcode')).default;
+              const qrDataUrl = await QRCode.toDataURL(`armoryvault://firearm/${firearm.id}`, { width: 300, margin: 1 });
+              await window.api.printQRLabel({
+                itemName: `${firearm.make} ${firearm.model}`,
+                itemDetails: `Caliber: ${firearm.caliber || 'N/A'}\nS/N: ${firearm.serial_number || 'N/A'}`,
+                qrDataUrl
+              });
+            } catch (err) {
+              console.error('Failed to print QR label', err);
+              alert('Failed to print QR label.');
+            }
+          }} style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', background: 'transparent', border: 'none', color: '#60a5fa' }}>
+            <Printer size={14} /> QR Label
           </button>
           <div style={{ width: '1px', background: 'var(--border-light)', margin: '0 0.2rem' }}></div>
           <button className="btn-danger" onClick={handleDelete} style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', background: 'transparent', border: 'none', color: '#f87171' }}>
@@ -131,8 +198,29 @@ export const FirearmDetails = () => {
 
       <div className="details-content">
         <div className="details-card main-info">
-          {firearm.image_path ? (
-            <img src={`file://${firearm.image_path}`} alt="Firearm" className="details-image" />
+          {(firearm.photos && firearm.photos.length > 0) ? (
+            <div style={{ position: 'relative' }}>
+              <img 
+                src={`file://${firearm.photos[0]}`} 
+                alt="Firearm" 
+                className="details-image" 
+                style={{ cursor: 'pointer' }}
+                onClick={() => { setLightboxImages(firearm.photos!); setLightboxIndex(0); }}
+              />
+              {firearm.photos.length > 1 && (
+                <div style={{ position: 'absolute', bottom: '10px', right: '10px', background: 'rgba(0,0,0,0.7)', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', pointerEvents: 'none' }}>
+                  1 / {firearm.photos.length}
+                </div>
+              )}
+            </div>
+          ) : firearm.image_path ? (
+            <img 
+              src={`file://${firearm.image_path}`} 
+              alt="Firearm" 
+              className="details-image" 
+              style={{ cursor: 'pointer' }}
+              onClick={() => { setLightboxImages([firearm.image_path]); setLightboxIndex(0); }}
+            />
           ) : (
             <div className="no-image">No Photo Available</div>
           )}
@@ -161,9 +249,56 @@ export const FirearmDetails = () => {
           </div>
         </div>
 
+        {firearm.is_nfa && (
+          <div className="details-card side-info" style={{ marginTop: '1.5rem', background: 'rgba(234, 179, 8, 0.05)', border: '1px solid rgba(234, 179, 8, 0.2)' }}>
+            <h3 style={{ color: '#eab308', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1rem 0' }}>NFA Information</h3>
+            <div className="info-item"><span>Type</span><p>{firearm.nfa_type || '-'}</p></div>
+            <div className="info-item"><span>Registration</span><p>{firearm.registration_type || '-'}</p></div>
+            <div className="info-item">
+              <span>Status</span>
+              <p style={{ fontWeight: 'bold', color: firearm.stamp_status === 'Approved' ? 'var(--success)' : 'var(--warning)' }}>
+                {firearm.stamp_status || 'Unknown'}
+              </p>
+            </div>
+            {firearm.stamp_submitted_date && (
+              <div className="info-item"><span>Submitted</span><p>{firearm.stamp_submitted_date}</p></div>
+            )}
+            {firearm.stamp_approved_date && (
+              <div className="info-item"><span>Approved</span><p>{firearm.stamp_approved_date}</p></div>
+            )}
+            {firearm.stamp_status === 'Pending' && firearm.stamp_submitted_date && (
+              <div className="info-item">
+                <span>Wait Time</span>
+                <p>{Math.floor((new Date().getTime() - new Date(firearm.stamp_submitted_date).getTime()) / (1000 * 3600 * 24))} days</p>
+              </div>
+            )}
+          </div>
+        )}
+
         {firearm.is_sold && (
           <div className="details-card sold-info">
-            <h3>Sale Details</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0 }}>Sale Details</h3>
+              <button 
+                className="btn-secondary" 
+                onClick={async () => {
+                  if (confirm('Are you sure you want to unmark this firearm as sold? This will remove the sale details from this inspection card.')) {
+                    const updated = {
+                      ...firearm,
+                      is_sold: false,
+                      sold_to_name: undefined,
+                      sold_date: undefined,
+                      sold_price: undefined,
+                      sale_notes: undefined
+                    };
+                    await window.api.updateFirearm(firearm.id!, updated);
+                    setFirearm(updated);
+                  }
+                }}
+              >
+                Unmark as Sold
+              </button>
+            </div>
             <div className="info-grid">
               <div className="info-item"><span>Sold To</span><p>{firearm.sold_to_name}</p></div>
               <div className="info-item"><span>Sale Date</span><p>{firearm.sold_date}</p></div>
@@ -173,6 +308,54 @@ export const FirearmDetails = () => {
               <span>Sale Notes</span>
               <p className="notes-text">{firearm.sale_notes}</p>
             </div>
+          </div>
+        )}
+      </div>
+
+      <div className="details-card accessories-card" style={{ marginTop: '2rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '1rem' }}>
+          <h3 style={{ margin: 0, border: 'none', padding: 0 }}>Attached Accessories & Optics</h3>
+          <button className="btn-secondary" onClick={() => setIsAccessoryModalOpen(true)} style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}>
+            <PlusCircle size={16} /> Add Accessory
+          </button>
+        </div>
+        {attachedAccessories.length > 0 ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+            {attachedAccessories.map(acc => (
+              <div key={acc.id} style={{ display: 'flex', gap: '1rem', background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
+                <div style={{ width: '50px', height: '50px', borderRadius: '6px', background: 'rgba(0,0,0,0.4)', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyItems: 'center' }}>
+                  {acc.photo ? (
+                    <img src={acc.photo} alt={acc.model} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <Crosshair size={20} color="var(--text-secondary)" style={{ margin: 'auto' }} />
+                  )}
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>{acc.type}</div>
+                  <div style={{ fontWeight: 500 }}>
+                    {(() => {
+                      const allocatedQty = acc.mounts?.find(m => m.firearmId === Number(id))?.quantity || 1;
+                      return (allocatedQty > 1) ? `${allocatedQty}x ` : '';
+                    })()}{acc.manufacturer} {acc.model} 
+                    {acc.magnification && <span style={{ fontSize: '0.9em', color: 'var(--text-secondary)', fontWeight: 'normal' }}> ({acc.magnification})</span>}
+                    {acc.ratedCalibers && <span style={{ fontSize: '0.9em', color: 'var(--text-secondary)', fontWeight: 'normal' }}> ({acc.ratedCalibers})</span>}
+                    {acc.lumens && <span style={{ fontSize: '0.9em', color: 'var(--text-secondary)', fontWeight: 'normal' }}> ({acc.lumens} lm)</span>}
+                    {acc.supportedModels && <span style={{ fontSize: '0.9em', color: 'var(--text-secondary)', fontWeight: 'normal' }}> (Fits: {acc.supportedModels})</span>}
+                    {(acc.caliber || acc.capacity) && <span style={{ fontSize: '0.9em', color: 'var(--text-secondary)', fontWeight: 'normal' }}> ({[acc.caliber, acc.capacity ? `${acc.capacity}rd` : ''].filter(Boolean).join(' - ')})</span>}
+                  </div>
+                  <div style={{ fontSize: '0.9rem', color: 'var(--success)' }}>
+                    {(() => {
+                      const allocatedQty = acc.mounts?.find(m => m.firearmId === Number(id))?.quantity || 1;
+                      return `$${((acc.value || 0) * allocatedQty).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                    })()}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '2rem', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px dashed var(--border-light)' }}>
+            <p style={{ color: 'var(--text-secondary)', margin: 0 }}>No accessories or optics mounted to this firearm.</p>
           </div>
         )}
       </div>
@@ -187,6 +370,9 @@ export const FirearmDetails = () => {
         <div style={{ marginBottom: '2rem', display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
           <div style={{ color: 'var(--text-primary)', fontSize: '1.1rem', background: 'rgba(59, 130, 246, 0.1)', padding: '1rem 1.5rem', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
              <strong>Total Lifetime Rounds Fired:</strong> <span style={{ color: 'var(--accent)', fontWeight: 700, marginLeft: '0.5rem' }}>{firearm.logs?.reduce((acc, log) => acc + (Number(log.rounds_fired) || 0), 0) || 0}</span>
+          </div>
+          <div style={{ color: 'var(--text-primary)', fontSize: '1.1rem', background: 'rgba(239, 68, 68, 0.1)', padding: '1rem 1.5rem', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+             <strong>Total Money Spent:</strong> <span style={{ color: 'var(--danger)', fontWeight: 700, marginLeft: '0.5rem' }}>${firearm.logs?.reduce((acc, log) => acc + (Number(log.cost) || 0), 0).toFixed(2) || '0.00'}</span>
           </div>
           {(() => {
             const rangeLogs = firearm.logs?.filter(l => l.type === 'Range') || [];
@@ -228,7 +414,17 @@ export const FirearmDetails = () => {
                   {log.ammo_used && <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>Ammo: {log.ammo_used}</div>}
                 </div>
               )}
-              {(log.type === 'Modification' || log.type === 'Other') && log.cost !== undefined && log.cost > 0 && (
+              {log.type === 'Repair' && log.repaired_part && (
+                <div style={{ fontSize: '1rem', marginBottom: '0.8rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+                  Part Repaired: <span style={{ color: 'var(--accent)' }}>{log.repaired_part}</span>
+                </div>
+              )}
+              {log.installed_part_details && (
+                <div style={{ fontSize: '0.95rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+                  Installed: <span style={{ color: 'var(--success)' }}>{log.part_manufacturer ? `${log.part_manufacturer} ` : ''}{log.installed_part_details}</span>
+                </div>
+              )}
+              {(log.type === 'Modification' || log.type === 'Repair' || log.type === 'Other') && log.cost !== undefined && log.cost > 0 && (
                 <div style={{ fontSize: '1rem', marginBottom: '0.8rem', color: 'var(--text-primary)', fontWeight: 500 }}>
                   Cost: <span style={{ color: 'var(--warning)' }}>${log.cost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                 </div>
@@ -236,7 +432,7 @@ export const FirearmDetails = () => {
               <div style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{log.notes}</div>
               {log.image_path && (
                 <div style={{ marginTop: '1rem' }}>
-                  <img src={`file://${log.image_path}`} alt="Log Attachment" style={{ width: '100%', borderRadius: '8px', border: '1px solid var(--border-light)', cursor: 'pointer' }} onClick={() => window.api?.openExternalFile(log.image_path!)} title="Click to open" />
+                  <img src={`file://${log.image_path}`} alt="Log Attachment" style={{ width: '100%', borderRadius: '8px', border: '1px solid var(--border-light)', cursor: 'pointer' }} onClick={() => { setViewerUrl(log.image_path!); setViewerTitle('Attachment'); }} title="Click to open" />
                 </div>
               )}
             </div>
@@ -262,14 +458,33 @@ export const FirearmDetails = () => {
             <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', color: 'var(--text-primary)' }}>
                 <FileText size={24} style={{ color: 'var(--accent)' }} />
-                <span>{doc.name}</span>
+                <div>
+                  <h4 style={{ margin: '0 0 0.5rem 0' }}>{doc.name}</h4>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button className="btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.8rem' }} onClick={() => { setViewerUrl(doc.path); setViewerTitle(doc.name); }}>
+                      View
+                    </button>
+                    <button className="btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.8rem' }} onClick={() => window.api?.openExternalFile(doc.path)}>
+                      Open External
+                    </button>
+                  </div>
+                </div>
               </div>
               <button 
                 className="btn-icon" 
-                onClick={() => window.api?.openExternalFile(doc.path)} 
-                style={{ color: 'var(--accent)', fontSize: '0.9rem', width: 'auto', padding: '0.5rem 1rem' }}
+                onClick={async () => {
+                  if (confirm('Are you sure you want to remove this document?')) {
+                    const updatedDocs = [...(firearm.documents || [])];
+                    updatedDocs.splice(idx, 1);
+                    const updated = { ...firearm, documents: updatedDocs };
+                    await window.api.updateFirearm(firearm.id!, updated);
+                    setFirearm(updated);
+                  }
+                }}
+                style={{ color: 'var(--danger)', fontSize: '0.9rem', width: 'auto', padding: '0.5rem' }}
+                title="Remove Document"
               >
-                Open File
+                <Trash2 size={18} />
               </button>
             </div>
           ))}
@@ -280,6 +495,7 @@ export const FirearmDetails = () => {
           )}
         </div>
       </div>
+    </div>
 
       {isSelling && (
         <div className="modal-overlay">
@@ -287,8 +503,12 @@ export const FirearmDetails = () => {
             <h2>Mark Firearm as Sold</h2>
             <form onSubmit={handleSell}>
               <div className="form-group">
+                <label>Your Name (Seller)</label>
+                <input required type="text" className="form-input" value={sellForm.seller_name} onChange={e => setSellForm({...sellForm, seller_name: e.target.value})} placeholder="e.g. John Doe" />
+              </div>
+              <div className="form-group">
                 <label>Buyer Name</label>
-                <input required type="text" value={sellForm.sold_to_name} onChange={e => setSellForm({...sellForm, sold_to_name: e.target.value})} />
+                <input required type="text" className="form-input" value={sellForm.sold_to_name} onChange={e => setSellForm({...sellForm, sold_to_name: e.target.value})} placeholder="e.g. Jane Smith" />
               </div>
               <div className="form-group">
                 <label>Sale Date</label>
@@ -345,7 +565,7 @@ export const FirearmDetails = () => {
               setFirearm(updated);
               setIsLogging(false);
               setEditingLogId(null);
-              setLogForm({ date: new Date().toISOString().split('T')[0], type: 'Range', notes: '', rounds_fired: 0, ammo_used: '', malfunctions: 0, cost: 0, image_path: '' });
+              setLogForm({ date: new Date().toISOString().split('T')[0], type: 'Range', notes: '', rounds_fired: '' as any, ammo_used: '', malfunctions: '' as any, repaired_part: '', part_manufacturer: '', installed_part_details: '', cost: '' as any, image_path: '' });
             }}>
               <div className="form-group">
                 <label>Date</label>
@@ -357,6 +577,7 @@ export const FirearmDetails = () => {
                   <option value="Range">Range</option>
                   <option value="Cleaning">Cleaning</option>
                   <option value="Modification">Modification</option>
+                  <option value="Repair">Repair</option>
                   <option value="Other">Other</option>
                 </select>
               </div>
@@ -368,23 +589,85 @@ export const FirearmDetails = () => {
                   </div>
                   <div className="form-group">
                     <label>Malfunctions (FTF/FTE)</label>
-                    <input type="number" min="0" value={logForm.malfunctions === undefined ? '' : logForm.malfunctions} onChange={e => setLogForm({...logForm, malfunctions: e.target.value === '' ? 0 : parseInt(e.target.value)})} />
+                    <input type="number" min="0" value={logForm.malfunctions === undefined ? '' : logForm.malfunctions} onChange={e => setLogForm({...logForm, malfunctions: e.target.value === '' ? ('' as any) : parseInt(e.target.value)})} />
                   </div>
                   <div className="form-group">
-                    <label>Ammo Used (Select from safe or type new)</label>
-                    <input type="text" list="inventory-ammo-list" value={logForm.ammo_used || ''} onChange={e => setLogForm({...logForm, ammo_used: e.target.value})} placeholder="e.g. Winchester 9mm FMJ" />
+                    <label>Ammo Used</label>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexDirection: 'column' }}>
+                      <select 
+                        className="form-input" 
+                        onChange={e => {
+                          if (e.target.value) setLogForm({...logForm, ammo_used: e.target.value});
+                        }}
+                        value=""
+                      >
+                        <option value="">-- Click to select from inventory --</option>
+                        {inventoryAmmo
+                          .filter(ammo => {
+                            if (!firearm?.caliber || !ammo.caliber) return true;
+                            const gunCal = firearm.caliber.toLowerCase().replace(/[^a-z0-9]/g, '');
+                            const ammoCal = ammo.caliber.toLowerCase().replace(/[^a-z0-9]/g, '');
+                            return gunCal.includes(ammoCal) || ammoCal.includes(gunCal);
+                          })
+                          .map((ammo, idx) => (
+                            <option key={idx} value={getAmmoString(ammo)}>{getAmmoString(ammo)}</option>
+                          ))
+                        }
+                      </select>
+                      <input type="text" className="form-input" value={logForm.ammo_used || ''} onChange={e => setLogForm({...logForm, ammo_used: e.target.value})} placeholder="Or type manually (e.g. Winchester 9mm FMJ)" />
+                    </div>
                   </div>
                 </>
               )}
-              {(logForm.type === 'Modification' || logForm.type === 'Other') && (
+              {(logForm.type === 'Repair' || logForm.type === 'Modification') && (
+                <>
+                  {logForm.type === 'Repair' && (
+                    <div className="form-group">
+                      <label>Part Changed / Repaired</label>
+                      <div style={{ display: 'flex', gap: '0.5rem', flexDirection: 'column' }}>
+                        <select 
+                          className="form-input" 
+                          onChange={e => {
+                            if (e.target.value) setLogForm({...logForm, repaired_part: e.target.value});
+                          }}
+                          value=""
+                        >
+                          <option value="">-- Select common part --</option>
+                          <option value="Springs">Springs</option>
+                          <option value="Firing Pin / Striker">Firing Pin / Striker</option>
+                          <option value="Extractor">Extractor</option>
+                          <option value="Ejector">Ejector</option>
+                          <option value="Barrel">Barrel</option>
+                          <option value="Trigger Group">Trigger Group</option>
+                          <option value="Sights">Sights</option>
+                          <option value="Gas System">Gas System</option>
+                          <option value="Other">Other</option>
+                        </select>
+                        <input type="text" className="form-input" value={logForm.repaired_part || ''} onChange={e => setLogForm({...logForm, repaired_part: e.target.value})} placeholder="Or type manually" />
+                      </div>
+                    </div>
+                  )}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="form-group">
+                      <label>Part Manufacturer</label>
+                      <input type="text" className="form-input" value={logForm.part_manufacturer || ''} onChange={e => setLogForm({...logForm, part_manufacturer: e.target.value})} placeholder="e.g. Apex Tactical" />
+                    </div>
+                    <div className="form-group">
+                      <label>Installed Part Details</label>
+                      <input type="text" className="form-input" value={logForm.installed_part_details || ''} onChange={e => setLogForm({...logForm, installed_part_details: e.target.value})} placeholder="e.g. Heavy Duty Extractor" />
+                    </div>
+                  </div>
+                </>
+              )}
+              {(logForm.type === 'Modification' || logForm.type === 'Repair' || logForm.type === 'Other') && (
                 <div className="form-group">
                   <label>Cost ($)</label>
-                  <input type="number" step="0.01" min="0" value={logForm.cost === undefined ? '' : logForm.cost} onChange={e => setLogForm({...logForm, cost: e.target.value === '' ? 0 : parseFloat(e.target.value)})} />
+                  <input type="number" step="0.01" min="0" value={logForm.cost === undefined ? '' : logForm.cost} onChange={e => setLogForm({...logForm, cost: e.target.value === '' ? ('' as any) : parseFloat(e.target.value)})} />
                 </div>
               )}
               <div className="form-group">
                 <label>Notes</label>
-                <textarea required rows={3} value={logForm.notes} onChange={e => setLogForm({...logForm, notes: e.target.value})}></textarea>
+                <textarea rows={3} value={logForm.notes} onChange={e => setLogForm({...logForm, notes: e.target.value})}></textarea>
               </div>
               <div className="form-group">
                 <label>Photo Attachment</label>
@@ -394,27 +677,40 @@ export const FirearmDetails = () => {
                 </div>
               </div>
               <div className="modal-actions">
-                <button type="button" className="btn-secondary" onClick={() => { setIsLogging(false); setEditingLogId(null); setLogForm({ date: new Date().toISOString().split('T')[0], type: 'Range', notes: '', rounds_fired: 0, ammo_used: '', malfunctions: 0, cost: 0, image_path: '' }); }}>Cancel</button>
+                <button type="button" className="btn-secondary" onClick={() => { setIsLogging(false); setEditingLogId(null); setLogForm({ date: new Date().toISOString().split('T')[0], type: 'Range', notes: '', rounds_fired: '' as any, ammo_used: '', malfunctions: '' as any, repaired_part: '', part_manufacturer: '', installed_part_details: '', cost: '' as any, image_path: '' }); }}>Cancel</button>
                 <button type="submit" className="btn-primary">{editingLogId ? 'Save Changes' : 'Save Log'}</button>
               </div>
             </form>
           </div>
         </div>
       )}
-      {isLogging && (
-        <datalist id="inventory-ammo-list">
-          {inventoryAmmo
-            .filter(ammo => {
-              if (!firearm?.caliber || !ammo.caliber) return true;
-              const gunCal = firearm.caliber.toLowerCase().replace(/[^a-z0-9]/g, '');
-              const ammoCal = ammo.caliber.toLowerCase().replace(/[^a-z0-9]/g, '');
-              return gunCal.includes(ammoCal) || ammoCal.includes(gunCal);
-            })
-            .map((ammo, idx) => (
-              <option key={idx} value={getAmmoString(ammo)} />
-          ))}
-        </datalist>
+      
+      {firearm && (
+        <AccessoryModal 
+          isOpen={isAccessoryModalOpen}
+          onClose={() => setIsAccessoryModalOpen(false)}
+          onSave={() => loadFirearm()}
+          editingId={null}
+          initialData={{ mountedOnFirearmId: Number(id) }}
+          firearms={[firearm]}
+        />
       )}
-    </div>
+
+      {lightboxImages.length > 0 && (
+        <Lightbox 
+          images={lightboxImages} 
+          initialIndex={lightboxIndex} 
+          onClose={() => setLightboxImages([])} 
+        />
+      )}
+
+      {viewerUrl && (
+        <DocumentViewer 
+          url={viewerUrl} 
+          title={viewerTitle} 
+          onClose={() => setViewerUrl(null)} 
+        />
+      )}
+    </>
   );
 };

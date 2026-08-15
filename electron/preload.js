@@ -17,6 +17,11 @@ contextBridge.exposeInMainWorld('api', {
   updateAmmo: (id, ammo) => ipcRenderer.invoke('update-ammo', id, ammo),
   deleteAmmo: (id) => ipcRenderer.invoke('delete-ammo', id),
   
+  getAccessories: () => ipcRenderer.invoke('get-accessories'),
+  addAccessory: (acc) => ipcRenderer.invoke('add-accessory', acc),
+  updateAccessory: (id, acc) => ipcRenderer.invoke('update-accessory', id, acc),
+  deleteAccessory: (id) => ipcRenderer.invoke('delete-accessory', id),
+
   getSkus: () => ipcRenderer.invoke('get-skus'),
   saveSkus: (skus) => ipcRenderer.invoke('save-skus', skus),
   deleteSku: (skuId) => ipcRenderer.invoke('delete-sku', skuId),
@@ -26,11 +31,17 @@ contextBridge.exposeInMainWorld('api', {
   
   getBackupFolder: () => ipcRenderer.invoke('get-backup-folder'),
   selectBackupFolder: () => ipcRenderer.invoke('select-backup-folder'),
+  getConfig: (key) => ipcRenderer.invoke('get-config', key),
+  setConfig: (key, value) => ipcRenderer.invoke('set-config', key, value),
   
   selectAndSaveDocument: () => ipcRenderer.invoke('select-and-save-document'),
   selectAndSavePhoto: () => ipcRenderer.invoke('select-and-save-photo'),
   openExternalFile: (filePath) => ipcRenderer.invoke('open-external-file', filePath),
   openUrl: (url) => ipcRenderer.invoke('open-url', url),
+  generateBillOfSale: (data) => ipcRenderer.invoke('generate-bill-of-sale', data),
+  generateInsuranceReport: (data) => ipcRenderer.invoke('generate-insurance-report', data),
+  printQRLabel: (data) => ipcRenderer.invoke('print-qr-label', data),
+  readFileBase64: (filePath) => ipcRenderer.invoke('read-file-base64', filePath),
   lookupUPC: (upc) => ipcRenderer.invoke('lookup-upc', upc),
   
   exportData: (dataString, filename) => ipcRenderer.invoke('export-data', dataString, filename),

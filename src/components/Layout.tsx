@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Shield, PlusCircle, LayoutDashboard, BookOpen, DownloadCloud, RefreshCw, Target, Settings, FolderOpen, Edit, Trash2, Database } from 'lucide-react';
+import { Shield, PlusCircle, LayoutDashboard, BookOpen, DownloadCloud, RefreshCw, Target, Settings, FolderOpen, Edit, Trash2, Database, Crosshair, Wrench, Package } from 'lucide-react';
 import { CustomSkuDatabase, Ammo } from '../types';
 import packageJson from '../../package.json';
 
@@ -14,6 +14,7 @@ export const Layout = () => {
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [backupPath, setBackupPath] = useState<string | null>(null);
+  const [showTotalSetupValue, setShowTotalSetupValue] = useState(false);
 
   // SKU Manager State
   const [skuDatabase, setSkuDatabase] = useState<CustomSkuDatabase>({});
@@ -46,6 +47,10 @@ export const Layout = () => {
     if (window.api && window.api.getBackupFolder) {
       const path = await window.api.getBackupFolder();
       setBackupPath(path);
+    }
+    if (window.api && window.api.getConfig) {
+      const showSetupValue = await window.api.getConfig('showTotalSetupValue');
+      setShowTotalSetupValue(!!showSetupValue);
     }
     if (window.api && window.api.getSkus) {
       const skus = await window.api.getSkus();
@@ -129,6 +134,14 @@ export const Layout = () => {
           <button className={`nav-item ${isActive('/ammo')}`} onClick={() => navigate('/ammo')}>
             <Target size={20} />
             Ammo & Handloads
+          </button>
+          <button className={`nav-item ${isActive('/accessories')}`} onClick={() => navigate('/accessories')}>
+            <Package size={20} />
+            <span>Accessories</span>
+          </button>
+          <button className={`nav-item ${isActive('/maintenance')}`} onClick={() => navigate('/maintenance')}>
+            <Wrench size={20} />
+            <span>Maintenance</span>
           </button>
         </nav>
         
@@ -217,13 +230,60 @@ export const Layout = () => {
             </div>
 
             <div style={{ marginBottom: '2rem' }}>
+              <h3 style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>Insurance & Export</h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1rem' }}>
+                Generate a comprehensive PDF report of your entire collection, including all firearms, accessories, values, and NFA statuses for insurance purposes.
+              </p>
+              <button className="btn-secondary" onClick={async () => {
+                if (window.api && window.api.generateInsuranceReport) {
+                  try {
+                    const firearms = await window.api.getFirearms();
+                    const accessories = await window.api.getAccessories();
+                    const totalValue = firearms.reduce((sum, f) => sum + (Number(f.purchase_price) || 0), 0) + accessories.reduce((sum, a) => sum + ((Number(a.value) || 0) * (Number(a.quantity) || 1)), 0);
+                    
+                    const reportPath = await window.api.generateInsuranceReport({
+                      firearms,
+                      accessories,
+                      totalValue
+                    });
+                    
+                    if (reportPath) {
+                      alert(`Report generated successfully at:\n${reportPath}`);
+                    }
+                  } catch (e) {
+                    console.error("Failed to generate report", e);
+                    alert("An error occurred while generating the report.");
+                  }
+                }
+              }} style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: '0.5rem', alignItems: 'center' }}>
+                <BookOpen size={18} /> Generate Insurance Report PDF
+              </button>
+            </div>
+
+            <div style={{ marginBottom: '2rem' }}>
               <h3 style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>Data Management</h3>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1rem' }}>
                 Manage custom inventory mappings and dictionaries.
               </p>
-              <button className="btn-secondary" onClick={() => setIsSkuManagerOpen(true)} style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+              <button className="btn-secondary" onClick={() => setIsSkuManagerOpen(true)} style={{ width: '100%', display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
                 <Database size={18} /> Open Custom SKU Manager
               </button>
+
+              <h3 style={{ fontSize: '1.1rem', marginBottom: '0.5rem', marginTop: '1.5rem' }}>View Preferences</h3>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                <input 
+                  type="checkbox" 
+                  checked={showTotalSetupValue} 
+                  onChange={async (e) => {
+                    setShowTotalSetupValue(e.target.checked);
+                    if (window.api && window.api.setConfig) {
+                      await window.api.setConfig('showTotalSetupValue', e.target.checked);
+                    }
+                  }} 
+                  style={{ width: '1.2rem', height: '1.2rem', accentColor: 'var(--accent)' }} 
+                />
+                Show "Total Setup Value" (Firearm + Accessories) on Firearm Details
+              </label>
             </div>
 
             <div style={{ marginBottom: '2rem' }}>

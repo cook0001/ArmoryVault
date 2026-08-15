@@ -126,10 +126,23 @@ class Database {
       decrypted += decipher.final('utf8');
       
       const parsed = JSON.parse(decrypted);
+      let data = { firearms: [], ammo: [], skus: {}, accessories: [] };
       if (Array.isArray(parsed)) {
-        return { firearms: parsed, ammo: [], skus: {} }; // Migrate from array
+        data.firearms = parsed;
+      } else {
+        data = { firearms: parsed.firearms || [], ammo: parsed.ammo || [], skus: parsed.skus || {}, accessories: parsed.accessories || [] };
       }
-      return { firearms: parsed.firearms || [], ammo: parsed.ammo || [], skus: parsed.skus || {} };
+      
+      // Migrate legacy mountedOnFirearmId to mounts array
+      data.accessories = data.accessories.map(acc => {
+        if (acc.mountedOnFirearmId && !acc.mounts) {
+          acc.mounts = [{ firearmId: acc.mountedOnFirearmId, quantity: acc.quantity || 1 }];
+          delete acc.mountedOnFirearmId;
+        }
+        return acc;
+      });
+      
+      return data;
     } catch (e) {
       console.error(e);
       return { firearms: [], ammo: [] };
@@ -263,6 +276,41 @@ class Database {
     let ammoList = this.getAmmo();
     ammoList = ammoList.filter(a => a.id !== id);
     this.saveAmmoList(ammoList);
+    return id;
+  }
+
+  getAccessories() {
+    return this.getData().accessories || [];
+  }
+
+  saveAccessoriesList(accessoriesList) {
+    const data = this.getData();
+    data.accessories = accessoriesList;
+    this.saveData(data);
+  }
+
+  addAccessory(accessory) {
+    const list = this.getAccessories();
+    const newId = list.length > 0 ? Math.max(...list.map(a => a.id || 0)) + 1 : 1;
+    list.push({ ...accessory, id: newId });
+    this.saveAccessoriesList(list);
+    return newId;
+  }
+
+  updateAccessory(id, accessory) {
+    const list = this.getAccessories();
+    const index = list.findIndex(a => a.id === id);
+    if (index !== -1) {
+      list[index] = { ...accessory, id };
+      this.saveAccessoriesList(list);
+    }
+    return id;
+  }
+
+  deleteAccessory(id) {
+    let list = this.getAccessories();
+    list = list.filter(a => a.id !== id);
+    this.saveAccessoriesList(list);
     return id;
   }
 

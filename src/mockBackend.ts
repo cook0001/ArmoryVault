@@ -8,6 +8,7 @@ export function setupMockBackend() {
 
     const STORAGE_KEY = 'firearms_inventory_data';
     const AMMO_STORAGE_KEY = 'ammo_inventory_data';
+    const ACCESSORY_STORAGE_KEY = 'accessory_inventory_data';
 
     const getStoredFirearms = (): Firearm[] => {
       const data = localStorage.getItem(STORAGE_KEY);
@@ -25,6 +26,15 @@ export function setupMockBackend() {
 
     const saveAmmo = (ammoList: Ammo[]) => {
       localStorage.setItem(AMMO_STORAGE_KEY, JSON.stringify(ammoList));
+    };
+    
+    const getStoredAccessories = (): any[] => {
+      const data = localStorage.getItem(ACCESSORY_STORAGE_KEY);
+      return data ? JSON.parse(data) : [];
+    };
+
+    const saveAccessories = (list: any[]) => {
+      localStorage.setItem(ACCESSORY_STORAGE_KEY, JSON.stringify(list));
     };
 
     let mockLocked = false;
@@ -104,6 +114,36 @@ export function setupMockBackend() {
         saveAmmo(ammoList);
         return id;
       },
+      getAccessories: async () => {
+        if (mockLocked) return [];
+        return getStoredAccessories();
+      },
+      addAccessory: async (acc: any) => {
+        if (mockLocked) return -1;
+        const list = getStoredAccessories();
+        const newId = list.length > 0 ? Math.max(...list.map(a => a.id || 0)) + 1 : 1;
+        const newAcc = { ...acc, id: newId };
+        list.push(newAcc);
+        saveAccessories(list);
+        return newId;
+      },
+      updateAccessory: async (id: number, acc: any) => {
+        if (mockLocked) return -1;
+        const list = getStoredAccessories();
+        const index = list.findIndex(a => a.id === id);
+        if (index !== -1) {
+          list[index] = { ...acc, id };
+          saveAccessories(list);
+        }
+        return id;
+      },
+      deleteAccessory: async (id: number) => {
+        if (mockLocked) return -1;
+        let list = getStoredAccessories();
+        list = list.filter(a => a.id !== id);
+        saveAccessories(list);
+        return id;
+      },
       getSkus: async () => {
         const data = localStorage.getItem('mock_skus');
         return data ? JSON.parse(data) : {};
@@ -129,9 +169,24 @@ export function setupMockBackend() {
       },
       getBackupFolder: async () => null,
       selectBackupFolder: async () => "/mock/backup/path",
+      getConfig: async (key: string) => {
+        const config = JSON.parse(localStorage.getItem('mock_config') || '{}');
+        return config[key];
+      },
+      setConfig: async (key: string, value: any) => {
+        const config = JSON.parse(localStorage.getItem('mock_config') || '{}');
+        config[key] = value;
+        localStorage.setItem('mock_config', JSON.stringify(config));
+      },
       selectAndSaveDocument: async () => ({ name: "MockDoc.pdf", path: "/mock/path/MockDoc.pdf" }),
       selectAndSavePhoto: async () => "/mock/path/photo.jpg",
-      openExternalFile: async (filePath: string) => filePath,
+      openExternalFile: async (filePath: string) => {
+        console.log('Mock open external file:', filePath);
+      },
+      printQRLabel: async (data: any) => { console.log('Mock print QR', data); return true; },
+      readFileBase64: async (filePath: string) => { console.log('Mock read base64', filePath); return null; },
+      generateBillOfSale: async (data: any) => { console.log('Mock generate BoS', data); return null; },
+      generateInsuranceReport: async (data: any) => { console.log('Mock generate Insurance', data); return null; },
       lookupUPC: async (upc: string) => ({ items: [] }),
       exportData: async (dataString: string, filename: string) => {
         const blob = new Blob([dataString], { type: 'text/csv;charset=utf-8;' });

@@ -7,6 +7,8 @@ import { FirearmDetails } from './pages/FirearmDetails';
 import { BoundBook } from './pages/BoundBook';
 import { VaultLogin } from './pages/VaultLogin';
 import { AmmoDashboard } from './pages/AmmoDashboard';
+import { Accessories } from './pages/Accessories';
+import { MaintenanceDashboard } from './pages/MaintenanceDashboard';
 
 function App() {
   const [isLocked, setIsLocked] = useState(true);
@@ -48,6 +50,8 @@ function App() {
           <Route path="details/:id" element={<FirearmDetails />} />
           <Route path="bound-book" element={<BoundBook />} />
           <Route path="ammo" element={<AmmoDashboard />} />
+          <Route path="accessories" element={<Accessories />} />
+          <Route path="maintenance" element={<MaintenanceDashboard />} />
         </Route>
       </Routes>
     </HashRouter>

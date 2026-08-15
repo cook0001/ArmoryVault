@@ -144,10 +144,15 @@ export const Dashboard = () => {
                 <td style={{ color: 'var(--accent)' }}>{f.caliber}</td>
                 <td style={{ fontFamily: 'monospace', color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>{f.serial_number}</td>
                 <td>
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                     <span className={`status-badge ${f.is_sold ? 'sold' : 'available'}`}>
                       {f.is_sold ? 'Sold' : 'Available'}
                     </span>
+                    {f.is_nfa && (
+                      <span className="status-badge" style={{ background: 'rgba(234, 179, 8, 0.2)', color: '#eab308', border: '1px solid rgba(234, 179, 8, 0.5)' }}>
+                        NFA
+                      </span>
+                    )}
                     {!f.is_sold && getDirtyRounds(f) >= 500 && (
                       <span className="status-badge" style={{ background: 'rgba(245, 158, 11, 0.1)', color: 'var(--warning)', border: '1px solid rgba(245, 158, 11, 0.3)' }} title={`${getDirtyRounds(f)} rounds since last cleaning`}>
                         Needs Cleaning
