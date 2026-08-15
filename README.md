@@ -18,6 +18,29 @@ A secure, premium, cross-platform desktop application designed for serious colle
 - **Storage**: Native local File-System Persistence
 - **CI/CD**: `electron-builder` and `electron-updater`
 
+## 📥 Installation
+
+ArmouryVault is an open-source project and is not distributed with expensive code-signing certificates. Because of this, your operating system will display a security warning the first time you run it. 
+
+### macOS
+When you open ArmouryVault, you will likely see a message saying the app "is damaged and can't be opened" or "cannot be verified."
+1. Drag `ArmouryVault.app` from the `.dmg` into your **Applications** folder.
+2. Open your Terminal and run the following command to strip the quarantine attribute:
+   ```bash
+   xattr -cr /Applications/ArmouryVault.app
+   ```
+3. You can now launch the app normally! (Alternatively, you can go to *System Settings > Privacy & Security* and click "Open Anyway").
+
+### Windows
+Windows Defender SmartScreen may display a blue warning box saying it "protected your PC."
+1. Click **"More info"** on the warning screen.
+2. Click **"Run anyway"**. The installer will now launch.
+
+### Linux (.AppImage)
+1. Download the `.AppImage` file.
+2. Make it executable by running `chmod +x ArmouryVault-1.0.8.AppImage` in your terminal (or right-click the file > Properties > Permissions > "Allow executing file as program").
+3. Double click to run!
+
 ## 🚀 Getting Started (Development)
 
 To run ArmouryVault locally on your machine for development:

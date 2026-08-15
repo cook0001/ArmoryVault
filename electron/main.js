@@ -1,14 +1,18 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, protocol, net } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const db = require('./database');
 const log = require('electron-log');
+const isDev = !app.isPackaged;
 const { autoUpdater } = require('electron-updater');
 
 autoUpdater.logger = log;
 autoUpdater.logger.transports.file.level = 'info';
 
-const isDev = !app.isPackaged;
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true } }
+]);
+
 let mainWindow;
 
 function createWindow() {
@@ -26,11 +30,22 @@ function createWindow() {
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    mainWindow.loadURL('app://index.html');
   }
+
+  mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+    console.log(`[Renderer] ${message} (${sourceId}:${line})`);
+  });
 }
 
 app.whenReady().then(() => {
+  protocol.handle('app', (request) => {
+    let url = request.url.slice('app://'.length);
+    if (!url) url = 'index.html';
+    url = url.split('?')[0].split('#')[0];
+    return net.fetch('file://' + path.join(__dirname, '../dist', url));
+  });
+
   if (process.platform === 'darwin') {
     app.dock.setIcon(path.join(__dirname, '../build/icon.png'));
   }
