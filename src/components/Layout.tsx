@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Shield, PlusCircle, LayoutDashboard, BookOpen, DownloadCloud, RefreshCw, Target, Settings, FolderOpen, Edit, Trash2, Database } from 'lucide-react';
 import { CustomSkuDatabase, Ammo } from '../types';
+import packageJson from '../../package.json';
 
 export const Layout = () => {
   const navigate = useNavigate();
@@ -133,7 +134,7 @@ export const Layout = () => {
             <span>Settings</span>
           </button>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '0.5rem' }}>
-            ArmoryVault v1.0.0
+            ArmoryVault v{packageJson.version}
           </div>
         </div>
       </aside>
