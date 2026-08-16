@@ -65,7 +65,7 @@
     "electron-updater": "^6.8.9",
     "express": "^5.2.1",
     "html5-qrcode": "^2.3.8",
-    "jimp": "^0.22.12",
+    "jimp": "^1.6.1",
     "lucide-react": "^1.31.0",
     "qrcode": "^1.5.4",
     "react": "^19.2.8",
