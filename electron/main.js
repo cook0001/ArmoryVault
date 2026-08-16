@@ -719,8 +719,17 @@ app.whenReady().then(() => {
   startLocalServer();
   createWindow();
 
+  if (process.platform === 'darwin') {
+    autoUpdater.autoDownload = false;
+  }
+
   autoUpdater.on('update-available', (info) => {
-    mainWindow.webContents.send('updater-event', { type: 'update-available', data: info });
+    if (process.platform === 'darwin') {
+      // Trick the frontend into showing the "Download Mac Update" button immediately
+      mainWindow.webContents.send('updater-event', { type: 'update-downloaded', data: info });
+    } else {
+      mainWindow.webContents.send('updater-event', { type: 'update-available', data: info });
+    }
   });
   
   autoUpdater.on('download-progress', (progressObj) => {

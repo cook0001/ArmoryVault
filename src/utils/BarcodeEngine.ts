@@ -35,7 +35,10 @@ export const parseBarcodeData = (item: any, ammoList: Ammo[] = []): ParsedBarcod
   const rawBrand = decodeHTMLEntities(item.brand);
   const decodedDesc = decodeHTMLEntities(item.description);
   const offersText = (item.offers || []).map((o: any) => decodeHTMLEntities(o.title)).join(' ');
-  const combinedText = (decodedTitle + ' ' + rawBrand + ' ' + decodedDesc + ' ' + offersText).toUpperCase();
+  let combinedText = (decodedTitle + ' ' + rawBrand + ' ' + decodedDesc + ' ' + offersText).toUpperCase();
+  
+  // Fix common abbreviations
+  combinedText = combinedText.replace(/\bHODG\b/g, 'HODGDON');
 
   let foundCost: number | undefined;
   
@@ -99,11 +102,16 @@ export const parseBarcodeData = (item: any, ammoList: Ammo[] = []): ParsedBarcod
   let decodedBrand = rawBrand;
   if (rawBrand && rawBrand.toLowerCase().trim() !== 'brand') {
     const lowerRaw = rawBrand.toLowerCase().trim();
-    const existingMatch = ammoList.find(a => (a.manufacturer || '').toLowerCase().trim() === lowerRaw);
-    if (existingMatch && existingMatch.manufacturer) {
-      decodedBrand = existingMatch.manufacturer;
-    } else if (rawBrand === rawBrand.toUpperCase() && rawBrand.length > 4) {
-      decodedBrand = rawBrand.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+    const ignoredDistributors = ['sports south', 'sports south llc', 'davidsons', 'lipseys', 'zanders', 'rsr group', 'chatillon'];
+    if (ignoredDistributors.includes(lowerRaw)) {
+      decodedBrand = '';
+    } else {
+      const existingMatch = ammoList.find(a => (a.manufacturer || '').toLowerCase().trim() === lowerRaw);
+      if (existingMatch && existingMatch.manufacturer) {
+        decodedBrand = existingMatch.manufacturer;
+      } else if (rawBrand === rawBrand.toUpperCase() && rawBrand.length > 4) {
+        decodedBrand = rawBrand.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+      }
     }
   } else {
     decodedBrand = '';
@@ -131,7 +139,7 @@ export const parseBarcodeData = (item: any, ammoList: Ammo[] = []): ParsedBarcod
     };
     checkMakes(uniqueMakes);
     if (!earliestMake) {
-      const commonMakes = ['CCI', 'Winchester', 'Federal', 'Remington', 'Hornady', 'PMC', 'Fiocchi', 'Sellier & Bellot', 'Magtech', 'Blazer', 'Aguila', 'PPU', 'Sig Sauer'];
+      const commonMakes = ['CCI', 'Winchester', 'Federal', 'Remington', 'Hornady', 'PMC', 'Fiocchi', 'Sellier & Bellot', 'Magtech', 'Blazer', 'Aguila', 'PPU', 'Sig Sauer', 'Hodgdon', 'IMR', 'Alliant', 'Vihtavuori', 'Accurate', 'Ramshot', 'Shooters World', 'Norma'];
       checkMakes(commonMakes);
     }
     if (earliestMake) decodedBrand = earliestMake;
@@ -185,6 +193,7 @@ export const parseBarcodeData = (item: any, ammoList: Ammo[] = []): ParsedBarcod
       if (combinedText.match(/\b(?:8\s*LB|8LB)\b/)) weightUnit = 'lbs';
       else if (combinedText.match(/\b(?:1\s*LB|1LB|POUND)\b/)) weightUnit = 'lbs';
       else if (combinedText.match(/\b(?:OZ|OUNCE)\b/)) weightUnit = 'oz';
+      else if (type === 'Powder') weightUnit = 'lbs'; // Default to lbs for powder
       
       if (weightUnit === 'lbs' || weightUnit === 'oz') type = type || 'Powder';
     }
@@ -248,7 +257,9 @@ export const parseBarcodeData = (item: any, ammoList: Ammo[] = []): ParsedBarcod
     let cleanName = decodedTitle
       .replace(/\b\d{6,}\b/g, '') // Remove long UPCs/SKUs
       .replace(/\b(?:\d+-)+\d+\b/g, '') // Remove part numbers with dashes
-      .replace(/\b(?:Reloading|Component|Components)\b/ig, '') // Remove redundant keywords
+      .replace(/\b(?:Reloading|Component|Components|Rfl Powder|Powder)\b/ig, '') // Remove redundant keywords
+      .replace(/\b(?:Sports South|Sports South Llc|Davidsons|Lipseys|Zanders|RSR Group|Llc|Inc)\b/ig, '') // Remove distributors from title
+      .replace(/\bHodg\b/ig, 'Hodgdon')
       .replace(/\s{2,}/g, ' ')
       .trim();
 

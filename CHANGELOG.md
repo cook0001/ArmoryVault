@@ -1,7 +1,8 @@
 # Changelog
 
-## [Unreleased]
+## [2.3.1]
 ### Added
+- **macOS OTA Fallback**: macOS users will now receive "Update Ready" notifications with a direct link to manually download updates, bypassing the unsigned Squirrel.Mac errors.
 - **Universal Sync Inbox**: New central hub to intercept all uncategorized barcode scans from the mobile app.
 - **Smart Component Deduplication**: Resolving uncategorized scans now checks for manually added duplicates and prompts to merge them.
 - **Dynamic Box Sizing**: Desktop sync inbox now supports live UPC lookups and local Custom SKU fallback to calculate exactly how many rounds/items are in a scanned box.
@@ -15,6 +16,8 @@
 - Components quantities now default to correct bulk amounts (e.g. 1000 for Primers) instead of 1.
 
 ### Fixed
+- Fixed reloading powder parsing for Hodgdon / distributor barcodes.
+- Fixed TS compilation errors on release workflow.
 - Fixed CORS fetch errors when hitting upcitemdb.
 - Fixed UI text scaling for "ADD x rds/lbs/brick" based on dynamic mobile payload parameters.
 - Addressed inventory inflation bug where a scanned box of 50 would only add 1 round to the inventory.

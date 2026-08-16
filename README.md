@@ -38,7 +38,7 @@ Windows Defender SmartScreen may display a blue warning box saying it "protected
 
 ### Linux (.AppImage)
 1. Download the `.AppImage` file.
-2. Make it executable by running `chmod +x ArmoryVault-1.0.8.AppImage` in your terminal (or right-click the file > Properties > Permissions > "Allow executing file as program").
+2. Make it executable by running `chmod +x ArmoryVault-2.3.1.AppImage` in your terminal (or right-click the file > Properties > Permissions > "Allow executing file as program").
 3. Double click to run!
 
 ## 🚀 Getting Started (Development)
@@ -69,11 +69,11 @@ ArmoryVault uses `electron-builder` coupled with **GitHub Actions** to automatic
 You do not need to manually compile the application on your local machine. The repository is configured with a GitHub Actions workflow that automatically handles the heavy cross-platform compilation process.
 
 To trigger a new production build and release:
-1. Update the `"version"` field in your `package.json` (e.g., `"version": "1.0.1"`).
+1. Update the `"version"` field in your `package.json` (e.g., `"version": "2.3.1"`).
 2. Commit your changes and create a git tag matching the version prefix with `v`:
    ```bash
-   git tag v1.0.1
-   git push origin v1.0.1
+   git tag v2.3.1
+   git push origin v2.3.1
    ```
 3. GitHub Actions will automatically spin up Windows, macOS, and Linux runners, securely compile the application, and upload the finalized `.exe`, `.dmg`, and `.AppImage` files directly to your GitHub Releases page!
 
