@@ -4,7 +4,6 @@ import { Firearm, MaintenanceLog, Ammo, Accessory } from '../types';
 import { ArrowLeft, Edit, Trash2, DollarSign, ClipboardList, FileText, Upload, Crosshair, PlusCircle, Printer } from 'lucide-react';
 import { AccessoryModal } from '../components/AccessoryModal';
 import { Lightbox } from '../components/Lightbox';
-import { DocumentViewer } from '../components/DocumentViewer';
 
 export const FirearmDetails = () => {
   const { id } = useParams();
@@ -14,8 +13,6 @@ export const FirearmDetails = () => {
   const [isLogging, setIsLogging] = useState(false);
   const [lightboxImages, setLightboxImages] = useState<string[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
-  const [viewerUrl, setViewerUrl] = useState<string | null>(null);
-  const [viewerTitle, setViewerTitle] = useState<string>('');
   const [sellForm, setSellForm] = useState({ seller_name: '', sold_to_name: '', sold_date: '', sold_price: '', sale_notes: '' });
   const [logForm, setLogForm] = useState<Partial<MaintenanceLog>>({ date: new Date().toISOString().split('T')[0], type: 'Range', notes: '', rounds_fired: '' as any, ammo_used: '', malfunctions: '' as any, repaired_part: '', part_manufacturer: '', installed_part_details: '', cost: '' as any, image_path: '' });
   const [editingLogId, setEditingLogId] = useState<number | null>(null);
@@ -135,11 +132,10 @@ export const FirearmDetails = () => {
   };
   
   const handleLogImage = async () => {
-    if (window.api && window.api.selectAndSavePhoto) {
-      const path = await window.api.selectAndSavePhoto();
-      if (path) {
-        setLogForm(prev => ({ ...prev, image_path: path }));
-      }
+    if (!window.api) return;
+    const paths = await window.api.selectAndSavePhoto();
+    if (paths && paths.length > 0) {
+      setLogForm(prev => ({ ...prev, image_path: paths[0] }));
     }
   };
 
@@ -187,7 +183,23 @@ export const FirearmDetails = () => {
               alert('Failed to print QR label.');
             }
           }} style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', background: 'transparent', border: 'none', color: '#60a5fa' }}>
-            <Printer size={14} /> QR Label
+            <Printer size={14} /> Print QR
+          </button>
+          <button className="btn-secondary" onClick={async () => {
+            if (!window.api || !firearm) return;
+            try {
+              const QRCode = (await import('qrcode')).default;
+              const qrDataUrl = await QRCode.toDataURL(`armoryvault://firearm/${firearm.id}`, { width: 300, margin: 1 });
+              await window.api.saveQRImage({
+                itemName: `${firearm.make} ${firearm.model}`,
+                qrDataUrl
+              });
+            } catch (err) {
+              console.error('Failed to save QR label', err);
+              alert('Failed to save QR label.');
+            }
+          }} style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', background: 'transparent', border: 'none', color: '#60a5fa' }}>
+            <Upload size={14} /> Save QR
           </button>
           <div style={{ width: '1px', background: 'var(--border-light)', margin: '0 0.2rem' }}></div>
           <button className="btn-danger" onClick={handleDelete} style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', background: 'transparent', border: 'none', color: '#f87171' }}>
@@ -201,7 +213,7 @@ export const FirearmDetails = () => {
           {(firearm.photos && firearm.photos.length > 0) ? (
             <div style={{ position: 'relative' }}>
               <img 
-                src={`file://${firearm.photos[0]}`} 
+                src={`local-file://${firearm.photos[0]}`} 
                 alt="Firearm" 
                 className="details-image" 
                 style={{ cursor: 'pointer' }}
@@ -215,7 +227,7 @@ export const FirearmDetails = () => {
             </div>
           ) : firearm.image_path ? (
             <img 
-              src={`file://${firearm.image_path}`} 
+              src={`local-file://${firearm.image_path}`} 
               alt="Firearm" 
               className="details-image" 
               style={{ cursor: 'pointer' }}
@@ -325,7 +337,7 @@ export const FirearmDetails = () => {
               <div key={acc.id} style={{ display: 'flex', gap: '1rem', background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
                 <div style={{ width: '50px', height: '50px', borderRadius: '6px', background: 'rgba(0,0,0,0.4)', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyItems: 'center' }}>
                   {acc.photo ? (
-                    <img src={acc.photo} alt={acc.model} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img src={acc.photo.startsWith('local-file://') ? acc.photo : `local-file://${acc.photo}`} alt={acc.model} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
                     <Crosshair size={20} color="var(--text-secondary)" style={{ margin: 'auto' }} />
                   )}
@@ -432,7 +444,7 @@ export const FirearmDetails = () => {
               <div style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{log.notes}</div>
               {log.image_path && (
                 <div style={{ marginTop: '1rem' }}>
-                  <img src={`file://${log.image_path}`} alt="Log Attachment" style={{ width: '100%', borderRadius: '8px', border: '1px solid var(--border-light)', cursor: 'pointer' }} onClick={() => { setViewerUrl(log.image_path!); setViewerTitle('Attachment'); }} title="Click to open" />
+                  <img src={`local-file://${log.image_path}`} alt="Log Attachment" style={{ width: '100%', borderRadius: '8px', border: '1px solid var(--border-light)', cursor: 'pointer' }} onClick={() => { setLightboxImages([log.image_path!]); setLightboxIndex(0); }} title="Click to view" />
                 </div>
               )}
             </div>
@@ -461,11 +473,8 @@ export const FirearmDetails = () => {
                 <div>
                   <h4 style={{ margin: '0 0 0.5rem 0' }}>{doc.name}</h4>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button className="btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.8rem' }} onClick={() => { setViewerUrl(doc.path); setViewerTitle(doc.name); }}>
-                      View
-                    </button>
                     <button className="btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.8rem' }} onClick={() => window.api?.openExternalFile(doc.path)}>
-                      Open External
+                      Open Externally
                     </button>
                   </div>
                 </div>
@@ -495,9 +504,7 @@ export const FirearmDetails = () => {
           )}
         </div>
       </div>
-    </div>
-
-      {isSelling && (
+    </div>      {isSelling && (
         <div className="modal-overlay">
           <div className="modal">
             <h2>Mark Firearm as Sold</h2>
@@ -701,14 +708,6 @@ export const FirearmDetails = () => {
           images={lightboxImages} 
           initialIndex={lightboxIndex} 
           onClose={() => setLightboxImages([])} 
-        />
-      )}
-
-      {viewerUrl && (
-        <DocumentViewer 
-          url={viewerUrl} 
-          title={viewerTitle} 
-          onClose={() => setViewerUrl(null)} 
         />
       )}
     </>

@@ -58,6 +58,7 @@ export interface Ammo {
   category?: 'Pistol' | 'Rifle' | 'Shotgun' | 'Other' | string;
   type: 'factory' | 'handload';
   count: number;
+  low_stock_threshold?: number;
   costPerRound?: number;
   manufacturer?: string;
   bullet_manufacturer?: string;
@@ -154,27 +155,46 @@ declare global {
       deleteSku: (skuId: string) => Promise<string>;
       
       savePhoto: (sourcePath: string, filename: string) => Promise<string | null>;
+      saveBase64Photo: (base64Data: string, filename: string) => Promise<string | null>;
       saveDocument: (sourcePath: string, filename: string) => Promise<string | null>;
       
       getBackupFolder: () => Promise<string | null>;
+      createZipBackup: () => Promise<boolean>;
       selectBackupFolder: () => Promise<string | null>;
       getConfig: (key: string) => Promise<any>;
       setConfig: (key: string, value: any) => Promise<void>;
       
       selectAndSaveDocument: () => Promise<{name: string, path: string} | null>;
-      selectAndSavePhoto: () => Promise<string | null>;
+      selectAndSavePhoto: () => Promise<string[] | null>;
       openExternalFile: (filePath: string) => Promise<void>;
       printQRLabel: (data: { itemName: string; itemDetails: string; qrDataUrl: string }) => Promise<boolean>;
+      saveQRImage: (data: { itemName: string; qrDataUrl: string }) => Promise<boolean>;
       readFileBase64: (filePath: string) => Promise<string | null>;
+      readFileBuffer: (filePath: string) => Promise<Uint8Array | null>;
       openUrl: (url: string) => Promise<void>;
       generateBillOfSale: (data: any) => Promise<string | null>;
       generateInsuranceReport: (data: any) => Promise<string | null>;
       lookupUPC: (upc: string) => Promise<any>;
       
-      exportData: (dataString: string, filename: string) => Promise<boolean>;
-      onUpdateMessage: (callback: (message: any) => void) => void;
+      exportData: (dataString: string, filename: string) => Promise<string | null>;
+      onUpdateMessage: (callback: (msg: any) => void) => () => void;
       restartApp: () => void;
       getPlatform: () => string;
+      getLocalIp: () => Promise<string>;
+      onSyncReceived: (callback: () => void) => () => void;
+      getSyncQueue: () => Promise<SyncItem[]>;
+      removeSyncItem: (id: number) => Promise<number>;
+      clearSyncQueue: () => Promise<boolean>;
     };
   }
+}
+
+export interface SyncItem {
+  id?: number;
+  type: string; // e.g. 'ammo_adjustment'
+  upcOrId?: string;
+  action?: 'add' | 'remove';
+  count?: number;
+  timestamp: string;
+  [key: string]: any;
 }

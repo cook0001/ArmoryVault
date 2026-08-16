@@ -179,12 +179,14 @@ export function setupMockBackend() {
         localStorage.setItem('mock_config', JSON.stringify(config));
       },
       selectAndSaveDocument: async () => ({ name: "MockDoc.pdf", path: "/mock/path/MockDoc.pdf" }),
-      selectAndSavePhoto: async () => "/mock/path/photo.jpg",
+      selectAndSavePhoto: async () => { console.log('Mock select photo'); return null; },
       openExternalFile: async (filePath: string) => {
         console.log('Mock open external file:', filePath);
       },
       printQRLabel: async (data: any) => { console.log('Mock print QR', data); return true; },
+      saveQRImage: async (data: any) => { console.log('Mock save QR', data); return true; },
       readFileBase64: async (filePath: string) => { console.log('Mock read base64', filePath); return null; },
+      readFileBuffer: async (filePath: string) => { console.log('Mock read buffer', filePath); return null; },
       generateBillOfSale: async (data: any) => { console.log('Mock generate BoS', data); return null; },
       generateInsuranceReport: async (data: any) => { console.log('Mock generate Insurance', data); return null; },
       lookupUPC: async (upc: string) => ({ items: [] }),

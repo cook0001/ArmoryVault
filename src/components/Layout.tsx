@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Shield, PlusCircle, LayoutDashboard, BookOpen, DownloadCloud, RefreshCw, Target, Settings, FolderOpen, Edit, Trash2, Database, Crosshair, Wrench, Package } from 'lucide-react';
+import { Shield, PlusCircle, LayoutDashboard, BookOpen, DownloadCloud, RefreshCw, Target, Settings, FolderOpen, Edit, Trash2, Database, Crosshair, Wrench, Package, Smartphone } from 'lucide-react';
 import { CustomSkuDatabase, Ammo } from '../types';
 import packageJson from '../../package.json';
 
@@ -15,6 +15,8 @@ export const Layout = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [backupPath, setBackupPath] = useState<string | null>(null);
   const [showTotalSetupValue, setShowTotalSetupValue] = useState(false);
+  
+  const [syncQueueCount, setSyncQueueCount] = useState(0);
 
   // SKU Manager State
   const [skuDatabase, setSkuDatabase] = useState<CustomSkuDatabase>({});
@@ -24,8 +26,11 @@ export const Layout = () => {
   const [isSkuManagerOpen, setIsSkuManagerOpen] = useState(false);
 
   useEffect(() => {
+    let unsubSync: (() => void) | undefined;
+    let unsubUpdate: (() => void) | undefined;
+
     if (window.api && window.api.onUpdateMessage) {
-      window.api.onUpdateMessage((msg: any) => {
+      unsubUpdate = window.api.onUpdateMessage((msg: any) => {
         if (msg.type === 'update-available') {
           setUpdateStatus('downloading');
           setDownloadProgress(0);
@@ -40,7 +45,17 @@ export const Layout = () => {
     if (window.api && window.api.getPlatform) {
       setPlatform(window.api.getPlatform());
     }
+    if (window.api && window.api.onSyncReceived) {
+      unsubSync = window.api.onSyncReceived(() => {
+        loadSettings();
+      });
+    }
     loadSettings();
+
+    return () => {
+      if (unsubSync) unsubSync();
+      if (unsubUpdate) unsubUpdate();
+    };
   }, []);
 
   const loadSettings = async () => {
@@ -55,6 +70,10 @@ export const Layout = () => {
     if (window.api && window.api.getSkus) {
       const skus = await window.api.getSkus();
       setSkuDatabase(skus);
+    }
+    if (window.api && window.api.getSyncQueue) {
+      const queue = await window.api.getSyncQueue();
+      setSyncQueueCount(queue.length);
     }
   };
 
@@ -94,6 +113,20 @@ export const Layout = () => {
       const path = await window.api.selectBackupFolder();
       if (path) {
         setBackupPath(path);
+      }
+    }
+  };
+
+  const handleCreateZipBackup = async () => {
+    if (window.api && window.api.createZipBackup) {
+      try {
+        const success = await window.api.createZipBackup();
+        if (success) {
+          alert('Full archive backup successfully created!');
+        }
+      } catch (e) {
+        console.error(e);
+        alert('Failed to create archive backup.');
       }
     }
   };
@@ -142,6 +175,15 @@ export const Layout = () => {
           <button className={`nav-item ${isActive('/maintenance')}`} onClick={() => navigate('/maintenance')}>
             <Wrench size={20} />
             <span>Maintenance</span>
+          </button>
+          <button className={`nav-item ${isActive('/sync')}`} onClick={() => navigate('/sync')}>
+            <Smartphone size={20} />
+            <span>Mobile Sync</span>
+            {syncQueueCount > 0 && (
+              <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.75rem', fontWeight: 'bold', padding: '0.1rem 0.5rem', borderRadius: '12px', marginLeft: 'auto' }}>
+                {syncQueueCount}
+              </span>
+            )}
           </button>
         </nav>
         
@@ -227,6 +269,17 @@ export const Layout = () => {
                   ✓ Your `.enc` vault will be automatically backed up here.
                 </div>
               )}
+              
+              <div style={{ height: '1px', backgroundColor: 'var(--border-light)', margin: '1.5rem 0' }} />
+
+              <h3 style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>Manual Full Archive</h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1rem' }}>
+                Creates a single compressed zip file containing your encrypted database, all firearm photos, and scanned documents. Ideal for storing on a USB drive.
+              </p>
+              <button className="btn-primary" onClick={handleCreateZipBackup} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: 'var(--success)', width: '100%', justifyContent: 'center' }}>
+                <DownloadCloud size={18} />
+                Create Full .zip Backup
+              </button>
             </div>
 
             <div style={{ marginBottom: '2rem' }}>
@@ -371,6 +424,7 @@ export const Layout = () => {
           </div>
         </div>
       )}
+
     </div>
   );
 };

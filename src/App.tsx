@@ -9,6 +9,7 @@ import { VaultLogin } from './pages/VaultLogin';
 import { AmmoDashboard } from './pages/AmmoDashboard';
 import { Accessories } from './pages/Accessories';
 import { MaintenanceDashboard } from './pages/MaintenanceDashboard';
+import { SyncInbox } from './pages/SyncInbox';
 
 function App() {
   const [isLocked, setIsLocked] = useState(true);
@@ -52,6 +53,7 @@ function App() {
           <Route path="ammo" element={<AmmoDashboard />} />
           <Route path="accessories" element={<Accessories />} />
           <Route path="maintenance" element={<MaintenanceDashboard />} />
+          <Route path="sync" element={<SyncInbox />} />
         </Route>
       </Routes>
     </HashRouter>

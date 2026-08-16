@@ -47,9 +47,9 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({ isOpen, onClose,
 
   const handlePhotoUpload = async () => {
     if (window.api && window.api.selectAndSavePhoto) {
-      const savedPath = await window.api.selectAndSavePhoto();
-      if (savedPath) {
-        setFormData({ ...formData, photo: savedPath });
+      const paths = await window.api.selectAndSavePhoto();
+      if (paths && paths.length > 0) {
+        setFormData({ ...formData, photo: paths[0] });
       }
     }
   };
@@ -283,7 +283,7 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({ isOpen, onClose,
             <label>Photo</label>
             <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
               {formData.photo && (
-                <img src={formData.photo} alt="Preview" style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--border-light)' }} />
+                <img src={formData.photo.startsWith('local-file://') ? formData.photo : `local-file://${formData.photo}`} alt="Preview" style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--border-light)' }} />
               )}
               <button type="button" className="btn-secondary" onClick={handlePhotoUpload}>
                 <Camera size={18} /> {formData.photo ? 'Change Photo' : 'Select Photo'}

@@ -59,7 +59,7 @@ export const Lightbox: React.FC<LightboxProps> = ({ images, initialIndex = 0, on
       )}
 
       <img 
-        src={images[currentIndex].startsWith('file://') ? images[currentIndex] : `file://${images[currentIndex]}`} 
+        src={images[currentIndex].startsWith('local-file://') ? images[currentIndex] : `local-file://${images[currentIndex]}`} 
         alt={`Gallery image ${currentIndex + 1}`} 
         style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain' }}
       />

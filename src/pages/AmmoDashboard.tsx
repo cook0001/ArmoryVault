@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Ammo } from '../types';
-import { PlusCircle, Target, Package, Trash2, Edit, Printer } from 'lucide-react';
+import { PlusCircle, Target, Package, Trash2, Edit, Printer, Upload } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 
 const getStandardPelletCount = (caliber?: string, shell_length?: string, shot_size?: string): number | '' => {
   if (!caliber || !shell_length || !shot_size) return '';
@@ -125,6 +126,8 @@ export const AmmoDashboard = () => {
   const [upcStatus, setUpcStatus] = useState<{ message: string, type: 'success' | 'error' | 'info' | 'loading' } | null>(null);
   const [calcRds, setCalcRds] = useState<number | ''>('');
   const [calcBoxes, setCalcBoxes] = useState<number>(1);
+  const location = useLocation();
+  const locationProcessed = useRef(false);
 
   const decodeHTMLEntities = (text: string | undefined): string => {
     if (!text) return '';
@@ -146,7 +149,42 @@ export const AmmoDashboard = () => {
 
   useEffect(() => {
     loadAmmo();
+    let unsubscribe: (() => void) | undefined;
+    if (window.api?.onSyncReceived) { // also fixing onSyncCompleted -> onSyncReceived to match preload
+      unsubscribe = window.api.onSyncReceived(() => {
+        loadAmmo();
+      });
+    }
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
+
+  useEffect(() => {
+    if (location.state && location.state.openAddModal && !locationProcessed.current) {
+      locationProcessed.current = true;
+      setIsModalOpen(true);
+      setEditingAmmo(null);
+      setIsAddingStockMode(false);
+      
+      const upcToLookup = location.state.upc || '';
+      
+      setFormData({ 
+        type: 'factory', 
+        upc_code: upcToLookup, 
+        count: location.state.count 
+      });
+      
+      if (upcToLookup) {
+        setTimeout(() => {
+          lookupUPC(upcToLookup);
+        }, 100); // Give the state a beat to settle
+      }
+      
+      // Clear the state so it doesn't re-trigger if navigated away and back
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const openAddModal = (type: 'factory' | 'handload') => {
     setEditingAmmo(null);
@@ -181,6 +219,21 @@ export const AmmoDashboard = () => {
     } catch (err) {
       console.error('Failed to print QR label', err);
       alert('Failed to print QR label.');
+    }
+  };
+
+  const handleSaveAmmoQR = async (ammo: Ammo) => {
+    if (!window.api) return;
+    try {
+      const QRCode = (await import('qrcode')).default;
+      const qrDataUrl = await QRCode.toDataURL(`armoryvault://ammo/${ammo.id}`, { width: 300, margin: 1 });
+      await window.api.saveQRImage({
+        itemName: `${ammo.caliber} ${ammo.manufacturer || 'Ammo'}`,
+        qrDataUrl
+      });
+    } catch (err) {
+      console.error('Failed to save QR label', err);
+      alert('Failed to save QR label.');
     }
   };
 
@@ -456,9 +509,19 @@ export const AmmoDashboard = () => {
       await window.api.updateAmmo(editingAmmo.id, submissionData as Ammo);
     } else {
       await window.api.addAmmo(submissionData as Ammo);
+      // Automatically clear the sync item from the inbox if this was a resolution
+      if (location.state && location.state.syncItemId) {
+        await window.api.removeSyncItem(location.state.syncItemId);
+      }
     }
     setIsModalOpen(false);
     setIsAddingStockMode(false);
+    
+    // Clear location state after successful submit so it doesn't trigger again
+    if (location.state?.syncItemId) {
+      window.history.replaceState({}, document.title);
+    }
+    
     loadAmmo();
   };
 
@@ -472,6 +535,14 @@ export const AmmoDashboard = () => {
     return true;
   });
 
+  const lowAmmoAlerts = useMemo(() => {
+    return ammoList.filter(ammo => {
+      if (!ammo.target_stock_goal) return false;
+      const threshold = ammo.alert_percentage || 20; // default to 20%
+      return (ammo.count / ammo.target_stock_goal * 100) <= threshold;
+    });
+  }, [ammoList]);
+
   return (
     <div className="page-container">
       <div className="page-header">
@@ -483,6 +554,27 @@ export const AmmoDashboard = () => {
           <PlusCircle size={20} /> Add {activeTab === 'factory' ? 'Ammo' : 'Handload'}
         </button>
       </div>
+
+      {lowAmmoAlerts.length > 0 && (
+        <div style={{ marginBottom: '2rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '12px', padding: '1rem 1.5rem' }}>
+          <h3 style={{ margin: '0 0 1rem 0', color: '#f87171', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <AlertTriangle size={20} /> Low Stock Alerts
+          </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
+            {lowAmmoAlerts.map(ammo => (
+              <div key={ammo.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)', padding: '0.8rem 1rem', borderRadius: '8px' }}>
+                <div>
+                  <div style={{ fontWeight: 'bold', fontSize: '1.05rem', color: 'var(--text-primary)' }}>{ammo.caliber}</div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{ammo.type === 'factory' ? ammo.manufacturer : 'Handload'} • {ammo.projectile || ammo.shot_size || 'N/A'}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontWeight: 'bold', color: '#f87171', fontSize: '1.2rem' }}>{ammo.count} <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 'normal' }}>/ {ammo.target_stock_goal}</span></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '1rem' }}>
         <div style={{ display: 'flex', gap: '1rem' }}>
@@ -525,6 +617,7 @@ export const AmmoDashboard = () => {
                   <div key={ammo.id} className="card ammo-card" onClick={() => setInspectingAmmo(ammo)} style={{ position: 'relative', cursor: 'pointer' }}>
                     <div style={{ position: 'absolute', top: '1rem', right: '1rem', display: 'flex', gap: '0.5rem' }}>
                       <button onClick={(e) => { e.stopPropagation(); handlePrintAmmoQR(ammo); }} style={{ background: 'transparent', border: 'none', color: '#60a5fa', cursor: 'pointer' }} title="Print QR Label"><Printer size={16} /></button>
+                      <button onClick={(e) => { e.stopPropagation(); handleSaveAmmoQR(ammo); }} style={{ background: 'transparent', border: 'none', color: '#60a5fa', cursor: 'pointer' }} title="Save QR Code"><Upload size={16} /></button>
                       <button onClick={(e) => { e.stopPropagation(); openEditModal(ammo); }} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}><Edit size={16} /></button>
                       <button onClick={(e) => { e.stopPropagation(); handleDelete(ammo.id!); }} style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><Trash2 size={16} /></button>
                     </div>
@@ -556,7 +649,7 @@ export const AmmoDashboard = () => {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                           <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', display: 'block' }}>Rounds in Stock</span>
-                          <strong style={{ fontSize: '1.5rem', color: ammo.target_stock_goal && (ammo.count / ammo.target_stock_goal * 100) <= (ammo.alert_percentage || 0) ? 'var(--danger)' : 'var(--accent)' }}>
+                          <strong style={{ fontSize: '1.5rem', color: (ammo.low_stock_threshold && ammo.count <= ammo.low_stock_threshold) || (ammo.target_stock_goal && (ammo.count / ammo.target_stock_goal * 100) <= (ammo.alert_percentage || 0)) ? 'var(--danger)' : 'var(--accent)' }}>
                             {ammo.count.toLocaleString()}
                           </strong>
                         </div>
@@ -578,7 +671,7 @@ export const AmmoDashboard = () => {
                             <div style={{ 
                               height: '100%', 
                               width: `${Math.min(100, (ammo.count / ammo.target_stock_goal) * 100)}%`, 
-                              background: (ammo.count / ammo.target_stock_goal * 100) <= (ammo.alert_percentage || 0) ? 'var(--danger)' : 'var(--accent)',
+                              background: (ammo.low_stock_threshold && ammo.count <= ammo.low_stock_threshold) || ((ammo.count / ammo.target_stock_goal * 100) <= (ammo.alert_percentage || 0)) ? 'var(--danger)' : 'var(--accent)',
                               transition: 'width 0.3s ease'
                             }} />
                           </div>
@@ -943,15 +1036,20 @@ export const AmmoDashboard = () => {
 
               <div style={{ padding: '1.5rem', background: 'rgba(0,0,0,0.1)', borderRadius: '12px', border: '1px solid var(--border-light)', marginBottom: '1.5rem' }}>
                 <h4 style={{ margin: '0 0 1rem 0', color: 'var(--text-secondary)' }}>Inventory Tracking</h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.5rem' }}>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label>Target Stock Goal</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                  <div className="form-group">
+                    <label>Target Stock Goal (Rounds)</label>
                     <input type="number" className="form-input" value={formData.target_stock_goal ?? ''} onChange={e => setFormData({...formData, target_stock_goal: e.target.value === '' ? ('' as any) : parseInt(e.target.value)})} placeholder="e.g. 1000" />
                   </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label>Low Stock Alert (%)</label>
-                    <input type="number" className="form-input" value={formData.alert_percentage ?? ''} onChange={e => setFormData({...formData, alert_percentage: e.target.value === '' ? ('' as any) : parseInt(e.target.value)})} placeholder="e.g. 20" />
+                  <div className="form-group">
+                    <label>Low Stock Alert (Rounds)</label>
+                    <input type="number" className="form-input" value={formData.low_stock_threshold ?? ''} onChange={e => setFormData({...formData, low_stock_threshold: e.target.value === '' ? ('' as any) : parseInt(e.target.value)})} placeholder="e.g. 200" />
                   </div>
+                </div>
+                <div className="form-group" style={{ marginTop: '0.5rem' }}>
+                  <label>Alert Threshold Percentage</label>
+                  <input type="number" min="0" max="100" className="form-input" value={formData.alert_percentage ?? ''} onChange={e => setFormData({...formData, alert_percentage: e.target.value === '' ? ('' as any) : parseInt(e.target.value)})} placeholder="e.g. 20 for 20% warning" />
+                  <small style={{ color: 'var(--text-secondary)' }}>App will highlight stock level in red if it drops below this % of target goal, or below the exact Low Stock Alert amount.</small>
                 </div>
                 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '1.5rem' }}>

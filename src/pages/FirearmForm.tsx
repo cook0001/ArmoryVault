@@ -11,7 +11,6 @@ export const FirearmForm = () => {
     action_type: '', finish: '', notes: '', purchase_price: null, purchase_date: '',
     condition: '', image_path: '', is_sold: false, purchased_from: '', firearm_type: ''
   });
-  const [newPhotos, setNewPhotos] = useState<File[]>([]);
   const [previews, setPreviews] = useState<{url: string, isExisting: boolean, path?: string}[]>([]);
   const { id } = useParams();
 
@@ -22,9 +21,9 @@ export const FirearmForm = () => {
         if (found) {
           setFormData(found);
           if (found.photos && found.photos.length > 0) {
-            setPreviews(found.photos.map(p => ({ url: `file://${p}`, isExisting: true, path: p })));
+            setPreviews(found.photos.map(p => ({ url: `local-file://${p}`, isExisting: true, path: p })));
           } else if (found.image_path) {
-            setPreviews([{ url: `file://${found.image_path}`, isExisting: true, path: found.image_path }]);
+            setPreviews([{ url: `local-file://${found.image_path}`, isExisting: true, path: found.image_path }]);
           }        }
       });
     }
@@ -35,27 +34,24 @@ export const FirearmForm = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const files = Array.from(e.target.files);
-      setNewPhotos(prev => [...prev, ...files]);
-      setPreviews(prev => [
-        ...prev, 
-        ...files.map(file => ({ url: URL.createObjectURL(file), isExisting: false }))
-      ]);
+  const handlePhotoSelectNative = async () => {
+    console.log('Renderer: handlePhotoSelectNative called. window.api =', !!window.api);
+    if (!window.api) return;
+    try {
+      const paths = await window.api.selectAndSavePhoto();
+      console.log('Renderer: selectAndSavePhoto returned', paths);
+      if (paths && paths.length > 0) {
+        setPreviews(prev => [
+          ...prev,
+          ...paths.map(path => ({ url: `local-file://${path}`, isExisting: true, path }))
+        ]);
+      }
+    } catch (e) {
+      console.error('Renderer: selectAndSavePhoto failed', e);
     }
   };
 
   const removePhoto = (index: number) => {
-    const toRemove = previews[index];
-    if (!toRemove.isExisting) {
-      // It's a new file, we need to remove from newPhotos.
-      // Since newPhotos only contains the non-existing files, we need to find its index in the newPhotos array.
-      // The number of existing files is previews.filter(p => p.isExisting).length.
-      const existingCount = previews.filter(p => p.isExisting).length;
-      const newPhotosIndex = index - existingCount;
-      setNewPhotos(prev => prev.filter((_, i) => i !== newPhotosIndex));
-    }
     setPreviews(prev => prev.filter((_, i) => i !== index));
   };
 
@@ -64,14 +60,6 @@ export const FirearmForm = () => {
     if (!window.api) return;
 
     let finalPhotos: string[] = previews.filter(p => p.isExisting && p.path).map(p => p.path!);
-    
-    for (const file of newPhotos) {
-      const sourcePath = (file as any).path || URL.createObjectURL(file);
-      const savedPath = await window.api.savePhoto(sourcePath, `${Date.now()}_${file.name}`);
-      if (savedPath) {
-        finalPhotos.push(savedPath);
-      }
-    }
 
     const payload: Firearm = {
       ...formData as Firearm,
@@ -199,23 +187,22 @@ export const FirearmForm = () => {
           )}
         </div>
         <div className="form-group full-width">
-          <label>Photos</label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+          <label style={{ fontSize: '1.1rem', marginBottom: '1rem', display: 'block', color: 'var(--text)' }}>Photos Gallery</label>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '1.25rem', marginBottom: '1rem' }}>
             {previews.map((p, idx) => (
-              <div key={idx} style={{ position: 'relative', width: '100%', paddingBottom: '100%' }}>
-                <img src={p.url} alt="Preview" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
-                <button type="button" onClick={() => removePhoto(idx)} style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.7)', border: 'none', color: 'white', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                  <X size={14} />
+              <div key={idx} className="premium-photo-card" style={{ position: 'relative', width: '100%', paddingBottom: '100%' }}>
+                <img src={p.url} alt="Preview" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                <button type="button" className="premium-photo-delete" onClick={() => removePhoto(idx)} style={{ position: 'absolute', top: '8px', right: '8px', border: 'none', color: 'white', borderRadius: '50%', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 10 }}>
+                  <X size={16} />
                 </button>
               </div>
             ))}
-            <label className="photo-placeholder" style={{ margin: 0, width: '100%', paddingBottom: '100%', position: 'relative', cursor: 'pointer' }}>
-              <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '2px dashed var(--border-light)', borderRadius: '8px' }}>
-                <Upload size={24} style={{ marginBottom: '0.5rem' }} />
-                <span style={{ fontSize: '0.8rem', textAlign: 'center' }}>Add Photo</span>
+            <div role="button" tabIndex={0} className="photo-placeholder premium-add-photo" style={{ margin: 0, width: '100%', paddingBottom: '100%', position: 'relative', cursor: 'pointer' }} onClick={(e) => { e.preventDefault(); handlePhotoSelectNative(); }}>
+              <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                <Upload size={28} style={{ marginBottom: '0.75rem' }} />
+                <span style={{ fontSize: '0.85rem', fontWeight: 500, textAlign: 'center' }}>Add Photo</span>
               </div>
-              <input type="file" accept="image/*" multiple onChange={handlePhotoSelect} style={{ display: 'none' }} />
-            </label>
+            </div>
           </div>
         </div>
 

@@ -126,11 +126,11 @@ class Database {
       decrypted += decipher.final('utf8');
       
       const parsed = JSON.parse(decrypted);
-      let data = { firearms: [], ammo: [], skus: {}, accessories: [] };
+      let data = { firearms: [], ammo: [], skus: {}, accessories: [], sync_queue: [] };
       if (Array.isArray(parsed)) {
         data.firearms = parsed;
       } else {
-        data = { firearms: parsed.firearms || [], ammo: parsed.ammo || [], skus: parsed.skus || {}, accessories: parsed.accessories || [] };
+        data = { firearms: parsed.firearms || [], ammo: parsed.ammo || [], skus: parsed.skus || {}, accessories: parsed.accessories || [], sync_queue: parsed.sync_queue || [] };
       }
       
       // Migrate legacy mountedOnFirearmId to mounts array
@@ -359,6 +359,34 @@ class Database {
       console.error('Failed to save document:', error);
       return null;
     }
+  }
+  getSyncQueue() {
+    return this.getData().sync_queue || [];
+  }
+
+  saveSyncQueue(queue) {
+    const data = this.getData();
+    data.sync_queue = queue;
+    this.saveData(data);
+  }
+
+  addSyncItem(item) {
+    const queue = this.getSyncQueue();
+    const newId = queue.length > 0 ? Math.max(...queue.map(i => i.id || 0)) + 1 : 1;
+    queue.push({ ...item, id: newId });
+    this.saveSyncQueue(queue);
+    return newId;
+  }
+
+  removeSyncItem(id) {
+    let queue = this.getSyncQueue();
+    queue = queue.filter(i => i.id !== id);
+    this.saveSyncQueue(queue);
+    return id;
+  }
+
+  clearSyncQueue() {
+    this.saveSyncQueue([]);
   }
 }
 

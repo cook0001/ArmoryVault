@@ -1,7 +1,7 @@
 {
   "name": "armoryvault",
   "productName": "ArmoryVault",
-  "version": "1.1.16",
+  "version": "2.1.17",
   "description": "Firearm & Ammo Inventory Software",
   "main": "electron/main.js",
   "scripts": {
@@ -59,8 +59,11 @@
   "type": "commonjs",
   "dependencies": {
     "@types/qrcode": "^1.5.6",
+    "archiver": "^8.0.0",
+    "cors": "^2.8.6",
     "electron-log": "^5.4.4",
     "electron-updater": "^6.8.9",
+    "express": "^5.2.1",
     "html5-qrcode": "^2.3.8",
     "jimp": "^0.22.12",
     "lucide-react": "^1.31.0",

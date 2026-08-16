@@ -1,6 +1,9 @@
 const { app, BrowserWindow, ipcMain, dialog, shell, protocol, net } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
+const express = require('express');
+const cors = require('cors');
 const db = require('./database');
 const log = require('electron-log');
 const isDev = !app.isPackaged;
@@ -10,7 +13,8 @@ autoUpdater.logger = log;
 autoUpdater.logger.transports.file.level = 'info';
 
 protocol.registerSchemesAsPrivileged([
-  { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true } }
+  { scheme: 'app', privileges: { secure: true, standard: true } },
+  { scheme: 'local-file', privileges: { secure: true, standard: true, supportFetchAPI: true, bypassCSP: true } }
 ]);
 
 let mainWindow;
@@ -50,6 +54,28 @@ app.whenReady().then(() => {
     if (!url || url === '/') url = 'index.html';
     url = url.split('?')[0].split('#')[0];
     callback({ path: path.normalize(path.join(__dirname, '../dist', url)) });
+  });
+
+  protocol.registerFileProtocol('local-file', (request, callback) => {
+    console.log("LOCAL-FILE REQUEST:", request.url);
+    let url = request.url;
+    // Strip local-file:// or local-file:///
+    url = url.replace(/^local-file:\/+/, '');
+    // Strip file:// or file:/// or file/// (browser sometimes strips the colon)
+    url = url.replace(/^(file:\/+)|(file\/+)/, '');
+    
+    // Ensure absolute path
+    if (!url.startsWith('/')) {
+      url = '/' + url;
+    }
+    
+    console.log("LOCAL-FILE RESOLVED URL:", url);
+    try {
+      return callback({ path: decodeURIComponent(url) });
+    } catch (err) {
+      console.error(err);
+      return callback({ path: url });
+    }
   });
 
   if (process.platform === 'darwin' && isDev) {
@@ -101,10 +127,69 @@ app.whenReady().then(() => {
   ipcMain.handle('save-skus', (_, skus) => { db.saveSkus(skus); return true; });
   ipcMain.handle('delete-sku', (_, skuId) => db.deleteSku(skuId));
 
+  ipcMain.handle('get-sync-queue', () => db.getSyncQueue());
+  ipcMain.handle('remove-sync-item', (_, id) => {
+    const res = db.removeSyncItem(id);
+    if (mainWindow) mainWindow.webContents.send('sync-received');
+    return res;
+  });
+  ipcMain.handle('clear-sync-queue', () => { 
+    db.clearSyncQueue(); 
+    if (mainWindow) mainWindow.webContents.send('sync-received');
+    return true; 
+  });
+
   ipcMain.handle('save-photo', (_, sourcePath, filename) => db.savePhoto(sourcePath, filename));
+  ipcMain.handle('save-base64-photo', (_, base64Data, filename) => {
+    try {
+      const base64Image = base64Data.replace(/^data:image\/\w+;base64,/, "");
+      const fs = require('fs');
+      const path = require('path');
+      const destPath = path.join(db.photoDir, filename);
+      fs.writeFileSync(destPath, base64Image, {encoding: 'base64'});
+      return destPath;
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  });
   ipcMain.handle('save-document', (_, sourcePath, filename) => db.saveDocument(sourcePath, filename));
   
   ipcMain.handle('get-backup-folder', () => db.getBackupPath());
+  ipcMain.handle('create-zip-backup', async () => {
+    try {
+      const archiver = require('archiver');
+      const fs = require('fs');
+      
+      const { canceled, filePath } = await dialog.showSaveDialog({
+        title: 'Save Full Backup Archive',
+        defaultPath: 'ArmoryVault_Full_Backup.zip',
+        filters: [{ name: 'Zip Archives', extensions: ['zip'] }]
+      });
+      
+      if (canceled || !filePath) return false;
+      
+      return new Promise((resolve, reject) => {
+        const output = fs.createWriteStream(filePath);
+        const archive = archiver('zip', { zlib: { level: 9 } });
+        
+        output.on('close', () => resolve(true));
+        archive.on('error', (err) => reject(err));
+        
+        archive.pipe(output);
+        
+        if (fs.existsSync(db.encPath)) archive.file(db.encPath, { name: 'firearms_inventory.enc' });
+        if (fs.existsSync(db.dbPath)) archive.file(db.dbPath, { name: 'firearms_inventory.json' });
+        if (fs.existsSync(db.photoDir)) archive.directory(db.photoDir, 'photos');
+        if (fs.existsSync(db.docDir)) archive.directory(db.docDir, 'documents');
+        
+        archive.finalize();
+      });
+    } catch (e) {
+      console.error('Error creating zip backup:', e);
+      return false;
+    }
+  });
   ipcMain.handle('select-backup-folder', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
       properties: ['openDirectory'],
@@ -145,21 +230,50 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('select-and-save-photo', async () => {
-    const { canceled, filePaths } = await dialog.showOpenDialog({
-      title: 'Select Photo',
-      properties: ['openFile'],
-      filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png'] }]
-    });
-    if (!canceled && filePaths.length > 0) {
-      const sourcePath = filePaths[0];
-      const ext = path.extname(sourcePath);
-      const filename = `photo_${Date.now()}${ext}`;
-      const savedPath = db.savePhoto(sourcePath, filename);
-      if (savedPath) {
-        return savedPath;
+    console.log('Main: select-and-save-photo called');
+    try {
+      const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+        title: 'Select Photo',
+        properties: ['openFile', 'multiSelections'],
+        filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif'] }]
+      });
+      console.log('Dialog result:', { canceled, filePaths });
+      if (!canceled && filePaths.length > 0) {
+        const savedPaths = [];
+        for (const sourcePath of filePaths) {
+          const ext = path.extname(sourcePath);
+          const filename = `photo_${Date.now()}_${Math.random().toString(36).substring(2)}${ext}`;
+          const savedPath = db.savePhoto(sourcePath, filename);
+          if (savedPath) {
+            savedPaths.push(savedPath);
+          }
+        }
+        return savedPaths.length > 0 ? savedPaths : null;
       }
+      return null;
+    } catch (e) {
+      console.error('Main: error in select-and-save-photo', e);
+      return null;
     }
-    return null;
+  });
+
+  ipcMain.handle('save-qr-image', async (_, { itemName, qrDataUrl }) => {
+    try {
+      const { filePath } = await dialog.showSaveDialog({
+        title: 'Save QR Code',
+        defaultPath: `QR_${itemName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.png`,
+        filters: [{ name: 'Images', extensions: ['png'] }]
+      });
+      if (filePath) {
+        const base64Data = qrDataUrl.replace(/^data:image\/png;base64,/, "");
+        require('fs').writeFileSync(filePath, base64Data, 'base64');
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error('Save QR failed', e);
+      return false;
+    }
   });
 
   ipcMain.handle('lookup-upc', async (_, upc) => {
@@ -184,8 +298,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle('export-data', async (_, dataString, filename) => {
     try {
-      const { filePath } = await dialog.showSaveDialog({
-        title: 'Export Data',
+      const { filePath } = await dialog.showSaveDialog(mainWindow, {
         defaultPath: filename,
         filters: [{ name: 'JSON', extensions: ['json'] }]
       });
@@ -194,18 +307,42 @@ app.whenReady().then(() => {
         return true;
       }
       return false;
-    } catch (e) {
-      console.error('Export failed:', e);
+    } catch (err) {
+      console.error('Error exporting data', err);
       return false;
     }
   });
 
-  ipcMain.handle('read-file-base64', async (_, filePath) => {
+  ipcMain.handle('read-file-buffer', async (_, filePath) => {
     try {
       const fs = require('fs');
-      if (fs.existsSync(filePath)) {
-        const data = fs.readFileSync(filePath, 'base64');
+      let targetPath = filePath;
+      if (filePath.startsWith('file://')) targetPath = filePath.substring(7);
+      try { targetPath = decodeURI(targetPath); } catch(e) {}
+      if (fs.existsSync(targetPath)) {
+        return fs.readFileSync(targetPath); // Returns a Buffer (Uint8Array) directly over IPC
+      }
+      return null;
+    } catch (err) {
+      console.error('Error reading file buffer:', err);
+      return null;
+    }
+  });
+
+  ipcMain.handle('read-file-base64', async (_, filePath) => {
+    console.log('Handling read-file-base64', filePath);
+    try {
+      const fs = require('fs');
+      let targetPath = filePath;
+      if (filePath.startsWith('file://')) targetPath = filePath.substring(7);
+      try { targetPath = decodeURI(targetPath); } catch(e) {}
+      console.log('Target path:', targetPath);
+      if (fs.existsSync(targetPath)) {
+        const data = fs.readFileSync(targetPath, 'base64');
+        console.log('Read success, length:', data.length);
         return data;
+      } else {
+        console.log('File not found:', targetPath);
       }
       return null;
     } catch (err) {
@@ -240,56 +377,53 @@ app.whenReady().then(() => {
         </html>
       `;
       
-      win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
-      
-      win.webContents.on('did-finish-load', () => {
-        win.webContents.print({ silent: false, printBackground: true }, async (success, errorType) => {
-          if (!success) {
-            console.log('Print failed', errorType);
-            const { response } = await dialog.showMessageBox({
-              type: 'warning',
-              buttons: ['Save as PDF', 'Cancel'],
-              defaultId: 0,
-              cancelId: 1,
-              title: 'Print Failed',
-              message: `Could not send to printer. Would you like to save the label as a PDF instead?`
-            });
-            
-            if (response === 0) {
-              try {
-                const { filePath } = await dialog.showSaveDialog({
-                  title: 'Save QR Label PDF',
-                  defaultPath: `QR_Label_${itemName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
-                  filters: [{ name: 'PDFs', extensions: ['pdf'] }]
+      win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`).then(() => {
+        setTimeout(() => {
+          win.webContents.print({ silent: false, printBackground: true }, async (success, errorType) => {
+            if (!success) {
+              console.log('Print failed', errorType);
+              const { response } = await dialog.showMessageBox({
+                type: 'warning',
+                buttons: ['Save as PDF', 'Cancel'],
+                title: 'Print Failed',
+                message: 'Failed to print the QR label. Would you like to save it as a PDF instead?',
+              });
+              
+              if (response === 0) {
+                const fs = require('fs');
+                const pdfPath = await dialog.showSaveDialog({
+                  title: 'Save QR Label as PDF',
+                  defaultPath: `QR_Label_${itemName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`,
+                  filters: [{ name: 'PDF', extensions: ['pdf'] }]
                 });
-                if (filePath) {
-                  const pdfWin = new BrowserWindow({ show: false });
-                  await pdfWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
-                  
-                  const fs = require('fs');
-                  const pdfData = await pdfWin.webContents.printToPDF({
-                    marginsType: 1,
-                    printBackground: true,
-                    pageSize: 'Letter'
-                  });
-                  fs.writeFileSync(filePath, pdfData);
-                  pdfWin.close();
-                  resolve(true);
+                if (!pdfPath.canceled && pdfPath.filePath) {
+                  try {
+                    const pdfData = await win.webContents.printToPDF({
+                      printBackground: true,
+                      pageSize: 'Letter'
+                    });
+                    fs.writeFileSync(pdfPath.filePath, pdfData);
+                    resolve(true);
+                  } catch (e) {
+                    console.error('Failed to save PDF', e);
+                    resolve(false);
+                  }
                 } else {
                   resolve(false);
                 }
-              } catch(e) {
-                console.error(e);
+              } else {
                 resolve(false);
               }
             } else {
-              resolve(false);
+              resolve(true);
             }
-          } else {
-            resolve(true);
-          }
-          win.close();
-        });
+            win.close();
+          });
+        }, 500);
+      }).catch(err => {
+        console.error('Failed to load QR html', err);
+        resolve(false);
+        win.close();
       });
     });
   });
@@ -514,6 +648,53 @@ app.whenReady().then(() => {
     autoUpdater.quitAndInstall();
   });
 
+  ipcMain.handle('get-local-ip', () => {
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+      for (const iface of interfaces[name]) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+          return iface.address;
+        }
+      }
+    }
+    return '127.0.0.1';
+  });
+
+  function startLocalServer() {
+    const expressApp = express();
+    expressApp.use(cors());
+    expressApp.use(express.json({ limit: '50mb' }));
+
+    expressApp.get('/api/ping', (req, res) => {
+      res.json({ status: 'ok', device: os.hostname() });
+    });
+
+    expressApp.post('/api/sync', (req, res) => {
+      console.log("Received sync payload from mobile:", req.body);
+      try {
+        const items = req.body.items || [];
+        for (const item of items) {
+          db.addSyncItem(item);
+        }
+        
+        // Let the renderer know data has changed
+        if (mainWindow) {
+          mainWindow.webContents.send('sync-received');
+        }
+        res.json({ success: true, processed: items.length });
+      } catch (e) {
+        console.error("Sync error:", e);
+        res.status(500).json({ success: false, error: e.message });
+      }
+    });
+
+    const PORT = 3456;
+    expressApp.listen(PORT, '0.0.0.0', () => {
+      console.log(`Mobile Companion API listening on port ${PORT}`);
+    });
+  }
+
+  startLocalServer();
   createWindow();
 
   autoUpdater.on('update-available', (info) => {
