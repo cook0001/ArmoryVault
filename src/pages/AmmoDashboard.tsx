@@ -6,7 +6,7 @@ import { useLocation } from 'react-router-dom';
 const getStandardPelletCount = (caliber?: string, shell_length?: string, shot_size?: string): number | '' => {
   if (!caliber || !shell_length || !shot_size) return '';
   const cal = caliber.toLowerCase();
-  const len = shell_length.trim().replace('"', '');
+  const len = shell_length.trim().replace(/"/g, '');
   const shot = shot_size.trim().toLowerCase();
 
   if (cal.includes('10')) {
