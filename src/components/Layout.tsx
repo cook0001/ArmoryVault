@@ -191,7 +191,7 @@ export const Layout = () => {
           </button>
         </nav>
         
-        <div style={{ marginTop: 'auto', paddingTop: '1.5rem', borderTop: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <div style={{ marginTop: 'auto', paddingTop: '1.5rem', borderTop: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', gap: '0.5rem', flexShrink: 0 }}>
           <button onClick={() => setIsSettingsOpen(true)} className="nav-item" style={{ width: '100%' }}>
             <Settings size={20} />
             <span>Settings</span>
@@ -232,7 +232,7 @@ export const Layout = () => {
                 {platform === 'darwin' && (
                   <button className="btn-primary" onClick={() => {
                     if (window.api && window.api.openUrl) {
-                      window.api.openUrl('https://github.com/cook0001/ArmouryVault/releases/latest');
+                      window.api.openUrl('https://github.com/cook0001/ArmoryVault/releases/latest');
                     }
                   }} title="Download the newest installer from GitHub" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
                     Download Mac Update
@@ -350,7 +350,7 @@ export const Layout = () => {
               </p>
               <button className="btn-secondary" onClick={() => {
                 if (window.api && window.api.openUrl) {
-                  window.api.openUrl('https://github.com/cook0001/ArmouryVault/releases/latest');
+                  window.api.openUrl('https://github.com/cook0001/ArmoryVault/releases/latest');
                 }
               }} style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: '0.5rem', alignItems: 'center' }}>
                 <DownloadCloud size={18} /> Download Latest Release

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Firearm, MaintenanceLog, Ammo, Accessory } from '../types';
 import { ArrowLeft, Edit, Trash2, DollarSign, ClipboardList, FileText, Upload, Crosshair, PlusCircle, Printer } from 'lucide-react';
@@ -20,7 +20,7 @@ export const FirearmDetails = () => {
   const [attachedAccessories, setAttachedAccessories] = useState<Accessory[]>([]);
   const [showTotalSetupValue, setShowTotalSetupValue] = useState(false);
   const [isAccessoryModalOpen, setIsAccessoryModalOpen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   const getAmmoString = (a: Ammo) => {
     const isShotgun = a.caliber?.toLowerCase().includes('gauge') || a.caliber?.toLowerCase().includes('ga') || a.caliber?.includes('.410');

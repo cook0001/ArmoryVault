@@ -200,7 +200,7 @@ class Database {
     if (!backupPath) return;
     if (fs.existsSync(this.encPath)) {
       // Keep only one backup per day to avoid spamming, or just use one file name that overwrites
-      const dest = path.join(backupPath, `ArmouryVault_Backup.enc`);
+      const dest = path.join(backupPath, `ArmoryVault_Backup.enc`);
       try {
         fs.copyFileSync(this.encPath, dest);
       } catch (e) {

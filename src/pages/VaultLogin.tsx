@@ -88,7 +88,7 @@ export const VaultLogin = ({ isSetup, onUnlocked }: Props) => {
       <div className="card" style={{ width: '100%', maxWidth: '450px', padding: '2.5rem', textAlign: 'center' }}>
         <Shield size={64} style={{ color: 'var(--accent)', marginBottom: '1.5rem', filter: 'drop-shadow(0 0 10px rgba(59,130,246,0.3))' }} />
         
-        <h1 style={{ marginBottom: '0.5rem', fontSize: '1.8rem' }}>ArmouryVault</h1>
+        <h1 style={{ marginBottom: '0.5rem', fontSize: '1.8rem' }}>ArmoryVault</h1>
         <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
           {!isSetup ? 'Create a master password to encrypt your local vault.' : (useRecovery ? 'Enter your 64-character recovery code.' : 'Enter your master password to unlock your vault.')}
         </p>

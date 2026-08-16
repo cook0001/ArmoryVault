@@ -96,12 +96,7 @@ const pistolCalibers = ['9mm', '45 ACP', '40 S&W', '380 ACP', '380 Auto', '38 Sp
 const rifleCalibers = ['223 Rem', '223', '5.56 NATO', '5.56', '308 Win', '308', '7.62 NATO', '7.62x39', '7.62', '6.5 Creedmoor', '6.5', '30-06', '270 Win', '270', '300 Blackout', '300 Win Mag', '300', '22 LR', '22 Long', '22 WMR', '17 HMR', '7mm Rem Mag', '7mm', '30-30', '45-70', '5.45'];
 
 const escapeRegExp = (string: string) => {
-  let escaped = "";
-  for (let i = 0; i < string.length; i++) {
-    if ('.*+?^${}()|[]\\'.includes(string[i])) escaped += '\\\\';
-    escaped += string[i];
-  }
-  return escaped;
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 };
 
 const getAmmoCategory = (caliber: string, customMap?: Record<string, string>): 'Pistol' | 'Rifle' | 'Shotgun' | 'Other' => {

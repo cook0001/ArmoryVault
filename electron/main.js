@@ -682,7 +682,7 @@ app.whenReady().then(() => {
         res.json({
           success: true,
           firearms: firearms.length,
-          ammo: ammo.reduce((acc, a) => acc + (Number(a.roundCount) || 0), 0),
+          ammo: ammo.reduce((acc, a) => acc + (Number(a.count) || 0), 0),
           components: components.length
         });
       } catch (e) {
