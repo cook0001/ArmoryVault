@@ -126,11 +126,11 @@ class Database {
       decrypted += decipher.final('utf8');
       
       const parsed = JSON.parse(decrypted);
-      let data = { firearms: [], ammo: [], skus: {}, accessories: [], sync_queue: [] };
+      let data = { firearms: [], ammo: [], skus: {}, accessories: [], components: [], sync_queue: [] };
       if (Array.isArray(parsed)) {
         data.firearms = parsed;
       } else {
-        data = { firearms: parsed.firearms || [], ammo: parsed.ammo || [], skus: parsed.skus || {}, accessories: parsed.accessories || [], sync_queue: parsed.sync_queue || [] };
+        data = { firearms: parsed.firearms || [], ammo: parsed.ammo || [], skus: parsed.skus || {}, accessories: parsed.accessories || [], components: parsed.components || [], sync_queue: parsed.sync_queue || [] };
       }
       
       // Migrate legacy mountedOnFirearmId to mounts array
@@ -311,6 +311,41 @@ class Database {
     let list = this.getAccessories();
     list = list.filter(a => a.id !== id);
     this.saveAccessoriesList(list);
+    return id;
+  }
+
+  getComponents() {
+    return this.getData().components || [];
+  }
+
+  saveComponentsList(componentsList) {
+    const data = this.getData();
+    data.components = componentsList;
+    this.saveData(data);
+  }
+
+  addComponent(component) {
+    const list = this.getComponents();
+    const newId = list.length > 0 ? Math.max(...list.map(c => c.id || 0)) + 1 : 1;
+    list.push({ ...component, id: newId });
+    this.saveComponentsList(list);
+    return newId;
+  }
+
+  updateComponent(id, component) {
+    const list = this.getComponents();
+    const index = list.findIndex(c => c.id === id);
+    if (index !== -1) {
+      list[index] = { ...component, id };
+      this.saveComponentsList(list);
+    }
+    return id;
+  }
+
+  deleteComponent(id) {
+    let list = this.getComponents();
+    list = list.filter(c => c.id !== id);
+    this.saveComponentsList(list);
     return id;
   }
 

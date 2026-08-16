@@ -10,6 +10,7 @@ import { AmmoDashboard } from './pages/AmmoDashboard';
 import { Accessories } from './pages/Accessories';
 import { MaintenanceDashboard } from './pages/MaintenanceDashboard';
 import { SyncInbox } from './pages/SyncInbox';
+import { ReloadingComponents } from './pages/ReloadingComponents';
 
 function App() {
   const [isLocked, setIsLocked] = useState(true);
@@ -51,6 +52,7 @@ function App() {
           <Route path="details/:id" element={<FirearmDetails />} />
           <Route path="bound-book" element={<BoundBook />} />
           <Route path="ammo" element={<AmmoDashboard />} />
+          <Route path="components" element={<ReloadingComponents />} />
           <Route path="accessories" element={<Accessories />} />
           <Route path="maintenance" element={<MaintenanceDashboard />} />
           <Route path="sync" element={<SyncInbox />} />

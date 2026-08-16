@@ -124,6 +124,37 @@ export interface Firearm {
   stamp_approved_date?: string;
 }
 
+export interface ReloadingComponent {
+  id?: number;
+  type: 'Powder' | 'Brass' | 'Bullet' | 'Primer';
+  manufacturer: string;
+  name?: string; // e.g. "Varget" (Powder), "XTP" (Bullet), or "#400" (Primer)
+  
+  // General Inventory
+  quantity: number; // Count for Brass/Bullet/Primer, or Weight for Powder
+  cost?: number; 
+  purchaseDate?: string;
+  notes?: string;
+  upc_code?: string;
+
+  // Powder Specific
+  weightUnit?: 'lbs' | 'oz'; // User preference toggle for display/input
+  usageTags?: ('Pistol' | 'Rifle' | 'Shotgun')[]; // Multi-select tags
+
+  // Brass & Primer Specific
+  primerType?: 'Small Rifle' | 'Large Rifle' | 'Small Pistol' | 'Large Pistol' | '209 Shotgun' | string;
+  isMagnumPrimer?: boolean; // Toggle for magnum
+
+  // Brass Specific
+  prepStage?: 'Fired / Dirty' | 'Cleaned' | 'Deprimed' | 'Sized' | 'Trimmed' | 'Primed' | 'Ready to Load';
+
+  // Brass & Bullet Specific
+  caliber?: string; // e.g. ".308", "7mm"
+  
+  // Bullet Specific
+  bulletType?: string; // e.g. "FMJ", "JHP"
+  grain?: number; // Bullet weight
+}
 export type CustomSkuDatabase = Record<string, Partial<Ammo>>;
 
 declare global {
@@ -149,6 +180,11 @@ declare global {
       addAccessory: (accessory: Accessory) => Promise<number>;
       updateAccessory: (id: number, accessory: Accessory) => Promise<number>;
       deleteAccessory: (id: number) => Promise<number>;
+      
+      getComponents: () => Promise<ReloadingComponent[]>;
+      addComponent: (component: ReloadingComponent) => Promise<number>;
+      updateComponent: (id: number, component: ReloadingComponent) => Promise<number>;
+      deleteComponent: (id: number) => Promise<number>;
       
       getSkus: () => Promise<CustomSkuDatabase>;
       saveSkus: (skus: CustomSkuDatabase) => Promise<boolean>;

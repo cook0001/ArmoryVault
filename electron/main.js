@@ -123,6 +123,11 @@ app.whenReady().then(() => {
   ipcMain.handle('update-accessory', (_, id, acc) => db.updateAccessory(id, acc));
   ipcMain.handle('delete-accessory', (_, id) => db.deleteAccessory(id));
 
+  ipcMain.handle('get-components', () => db.getComponents());
+  ipcMain.handle('add-component', (_, comp) => db.addComponent(comp));
+  ipcMain.handle('update-component', (_, id, comp) => db.updateComponent(id, comp));
+  ipcMain.handle('delete-component', (_, id) => db.deleteComponent(id));
+
   ipcMain.handle('get-skus', () => db.getSkus());
   ipcMain.handle('save-skus', (_, skus) => { db.saveSkus(skus); return true; });
   ipcMain.handle('delete-sku', (_, skuId) => db.deleteSku(skuId));
@@ -667,6 +672,23 @@ app.whenReady().then(() => {
 
     expressApp.get('/api/ping', (req, res) => {
       res.json({ status: 'ok', device: os.hostname() });
+    });
+
+    expressApp.get('/api/inventory/summary', (req, res) => {
+      try {
+        const firearms = db.getFirearms() || [];
+        const ammo = db.getAmmo() || [];
+        const components = db.getComponents() || [];
+        res.json({
+          success: true,
+          firearms: firearms.length,
+          ammo: ammo.reduce((acc, a) => acc + (Number(a.roundCount) || 0), 0),
+          components: components.length
+        });
+      } catch (e) {
+        console.error("Summary error:", e);
+        res.status(500).json({ success: false, error: e.message });
+      }
     });
 
     expressApp.post('/api/sync', (req, res) => {

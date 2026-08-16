@@ -22,6 +22,11 @@ contextBridge.exposeInMainWorld('api', {
   updateAccessory: (id, acc) => ipcRenderer.invoke('update-accessory', id, acc),
   deleteAccessory: (id) => ipcRenderer.invoke('delete-accessory', id),
 
+  getComponents: () => ipcRenderer.invoke('get-components'),
+  addComponent: (comp) => ipcRenderer.invoke('add-component', comp),
+  updateComponent: (id, comp) => ipcRenderer.invoke('update-component', id, comp),
+  deleteComponent: (id) => ipcRenderer.invoke('delete-component', id),
+
   getSkus: () => ipcRenderer.invoke('get-skus'),
   saveSkus: (skus) => ipcRenderer.invoke('save-skus', skus),
   deleteSku: (skuId) => ipcRenderer.invoke('delete-sku', skuId),

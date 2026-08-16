@@ -168,6 +168,10 @@ export const Layout = () => {
             <Target size={20} />
             Ammo & Handloads
           </button>
+          <button className={`nav-item ${isActive('/components')}`} onClick={() => navigate('/components')}>
+            <Database size={20} />
+            Reloading Supplies
+          </button>
           <button className={`nav-item ${isActive('/accessories')}`} onClick={() => navigate('/accessories')}>
             <Package size={20} />
             <span>Accessories</span>
