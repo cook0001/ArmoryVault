@@ -169,6 +169,7 @@ export function setupMockBackend() {
       },
       getBackupFolder: async () => null,
       selectBackupFolder: async () => "/mock/backup/path",
+      createZipBackup: async () => { console.log('Mock zip backup'); return true; },
       getConfig: async (key: string) => {
         const config = JSON.parse(localStorage.getItem('mock_config') || '{}');
         return config[key];
@@ -198,9 +199,10 @@ export function setupMockBackend() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        return true;
+        return filename;
       },
       onUpdateMessage: (callback: (message: any) => void) => {
+        return () => {};
       },
       restartApp: () => {
         window.location.reload();

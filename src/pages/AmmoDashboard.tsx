@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Ammo } from '../types';
-import { PlusCircle, Target, Package, Trash2, Edit, Printer, Upload } from 'lucide-react';
+import { PlusCircle, Target, Package, Trash2, Edit, Printer, Upload, AlertTriangle } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
 const getStandardPelletCount = (caliber?: string, shell_length?: string, shot_size?: string): number | '' => {
