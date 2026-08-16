@@ -9,6 +9,7 @@ export function setupMockBackend() {
     const STORAGE_KEY = 'firearms_inventory_data';
     const AMMO_STORAGE_KEY = 'ammo_inventory_data';
     const ACCESSORY_STORAGE_KEY = 'accessory_inventory_data';
+    const COMPONENT_STORAGE_KEY = 'component_inventory_data';
 
     const getStoredFirearms = (): Firearm[] => {
       const data = localStorage.getItem(STORAGE_KEY);
@@ -35,6 +36,15 @@ export function setupMockBackend() {
 
     const saveAccessories = (list: any[]) => {
       localStorage.setItem(ACCESSORY_STORAGE_KEY, JSON.stringify(list));
+    };
+
+    const getStoredComponents = (): any[] => {
+      const data = localStorage.getItem(COMPONENT_STORAGE_KEY);
+      return data ? JSON.parse(data) : [];
+    };
+
+    const saveComponents = (list: any[]) => {
+      localStorage.setItem(COMPONENT_STORAGE_KEY, JSON.stringify(list));
     };
 
     let mockLocked = false;
@@ -142,6 +152,36 @@ export function setupMockBackend() {
         let list = getStoredAccessories();
         list = list.filter(a => a.id !== id);
         saveAccessories(list);
+        return id;
+      },
+      getComponents: async () => {
+        if (mockLocked) return [];
+        return getStoredComponents();
+      },
+      addComponent: async (comp: any) => {
+        if (mockLocked) return -1;
+        const list = getStoredComponents();
+        const newId = list.length > 0 ? Math.max(...list.map(c => c.id || 0)) + 1 : 1;
+        const newComp = { ...comp, id: newId };
+        list.push(newComp);
+        saveComponents(list);
+        return newId;
+      },
+      updateComponent: async (id: number, comp: any) => {
+        if (mockLocked) return -1;
+        const list = getStoredComponents();
+        const index = list.findIndex(c => c.id === id);
+        if (index !== -1) {
+          list[index] = { ...comp, id };
+          saveComponents(list);
+        }
+        return id;
+      },
+      deleteComponent: async (id: number) => {
+        if (mockLocked) return -1;
+        let list = getStoredComponents();
+        list = list.filter(c => c.id !== id);
+        saveComponents(list);
         return id;
       },
       getSkus: async () => {
