@@ -131,7 +131,7 @@ export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = (
            if (!mergedData.upc_code && newComp.upc_code) {
              mergedData.upc_code = newComp.upc_code;
            }
-           await window.api.updateComponent(duplicate.id, mergedData);
+           await window.api.updateComponent(duplicate.id!, mergedData);
            merged = true;
         }
       }

@@ -144,7 +144,7 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({ isOpen, onClose,
            if (!mergedData.upc_code && newAcc.upc_code) {
              mergedData.upc_code = newAcc.upc_code;
            }
-           await window.api.updateAccessory(duplicate.id, mergedData);
+           await window.api.updateAccessory(duplicate.id!, mergedData);
            merged = true;
         }
       }

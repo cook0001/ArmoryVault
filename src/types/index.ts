@@ -27,6 +27,7 @@ export interface Accessory {
   notes?: string;
   photo?: string | null;
   photos?: string[];
+  upc_code?: string;
 
   // NFA Info
   is_nfa?: boolean;
