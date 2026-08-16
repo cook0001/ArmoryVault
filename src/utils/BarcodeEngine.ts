@@ -13,9 +13,8 @@ export interface ParsedBarcodeResult {
 
 export const decodeHTMLEntities = (text: string | undefined): string => {
   if (!text) return '';
-  const textarea = document.createElement('textarea');
-  textarea.innerHTML = text;
-  return textarea.value;
+  const doc = new DOMParser().parseFromString(text, 'text/html');
+  return doc.documentElement.textContent || text;
 };
 
 const escapeRegExp = (string: string) => {

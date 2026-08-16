@@ -16,6 +16,7 @@
 - Components quantities now default to correct bulk amounts (e.g. 1000 for Primers) instead of 1.
 
 ### Fixed
+- Fixed CodeQL XSS vulnerability when decoding HTML entities in BarcodeEngine.
 - Fixed reloading powder parsing for Hodgdon / distributor barcodes.
 - Fixed TS compilation errors on release workflow.
 - Fixed CORS fetch errors when hitting upcitemdb.
