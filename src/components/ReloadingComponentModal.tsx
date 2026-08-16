@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ReloadingComponent } from '../types';
+import { parseBarcodeData } from '../utils/BarcodeEngine';
 
 interface ReloadingComponentModalProps {
   isOpen: boolean;
@@ -27,25 +29,69 @@ const defaultFormData: Partial<ReloadingComponent> = {
   grain: undefined,
 };
 
+
+
 export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = ({ isOpen, onClose, onSave, editingId, initialData }) => {
   const [formData, setFormData] = useState<Partial<ReloadingComponent>>(defaultFormData);
   const [isLookingUp, setIsLookingUp] = useState(false);
+  const [lookupStatus, setLookupStatus] = useState<{message: string, type: 'error' | 'success'} | null>(null);
+  const navigate = useNavigate();
 
   const lookupUPC = async (upc: string) => {
     if (!upc || !window.api || !window.api.lookupUPC) return;
     setIsLookingUp(true);
+    setLookupStatus(null);
     try {
       const data = await window.api.lookupUPC(upc);
       if (data && data.items && data.items.length > 0) {
         const item = data.items[0];
-        setFormData(prev => ({
-          ...prev,
-          manufacturer: prev.manufacturer || item.brand || '',
-          name: prev.name || item.title || '',
-        }));
+        const parsed = parseBarcodeData(item);
+
+        if (parsed.category === 'ammo') {
+          if (window.confirm("This looks like loaded Ammunition. Would you like to redirect to the Ammo tab?")) {
+            navigate('/ammo', { state: { openAddModal: true, upc: upc } });
+            return;
+          }
+        } else if (parsed.category === 'accessory') {
+          if (window.confirm("This looks like an Accessory. Would you like to redirect to the Accessories tab?")) {
+            navigate('/accessories', { state: { openAddModal: true, upc: upc } });
+            return;
+          }
+        } else if (parsed.category === 'unknown') {
+          const typeChoice = window.prompt("Is this Ammo, Component, or Accessory? (Type 'ammo', 'component', or 'accessory')", "component");
+          if (typeChoice && typeChoice.toLowerCase() === 'ammo') {
+            navigate('/ammo', { state: { openAddModal: true, upc: upc } });
+            return;
+          } else if (typeChoice && typeChoice.toLowerCase() === 'accessory') {
+            navigate('/accessories', { state: { openAddModal: true, upc: upc } });
+            return;
+          }
+        }
+
+        setFormData(prev => {
+          const newType = parsed.parsedComponent?.type || prev.type || 'Powder';
+          return {
+            ...prev,
+            manufacturer: parsed.parsedComponent?.manufacturer || prev.manufacturer,
+            name: parsed.parsedComponent?.name || prev.name,
+            type: newType,
+            caliber: parsed.parsedComponent?.caliber || prev.caliber,
+            grain: parsed.parsedComponent?.grain || prev.grain,
+            weightUnit: parsed.parsedComponent?.weightUnit || prev.weightUnit,
+            primerType: parsed.parsedComponent?.primerType || prev.primerType,
+            isMagnumPrimer: parsed.parsedComponent?.isMagnumPrimer !== undefined ? parsed.parsedComponent.isMagnumPrimer : prev.isMagnumPrimer,
+            bulletType: parsed.parsedComponent?.bulletType || prev.bulletType,
+            quantity: parsed.parsedComponent?.quantity || prev.quantity,
+            cost: parsed.parsedComponent?.cost || prev.cost,
+          };
+        });
+        setLookupStatus({ message: 'Component found and parsed successfully!', type: 'success' });
+      } else {
+        setLookupStatus({ message: 'Barcode not found in database.', type: 'error' });
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      setLookupStatus({ message: `Error: ${e.message}`, type: 'error' });
     } finally {
       setIsLookingUp(false);
     }
@@ -70,7 +116,29 @@ export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = (
     if (editingId) {
       await window.api.updateComponent(editingId, newComp);
     } else {
-      await window.api.addComponent(newComp);
+      const allComps = await window.api.getComponents();
+      const duplicate = allComps.find((c: any) => 
+        c.type === newComp.type &&
+        c.manufacturer === newComp.manufacturer &&
+        c.name === newComp.name
+      );
+      
+      let merged = false;
+      if (duplicate) {
+        if (window.confirm(`An existing entry for ${duplicate.manufacturer || ''} ${duplicate.name || duplicate.type} was found. Would you like to merge this into the existing entry?`)) {
+           const mergedData = { ...duplicate };
+           mergedData.quantity = (duplicate.quantity || 0) + (newComp.quantity || 0);
+           if (!mergedData.upc_code && newComp.upc_code) {
+             mergedData.upc_code = newComp.upc_code;
+           }
+           await window.api.updateComponent(duplicate.id, mergedData);
+           merged = true;
+        }
+      }
+      
+      if (!merged) {
+        await window.api.addComponent(newComp);
+      }
     }
     
     onSave();
@@ -110,6 +178,11 @@ export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = (
                 {isLookingUp ? 'Searching...' : 'Lookup'}
               </button>
             </div>
+            {lookupStatus && (
+              <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', padding: '0.5rem', borderRadius: '4px', background: lookupStatus.type === 'success' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: lookupStatus.type === 'success' ? '#4ade80' : '#f87171', border: `1px solid ${lookupStatus.type === 'success' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'}` }}>
+                {lookupStatus.message}
+              </div>
+            )}
           </div>
 
           <div className="form-group">

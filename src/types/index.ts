@@ -58,6 +58,7 @@ export interface Ammo {
   category?: 'Pistol' | 'Rifle' | 'Shotgun' | 'Other' | string;
   type: 'factory' | 'handload';
   count: number;
+  measurement?: string;
   low_stock_threshold?: number;
   costPerRound?: number;
   manufacturer?: string;

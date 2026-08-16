@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Accessory, Firearm } from '../types';
+import { useNavigate } from 'react-router-dom';
+import { parseBarcodeData } from '../utils/BarcodeEngine';
+import { Target, AlertTriangle } from 'lucide-react';
 import { Camera } from 'lucide-react';
 
 interface AccessoryModalProps {
@@ -8,6 +11,7 @@ interface AccessoryModalProps {
   onSave: () => void;
   editingId: number | null;
   initialData?: Partial<Accessory>;
+  initialUpc?: string;
   firearms: Firearm[];
 }
 
@@ -30,18 +34,80 @@ const defaultFormData: Partial<Accessory> = {
   photo: null
 };
 
-export const AccessoryModal: React.FC<AccessoryModalProps> = ({ isOpen, onClose, onSave, editingId, initialData, firearms }) => {
+export const AccessoryModal: React.FC<AccessoryModalProps> = ({ isOpen, onClose, onSave, editingId, initialData, initialUpc, firearms }) => {
   const [formData, setFormData] = useState<Partial<Accessory>>(defaultFormData);
+  const [upcInput, setUpcInput] = useState('');
+  const [isLookingUp, setIsLookingUp] = useState(false);
+  const [lookupStatus, setLookupStatus] = useState<{message: string, type: 'error' | 'success'} | null>(null);
+  const navigate = useNavigate();
+
+  const lookupUPC = async (upc: string) => {
+    if (!upc || !window.api || !window.api.lookupUPC) return;
+    setIsLookingUp(true);
+    setLookupStatus(null);
+    try {
+      const data = await window.api.lookupUPC(upc);
+      if (data && data.items && data.items.length > 0) {
+        const item = data.items[0];
+        const parsed = parseBarcodeData(item);
+
+        if (parsed.category === 'ammo') {
+          if (window.confirm("This looks like loaded Ammunition. Would you like to redirect to the Ammo tab?")) {
+            navigate('/ammo', { state: { openAddModal: true, upc: upc } });
+            return;
+          }
+        } else if (parsed.category === 'component') {
+          if (window.confirm("This looks like a Reloading Component. Would you like to redirect to the Components tab?")) {
+            navigate('/components', { state: { openAddModal: true, upc: upc } });
+            return;
+          }
+        } else if (parsed.category === 'unknown') {
+          const typeChoice = window.prompt("Is this Ammo, Component, or Accessory? (Type 'ammo', 'component', or 'accessory')", "accessory");
+          if (typeChoice && typeChoice.toLowerCase() === 'ammo') {
+            navigate('/ammo', { state: { openAddModal: true, upc: upc } });
+            return;
+          } else if (typeChoice && typeChoice.toLowerCase() === 'component') {
+            navigate('/components', { state: { openAddModal: true, upc: upc } });
+            return;
+          }
+        }
+
+        setFormData(prev => ({
+          ...prev,
+          type: parsed.parsedAccessory?.type || prev.type,
+          manufacturer: parsed.parsedAccessory?.manufacturer || prev.manufacturer,
+          model: parsed.parsedAccessory?.model || prev.model,
+          value: parsed.parsedAccessory?.value || prev.value,
+        }));
+        setLookupStatus({ message: 'Accessory found and parsed automatically!', type: 'success' });
+      } else {
+        setLookupStatus({ message: 'Barcode not found in database.', type: 'error' });
+      }
+    } catch (e: any) {
+      console.error(e);
+      setLookupStatus({ message: `Error: ${e.message}`, type: 'error' });
+    } finally {
+      setIsLookingUp(false);
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
+      setUpcInput('');
+      setLookupStatus(null);
       if (initialData) {
         setFormData({ ...defaultFormData, ...initialData });
       } else {
         setFormData(defaultFormData);
       }
+      if (initialUpc) {
+        setUpcInput(initialUpc);
+        if (!initialData || !initialData.manufacturer) {
+          lookupUPC(initialUpc);
+        }
+      }
     }
-  }, [isOpen, initialData]);
+  }, [isOpen, initialData, initialUpc]);
 
   const accessoryTypes = ['Optic', 'Suppressor', 'Light', 'Holster', 'Mount', 'Sling', 'Magazine', 'Other'];
 
@@ -63,7 +129,29 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({ isOpen, onClose,
     if (editingId) {
       await window.api.updateAccessory(editingId, newAcc);
     } else {
-      await window.api.addAccessory(newAcc);
+      const allAccs = await window.api.getAccessories();
+      const duplicate = allAccs.find((a: any) => 
+        a.type === newAcc.type &&
+        a.manufacturer === newAcc.manufacturer &&
+        a.model === newAcc.model
+      );
+      
+      let merged = false;
+      if (duplicate) {
+        if (window.confirm(`An existing entry for ${duplicate.manufacturer || ''} ${duplicate.model || duplicate.type} was found. Would you like to merge this into the existing entry?`)) {
+           const mergedData = { ...duplicate };
+           mergedData.quantity = (duplicate.quantity || 1) + (newAcc.quantity || 1);
+           if (!mergedData.upc_code && newAcc.upc_code) {
+             mergedData.upc_code = newAcc.upc_code;
+           }
+           await window.api.updateAccessory(duplicate.id, mergedData);
+           merged = true;
+        }
+      }
+      
+      if (!merged) {
+        await window.api.addAccessory(newAcc);
+      }
     }
     
     onSave();
@@ -76,8 +164,57 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({ isOpen, onClose,
     <div className="modal-overlay">
       <div className="modal">
         <h2>{editingId ? 'Edit Accessory' : 'Add Accessory'}</h2>
+        
         <form onSubmit={handleSave}>
+          
+          {!editingId && (
+            <div style={{ background: 'var(--bg-card)', padding: '1.2rem', borderRadius: '12px', border: '1px solid var(--border-light)', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <Target size={18} color="var(--accent)" />
+                <span style={{ fontWeight: 500 }}>Universal Barcode Scanner</span>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  style={{ flex: 1 }}
+                  placeholder="Scan or type UPC..." 
+                  value={upcInput}
+                  onChange={e => setUpcInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      lookupUPC(upcInput);
+                    }
+                  }}
+                />
+                <button 
+                  type="button" 
+                  className="btn-primary" 
+                  onClick={() => lookupUPC(upcInput)}
+                  disabled={!upcInput || isLookingUp}
+                >
+                  {isLookingUp ? 'Searching...' : 'Lookup'}
+                </button>
+              </div>
+              
+              {lookupStatus && (
+                <div style={{ 
+                  display: 'flex', alignItems: 'center', gap: '0.5rem', 
+                  padding: '0.8rem', borderRadius: '8px', fontSize: '0.9rem',
+                  background: lookupStatus.type === 'error' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)',
+                  color: lookupStatus.type === 'error' ? '#ef4444' : '#22c55e',
+                  border: `1px solid ${lookupStatus.type === 'error' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(34, 197, 94, 0.2)'}`
+                }}>
+                  <AlertTriangle size={16} />
+                  {lookupStatus.message}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="form-group">
+
             <label>Accessory Type</label>
             <select 
               className="form-input" 

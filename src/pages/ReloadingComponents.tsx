@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { ReloadingComponent } from '../types';
 import { PlusCircle, Search, Edit, Trash2, AlertCircle, Package } from 'lucide-react';
 import { ReloadingComponentModal } from '../components/ReloadingComponentModal';
@@ -11,10 +12,40 @@ export const ReloadingComponents = () => {
   const [editingId, setEditingId] = useState<number | null>(null);
   
   const [formData, setFormData] = useState<Partial<ReloadingComponent>>({});
+  const [pendingSyncId, setPendingSyncId] = useState<number | null>(null);
+  const location = useLocation();
 
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (location.state && (location.state as any).openAddModal) {
+      const state = location.state as any;
+      setFormData({
+        upc_code: state.upc || '',
+        quantity: state.count || 0,
+        type: state.parsedData?.type || 'Powder',
+        ...(state.parsedData || {})
+      });
+      if (state.syncItemId) {
+        setPendingSyncId(state.syncItemId);
+      }
+      setEditingId(null);
+      setIsModalOpen(true);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
+
+  const handleSave = async () => {
+    await loadData();
+    if (pendingSyncId) {
+      if (window.api && window.api.removeSyncItem) {
+        await window.api.removeSyncItem(pendingSyncId);
+      }
+      setPendingSyncId(null);
+    }
+  };
 
   const loadData = async () => {
     if (window.api && window.api.getComponents) {
@@ -218,7 +249,7 @@ export const ReloadingComponents = () => {
       <ReloadingComponentModal 
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSave={loadData}
+        onSave={handleSave}
         editingId={editingId}
         initialData={formData}
       />

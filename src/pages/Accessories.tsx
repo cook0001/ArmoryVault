@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Accessory, Firearm } from '../types';
 import { PlusCircle, Search, Edit, Trash2, Camera, Link as LinkIcon, AlertCircle } from 'lucide-react';
 import { AccessoryModal } from '../components/AccessoryModal';
+import { useLocation } from 'react-router-dom';
 
 export const Accessories = () => {
   const [accessories, setAccessories] = useState<Accessory[]>([]);
@@ -13,9 +14,28 @@ export const Accessories = () => {
   
   const [formData, setFormData] = useState<Partial<Accessory>>({});
 
+  const location = useLocation();
+  const locationProcessed = useRef<string | null>(null);
+
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (location.state && location.state.openAddModal && locationProcessed.current !== location.key) {
+      locationProcessed.current = location.key;
+      const initialNotes = location.state.upc ? `UPC: ${location.state.upc}` : '';
+      const formDataToSet: any = { notes: initialNotes };
+      if (location.state.parsedData) {
+        Object.assign(formDataToSet, location.state.parsedData);
+      }
+      setFormData(formDataToSet);
+      // We will also pass the raw UPC to AccessoryModal via initialData
+      setEditingId(null);
+      setIsModalOpen(true);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const loadData = async () => {
     if (window.api && window.api.getAccessories && window.api.getFirearms) {
@@ -173,11 +193,12 @@ export const Accessories = () => {
       )}
 
       <AccessoryModal 
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSave={loadData}
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onSave={loadData} 
         editingId={editingId}
         initialData={formData}
+        initialUpc={location.state?.upc}
         firearms={firearms}
       />
     </div>

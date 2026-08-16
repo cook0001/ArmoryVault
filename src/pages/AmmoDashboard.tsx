@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Ammo } from '../types';
 import { PlusCircle, Target, Package, Trash2, Edit, Printer, Upload, AlertTriangle } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { parseBarcodeData } from '../utils/BarcodeEngine';
 
 const getStandardPelletCount = (caliber?: string, shell_length?: string, shot_size?: string): number | '' => {
   if (!caliber || !shell_length || !shot_size) return '';
@@ -122,14 +123,8 @@ export const AmmoDashboard = () => {
   const [calcRds, setCalcRds] = useState<number | ''>('');
   const [calcBoxes, setCalcBoxes] = useState<number>(1);
   const location = useLocation();
-  const locationProcessed = useRef(false);
-
-  const decodeHTMLEntities = (text: string | undefined): string => {
-    if (!text) return '';
-    const textarea = document.createElement('textarea');
-    textarea.innerHTML = text;
-    return textarea.value;
-  };
+  const navigate = useNavigate();
+  const locationProcessed = useRef<string | null>(null);
 
   const [formData, setFormData] = useState<Partial<Ammo>>({ type: 'factory' });
 
@@ -145,7 +140,7 @@ export const AmmoDashboard = () => {
   useEffect(() => {
     loadAmmo();
     let unsubscribe: (() => void) | undefined;
-    if (window.api?.onSyncReceived) { // also fixing onSyncCompleted -> onSyncReceived to match preload
+    if (window.api?.onSyncReceived) {
       unsubscribe = window.api.onSyncReceived(() => {
         loadAmmo();
       });
@@ -156,27 +151,32 @@ export const AmmoDashboard = () => {
   }, []);
 
   useEffect(() => {
-    if (location.state && location.state.openAddModal && !locationProcessed.current) {
-      locationProcessed.current = true;
+    if (location.state && location.state.openAddModal && locationProcessed.current !== location.key) {
+      locationProcessed.current = location.key;
       setIsModalOpen(true);
       setEditingAmmo(null);
       setIsAddingStockMode(false);
       
       const upcToLookup = location.state.upc || '';
       
-      setFormData({ 
+      const formDataToSet: any = { 
         type: 'factory', 
         upc_code: upcToLookup, 
         count: location.state.count 
-      });
-      
-      if (upcToLookup) {
-        setTimeout(() => {
-          lookupUPC(upcToLookup);
-        }, 100); // Give the state a beat to settle
+      };
+
+      if (location.state.parsedData) {
+        Object.assign(formDataToSet, location.state.parsedData);
       }
       
-      // Clear the state so it doesn't re-trigger if navigated away and back
+      setFormData(formDataToSet);
+      
+      if (upcToLookup && !location.state.parsedData) {
+        setTimeout(() => {
+          lookupUPC(upcToLookup);
+        }, 100);
+      }
+      
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
@@ -270,7 +270,7 @@ export const AmmoDashboard = () => {
         setEditingAmmo(localMatch);
         setIsAddingStockMode(true);
         setFormData({ ...localMatch });
-        setCalcRds(data.count || 20); // Default to the mapped sku count for the new box
+        setCalcRds(data.count || 20);
         setCalcBoxes(1);
         setUpcStatus({ message: 'Found in your inventory! How many boxes are you adding?', type: 'success' });
         return;
@@ -289,12 +289,7 @@ export const AmmoDashboard = () => {
       return;
     }
 
-    // 2. Reject alphanumeric SKUs from hitting the UPC API (it only accepts numbers)
-    if (!/^\d+$/.test(cleanUpc)) {
-      setUpcStatus({ message: 'Alpha-numeric SKU not found in local database. UPC API requires numbers only.', type: 'error' });
-      return;
-    }
-
+    // 2. Check Inventory
     const localMatch = ammoList.find(a => a.upc_code === upc);
     if (localMatch) {
       setEditingAmmo(localMatch);
@@ -310,176 +305,49 @@ export const AmmoDashboard = () => {
       const data = await window.api.lookupUPC(upc);
       if (data && data.items && data.items.length > 0) {
         const item = data.items[0];
-        const decodedTitle = decodeHTMLEntities(item.title);
-        const rawBrand = decodeHTMLEntities(item.brand);
-        const decodedDesc = decodeHTMLEntities(item.description);
-        const offersText = (item.offers || []).map((o: any) => decodeHTMLEntities(o.title)).join(' ');
-        
-        let decodedBrand = rawBrand;
-        if (rawBrand && rawBrand.toLowerCase().trim() !== 'brand') {
-          const lowerRaw = rawBrand.toLowerCase().trim();
-          const existingMatch = ammoList.find(a => (a.manufacturer || '').toLowerCase().trim() === lowerRaw);
-          if (existingMatch && existingMatch.manufacturer) {
-            decodedBrand = existingMatch.manufacturer;
-          } else if (rawBrand === rawBrand.toUpperCase() && rawBrand.length > 4) {
-            decodedBrand = rawBrand.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+        const parsed = parseBarcodeData(item, ammoList);
+
+        if (parsed.category === 'component') {
+          if (window.confirm("This looks like a Reloading Component. Would you like to redirect to the Components tab?")) {
+            navigate('/components', { state: { openAddModal: true, upc: upc } });
+            return;
           }
-        } else {
-          decodedBrand = '';
-        }
-
-        const combinedText = `${decodedTitle} ${decodedDesc} ${offersText}`.toLowerCase();
-        
-        if (!decodedBrand) {
-          const uniqueMakes = Array.from(new Set(ammoList.map(a => a.manufacturer).filter(Boolean))) as string[];
-          
-          let earliestIndex = -1;
-          let earliestMake = '';
-
-          const checkMakes = (makesList: string[]) => {
-            for (const make of makesList) {
-              const regex = new RegExp(`\\b${escapeRegExp(make)}\\b`, 'i');
-              const match = combinedText.match(regex);
-              if (match && match.index !== undefined) {
-                if (earliestIndex === -1 || match.index < earliestIndex) {
-                  // If they start at the same position, prefer the longer one (e.g. "Sellier & Bellot" over "Sellier")
-                  if (earliestIndex !== -1 && match.index === earliestIndex && make.length > earliestMake.length) {
-                    earliestMake = make;
-                  } else if (earliestIndex === -1 || match.index < earliestIndex) {
-                    earliestIndex = match.index;
-                    earliestMake = make;
-                  }
-                }
-              }
-            }
-          };
-
-          checkMakes(uniqueMakes);
-          
-          if (!earliestMake) {
-            const commonMakes = ['CCI', 'Winchester', 'Federal', 'Remington', 'Hornady', 'PMC', 'Fiocchi', 'Sellier & Bellot', 'Magtech', 'Blazer', 'Aguila', 'PPU', 'Sig Sauer'];
-            checkMakes(commonMakes);
+        } else if (parsed.category === 'accessory') {
+          if (window.confirm("This looks like an Accessory. Would you like to redirect to the Accessories tab?")) {
+            navigate('/accessories', { state: { openAddModal: true, upc: upc } });
+            return;
           }
-
-          if (earliestMake) {
-            decodedBrand = earliestMake;
+        } else if (parsed.category === 'unknown') {
+          const typeChoice = window.prompt("Is this Ammo, Component, or Accessory? (Type 'ammo', 'component', or 'accessory')", "ammo");
+          if (typeChoice && typeChoice.toLowerCase() === 'component') {
+            navigate('/components', { state: { openAddModal: true, upc: upc } });
+            return;
+          } else if (typeChoice && typeChoice.toLowerCase() === 'accessory') {
+            navigate('/accessories', { state: { openAddModal: true, upc: upc } });
+            return;
           }
         }
-        
-        const countMatch = combinedText.match(/(?:units per box|qty|quantity|count)[\s:]*(\d+)/i) || combinedText.match(/(\d+)\s*(?:rounds|rds|round|rd|pack|per box)/i);
-        let extractedCount = 0;
-        let textForCaliber = combinedText;
-        
-        if (countMatch) {
-          extractedCount = parseInt(countMatch[1]);
-          textForCaliber = combinedText.replace(countMatch[0], '');
-        }
 
-        if (extractedCount > 0) {
-          setCalcRds(extractedCount);
+        if (parsed.parsedAmmo?.count) {
+          setCalcRds(parsed.parsedAmmo.count);
           setCalcBoxes(1);
         }
-        
-        setFormData(prev => {
-          let foundCount = prev.count || extractedCount;
 
-          let foundCaliber = prev.caliber;
-          if (!foundCaliber) {
-            const uniqueCalibers = Array.from(new Set(ammoList.map(a => a.caliber).filter(Boolean))) as string[];
-            const allCalibers = [...uniqueCalibers, ...pistolCalibers, ...rifleCalibers];
-            // Sort by length descending to match the most specific caliber first (e.g. "223 Rem" before "223")
-            allCalibers.sort((a, b) => b.length - a.length);
-            
-            for (const cal of allCalibers) {
-              const flexibleCal = cal.split('').map(escapeRegExp).join('\\s*');
-              const regex = new RegExp(`(?:^|\\W|_)${flexibleCal}(?:\\W|_|$)`, 'i');
-              if (regex.test(textForCaliber)) {
-                // If it's from uniqueCalibers, we use it exactly as-is to perfectly match their DB casing/spacing.
-                // If it's a fallback, we pass it through formatCaliber to get the proper decimal.
-                foundCaliber = uniqueCalibers.includes(cal) ? cal : formatCaliber(cal);
-                break;
-              }
-            }
-          }
+        setFormData(prev => ({
+          ...prev,
+          manufacturer: parsed.parsedAmmo?.manufacturer || prev.manufacturer,
+          caliber: parsed.parsedAmmo?.caliber || prev.caliber,
+          grain: parsed.parsedAmmo?.grain || prev.grain,
+          projectile: parsed.parsedAmmo?.projectile || prev.projectile,
+          isPlusP: parsed.parsedAmmo?.isPlusP !== undefined ? parsed.parsedAmmo.isPlusP : prev.isPlusP,
+          costPerRound: parsed.parsedAmmo?.costPerRound || prev.costPerRound,
+          boxPrice: parsed.parsedAmmo?.boxPrice !== undefined ? parsed.parsedAmmo.boxPrice : (prev as any).boxPrice,
+          count: parsed.parsedAmmo?.count || prev.count,
+          upc_match: parsed.parsedAmmo?.upc_match || prev.upc_match,
+          upc_code: upc
+        } as any));
 
-          let foundGrain = prev.grain;
-          if (!foundGrain) {
-            const grainMatch = combinedText.match(/(\d+)\s*(?:gr|grain)/);
-            if (grainMatch) {
-              foundGrain = parseInt(grainMatch[1]);
-            }
-          }
-
-          let foundProjectile = prev.projectile;
-          if (!foundProjectile) {
-            const uniqueProjectiles = Array.from(new Set(ammoList.map(a => a.projectile).filter(Boolean))) as string[];
-            uniqueProjectiles.sort((a, b) => b.length - a.length); // Check longest first
-            
-            for (const proj of uniqueProjectiles) {
-              const regex = new RegExp(`\\b${escapeRegExp(proj)}\\b`, 'i');
-              if (regex.test(combinedText)) {
-                foundProjectile = proj;
-                break;
-              }
-            }
-            if (!foundProjectile) {
-              const commonProjectiles = [
-                'FMJ', 'JHP', 'TMJ', 'SP', 'HP', 'BTHP', 'OTM', 'LRN', 'SJHP', 'JSP', 'Buckshot', 'Slug', 
-                'FlexLock', 'V-Max', 'A-Max', 'XTP', 'SST', 'FTX', 'TSX', 'TTSX', 'Gold Dot', 'HST', 
-                'Hydra-Shok', 'Ranger T', 'AccuBond', 'Partition', 'Sub-X'
-              ];
-              // Sort by length so 'Critical Defense' is matched before 'Critical Duty' (though they are same length, good for 'Ranger' vs 'Ranger T')
-              commonProjectiles.sort((a, b) => b.length - a.length);
-              
-              for (const proj of commonProjectiles) {
-                const regex = new RegExp(`\\b${escapeRegExp(proj)}\\b`, 'i');
-                if (regex.test(combinedText)) {
-                  // Fallback matched an acronym. Let's check if the database has an expanded version of it.
-                  const expandedMatch = uniqueProjectiles.find(p => {
-                    const upperP = p.toUpperCase();
-                    const upperProj = proj.toUpperCase();
-                    return upperP === upperProj || 
-                           upperP.startsWith(upperProj + ' ') || 
-                           upperP.startsWith(upperProj + '(') || 
-                           upperP.startsWith(upperProj + '-');
-                  });
-                  foundProjectile = expandedMatch || proj;
-                  break;
-                }
-              }
-            }
-          }
-
-          let foundPlusP = prev.isPlusP;
-          if (!foundPlusP && /\+P|Plus\s*P/i.test(combinedText)) {
-            foundPlusP = true;
-          }
-
-          let foundCostPerRound = prev.costPerRound;
-          if (!foundCostPerRound && extractedCount > 0 && item.offers && item.offers.length > 0) {
-            const validPrices = item.offers.map((o: any) => parseFloat(o.price)).filter((p: number) => !isNaN(p) && p > 0);
-            if (validPrices.length > 0) {
-              validPrices.sort((a: number, b: number) => a - b);
-              const medianPrice = validPrices[Math.floor(validPrices.length / 2)];
-              foundCostPerRound = parseFloat((medianPrice / extractedCount).toFixed(2));
-            }
-          }
-
-          return {
-            ...prev,
-            manufacturer: decodedBrand || prev.manufacturer,
-            caliber: foundCaliber || prev.caliber,
-            grain: foundGrain || prev.grain,
-            projectile: foundProjectile || prev.projectile,
-            isPlusP: foundPlusP,
-            costPerRound: foundCostPerRound || prev.costPerRound,
-            count: foundCount,
-            upc_match: decodedTitle || prev.upc_match,
-            upc_code: upc
-          };
-        });
-        
-        setUpcStatus({ message: `Barcode found: ${decodedTitle}`, type: 'success' });
+        setUpcStatus({ message: 'Barcode parsed automatically!', type: 'success' });
       } else {
         setUpcStatus({ message: "Barcode not found in database. Manual entry required.", type: 'error' });
       }
@@ -503,7 +371,33 @@ export const AmmoDashboard = () => {
       }
       await window.api.updateAmmo(editingAmmo.id, submissionData as Ammo);
     } else {
-      await window.api.addAmmo(submissionData as Ammo);
+      // Check for duplicates before adding
+      const duplicate = ammoList.find(a => 
+        a.type === submissionData.type &&
+        a.caliber === submissionData.caliber &&
+        a.manufacturer === submissionData.manufacturer &&
+        a.grain === submissionData.grain &&
+        a.projectile === submissionData.projectile
+      );
+      
+      let merged = false;
+      if (duplicate) {
+        if (window.confirm(`An existing entry for ${duplicate.manufacturer || ''} ${duplicate.caliber} ${duplicate.grain || ''}gr was found. Would you like to merge this into the existing entry?`)) {
+           const mergedData = { ...duplicate };
+           mergedData.count = (duplicate.count || 0) + (submissionData.count || 0);
+           // Take the new UPC if the old one was blank
+           if (!mergedData.upc_code && submissionData.upc_code) {
+             mergedData.upc_code = submissionData.upc_code;
+           }
+           await window.api.updateAmmo(duplicate.id!, mergedData as Ammo);
+           merged = true;
+        }
+      }
+      
+      if (!merged) {
+        await window.api.addAmmo(submissionData as Ammo);
+      }
+
       // Automatically clear the sync item from the inbox if this was a resolution
       if (location.state && location.state.syncItemId) {
         await window.api.removeSyncItem(location.state.syncItemId);
@@ -539,7 +433,8 @@ export const AmmoDashboard = () => {
   }, [ammoList]);
 
   return (
-    <div className="page-container">
+    <>
+      <div className="page-container">
       <div className="page-header">
         <div>
           <h1 className="page-title">Ammunition Inventory</h1>
@@ -693,6 +588,7 @@ export const AmmoDashboard = () => {
           </div>
         )}
       </div>
+    </div>
 
       {isModalOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
@@ -1050,10 +946,13 @@ export const AmmoDashboard = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '1.5rem' }}>
                   <div className="form-group" style={{ marginBottom: 0 }}>
                     <label>Total Box Price ($) <span style={{fontSize:'0.75rem', fontWeight:'normal'}}>(Auto-calcs CPR)</span></label>
-                    <input type="number" step="0.01" className="form-input" placeholder="e.g. 25.00" onChange={e => {
-                      const val = parseFloat(e.target.value);
+                    <input type="number" step="0.01" className="form-input" placeholder="e.g. 25.00" value={(formData as any).boxPrice ?? ''} onChange={e => {
+                      const valStr = e.target.value;
+                      const val = parseFloat(valStr);
                       if (!isNaN(val) && formData.count) {
-                        setFormData({...formData, costPerRound: parseFloat((val / formData.count).toFixed(3))});
+                        setFormData({...formData, boxPrice: val, costPerRound: parseFloat((val / formData.count).toFixed(3))} as any);
+                      } else {
+                        setFormData({...formData, boxPrice: valStr === '' ? undefined : val} as any);
                       }
                     }} />
                   </div>
@@ -1330,6 +1229,6 @@ export const AmmoDashboard = () => {
         <option value="Subsonic" />
       </datalist>
 
-    </div>
+    </>
   );
 };
