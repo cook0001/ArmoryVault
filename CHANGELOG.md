@@ -1,5 +1,9 @@
 # Changelog
 
+## [2.6.1]
+### Added
+- **Master Vault Password Management & Security Hub**: Users can now change their master encryption password anytime from Settings -> **Vault Security & Encryption**. Features secure envelope re-encryption of the AES-256 master key with PBKDF2 key derivation (100,000 rounds), live password strength/matching validation, and an in-app **Vault Recovery Key** drawer allowing users to safely view and copy their permanent 64-character emergency recovery code.
+
 ## [2.6.0]
 ### Added
 - **Dual Trigger Maintenance Scheduling (Round Count & Elapsed Days)**: Maintenance tasks now support dual wear and time triggers (e.g. 5,000 rounds OR 180 days). Includes a clean checkbox `[ ] Also trigger on elapsed time (Days)` in the schedule creator and dual progress bar countdown alerts on firearm detail cards.

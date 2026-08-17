@@ -107,6 +107,8 @@ app.whenReady().then(() => {
   ipcMain.handle('setup-vault', (_, password) => db.setupVault(password));
   ipcMain.handle('unlock-vault', (_, password) => db.unlockVault(password));
   ipcMain.handle('unlock-with-recovery-code', (_, code) => db.unlockWithRecoveryCode(code));
+  ipcMain.handle('change-password', (_, { currentPassword, newPassword }) => db.changePassword(currentPassword, newPassword));
+  ipcMain.handle('get-recovery-code', () => db.getRecoveryCode());
   ipcMain.handle('lock-vault', () => db.lockVault());
 
   ipcMain.handle('get-firearms', () => db.getFirearms());

@@ -64,6 +64,11 @@ export function setupMockBackend() {
         mockLocked = false;
         return true;
       },
+      changePassword: async (currentPassword: string, newPassword: string) => {
+        if (newPassword.length < 8) return { success: false, error: 'New password must be at least 8 characters long.' };
+        return { success: true, message: 'Password changed successfully!' };
+      },
+      getRecoveryCode: async () => "mock-recovery-code-1234567890abcdef",
       lockVault: async () => {
         mockLocked = true;
       },

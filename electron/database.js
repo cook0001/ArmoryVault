@@ -118,6 +118,78 @@ class Database {
     }
   }
 
+  changePassword(currentPassword, newPassword) {
+    if (this.isLocked() || !this.masterKey) {
+      return { success: false, error: 'Vault must be unlocked to change password.' };
+    }
+    if (!newPassword || newPassword.length < 8) {
+      return { success: false, error: 'New password must be at least 8 characters long.' };
+    }
+
+    try {
+      if (!this.vaultMeta) {
+        if (!fs.existsSync(this.encPath)) {
+          return { success: false, error: 'Vault file not found.' };
+        }
+        const filePayload = JSON.parse(fs.readFileSync(this.encPath, 'utf8'));
+        this.vaultMeta = filePayload.vault;
+      }
+
+      // Verify current password if provided
+      if (currentPassword) {
+        const derivedKey = crypto.pbkdf2Sync(currentPassword, Buffer.from(this.vaultMeta.salt, 'hex'), 100000, 32, 'sha256');
+        const decipher = crypto.createDecipheriv('aes-256-gcm', derivedKey, Buffer.from(this.vaultMeta.iv, 'hex'));
+        decipher.setAuthTag(Buffer.from(this.vaultMeta.authTag, 'hex'));
+        
+        let decryptedKey;
+        try {
+          decryptedKey = Buffer.concat([
+            decipher.update(Buffer.from(this.vaultMeta.encryptedMasterKey, 'hex')),
+            decipher.final()
+          ]);
+        } catch (err) {
+          return { success: false, error: 'Current password is incorrect.' };
+        }
+
+        if (!decryptedKey || !decryptedKey.equals(this.masterKey)) {
+          return { success: false, error: 'Current password is incorrect.' };
+        }
+      }
+
+      // Re-encrypt the existing master key with new password
+      const newSalt = crypto.randomBytes(16);
+      const newDerivedKey = crypto.pbkdf2Sync(newPassword, newSalt, 100000, 32, 'sha256');
+      const newIv = crypto.randomBytes(12);
+
+      const cipher = crypto.createCipheriv('aes-256-gcm', newDerivedKey, newIv);
+      let encryptedMasterKey = cipher.update(this.masterKey, null, 'hex');
+      encryptedMasterKey += cipher.final('hex');
+      const authTag = cipher.getAuthTag().toString('hex');
+
+      this.vaultMeta = {
+        salt: newSalt.toString('hex'),
+        iv: newIv.toString('hex'),
+        authTag: authTag,
+        encryptedMasterKey: encryptedMasterKey
+      };
+
+      // Load cache if needed and flush to disk
+      this.getData();
+      this._dirty = true;
+      this.flushSync();
+
+      return { success: true, message: 'Master password updated successfully!' };
+    } catch (e) {
+      console.error('Password change error:', e);
+      return { success: false, error: e.message || 'Failed to update master password.' };
+    }
+  }
+
+  getRecoveryCode() {
+    if (this.isLocked() || !this.masterKey) return null;
+    return this.masterKey.toString('hex');
+  }
+
   lockVault() {
     this.flushSync(); // Persist any pending writes before locking
     this.masterKey = null;

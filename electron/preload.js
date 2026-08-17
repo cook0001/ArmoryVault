@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('api', {
   setupVault: (password) => ipcRenderer.invoke('setup-vault', password),
   unlockVault: (password) => ipcRenderer.invoke('unlock-vault', password),
   unlockWithRecoveryCode: (code) => ipcRenderer.invoke('unlock-with-recovery-code', code),
+  changePassword: (currentPassword, newPassword) => ipcRenderer.invoke('change-password', { currentPassword, newPassword }),
+  getRecoveryCode: () => ipcRenderer.invoke('get-recovery-code'),
   lockVault: () => ipcRenderer.invoke('lock-vault'),
   
   getFirearms: () => ipcRenderer.invoke('get-firearms'),

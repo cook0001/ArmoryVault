@@ -1,7 +1,7 @@
 {
   "name": "armoryvault",
   "productName": "ArmoryVault",
-  "version": "2.6.0",
+  "version": "2.6.1",
   "description": "Firearm & Ammo Inventory Software",
   "main": "electron/main.js",
   "scripts": {
