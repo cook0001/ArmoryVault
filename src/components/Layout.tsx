@@ -5,6 +5,7 @@ import { CustomSkuDatabase, CustomSkuItem, Ammo } from '../types';
 import { exportToCSV } from '../utils/csvExport';
 import { RangeSessionModal } from './RangeSessionModal';
 import { ChangePasswordModal } from './ChangePasswordModal';
+import { RecoveryKeyModal } from './RecoveryKeyModal';
 import packageJson from '../../package.json';
 
 export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
@@ -23,6 +24,7 @@ export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
   const [syncQueueCount, setSyncQueueCount] = useState(0);
   const [isRangeModalOpen, setIsRangeModalOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [isRecoveryKeyModalOpen, setIsRecoveryKeyModalOpen] = useState(false);
 
   // SKU Manager State
   const [skuDatabase, setSkuDatabase] = useState<CustomSkuDatabase>({});
@@ -462,8 +464,8 @@ export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
                   </button>
                   <button 
                     className="btn-secondary" 
-                    onClick={() => setIsChangePasswordOpen(true)} 
-                    style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', alignItems: 'center', padding: '0.65rem 1rem', fontSize: '0.85rem', color: 'var(--accent)' }}
+                    onClick={() => setIsRecoveryKeyModalOpen(true)} 
+                    style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', alignItems: 'center', padding: '0.65rem 1rem', fontSize: '0.85rem', color: '#60a5fa' }}
                   >
                     <Lock size={16} /> View Vault Recovery Key
                   </button>
@@ -881,6 +883,11 @@ export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
       <ChangePasswordModal
         isOpen={isChangePasswordOpen}
         onClose={() => setIsChangePasswordOpen(false)}
+      />
+
+      <RecoveryKeyModal
+        isOpen={isRecoveryKeyModalOpen}
+        onClose={() => setIsRecoveryKeyModalOpen(false)}
       />
 
     </div>

@@ -2,7 +2,9 @@
 
 ## [2.6.1]
 ### Added
-- **Master Vault Password Management & Security Hub**: Users can now change their master encryption password anytime from Settings -> **Vault Security & Encryption**. Features secure envelope re-encryption of the AES-256 master key with PBKDF2 key derivation (100,000 rounds), live password strength/matching validation, and an in-app **Vault Recovery Key** drawer allowing users to safely view and copy their permanent 64-character emergency recovery code.
+- **Master Vault Password Management & Security Hub**: Users can now change their master encryption password anytime from Settings -> **Vault Security & Encryption**. Features secure envelope re-encryption of the AES-256 master key with PBKDF2 key derivation (100,000 rounds) and live password strength/matching validation.
+- **Dedicated Emergency Recovery Key Viewer & Text Backup**: Users can view, verify, copy, or download their permanent 64-character emergency recovery key (`ArmoryVault_Recovery_Key.txt`) at any time from Settings -> **View Vault Recovery Key**.
+- **Vault Re-Keying & Recovery Key Regeneration**: Added option to regenerate a brand new 64-character recovery key and re-encrypt the entire inventory database (accessible as a checkbox during password changes or via the standalone **Regenerate Key** tool). Invalides old compromised recovery codes and issues a fresh master key.
 
 ## [2.6.0]
 ### Added

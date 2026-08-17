@@ -228,7 +228,8 @@ declare global {
       setupVault: (password: string) => Promise<string>;
       unlockVault: (password: string) => Promise<boolean>;
       unlockWithRecoveryCode: (code: string) => Promise<boolean>;
-      changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; error?: string; message?: string }>;
+      changePassword: (currentPassword: string, newPassword: string, regenerateRecoveryKey?: boolean) => Promise<{ success: boolean; error?: string; message?: string; newRecoveryCode?: string | null }>;
+      regenerateRecoveryKey: (currentPassword: string) => Promise<{ success: boolean; error?: string; message?: string; newRecoveryCode?: string | null }>;
       getRecoveryCode: () => Promise<string | null>;
       lockVault: () => Promise<void>;
       

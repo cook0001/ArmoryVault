@@ -118,7 +118,7 @@ class Database {
     }
   }
 
-  changePassword(currentPassword, newPassword) {
+  changePassword(currentPassword, newPassword, regenerateRecoveryKey = false) {
     if (this.isLocked() || !this.masterKey) {
       return { success: false, error: 'Vault must be unlocked to change password.' };
     }
@@ -156,16 +156,26 @@ class Database {
         }
       }
 
-      // Re-encrypt the existing master key with new password
+      // Handle re-keying if requested
+      let targetMasterKey = this.masterKey;
+      let newRecoveryCode = null;
+
+      if (regenerateRecoveryKey) {
+        targetMasterKey = crypto.randomBytes(32);
+        newRecoveryCode = targetMasterKey.toString('hex');
+      }
+
+      // Re-encrypt the master key with new password
       const newSalt = crypto.randomBytes(16);
       const newDerivedKey = crypto.pbkdf2Sync(newPassword, newSalt, 100000, 32, 'sha256');
       const newIv = crypto.randomBytes(12);
 
       const cipher = crypto.createCipheriv('aes-256-gcm', newDerivedKey, newIv);
-      let encryptedMasterKey = cipher.update(this.masterKey, null, 'hex');
+      let encryptedMasterKey = cipher.update(targetMasterKey, null, 'hex');
       encryptedMasterKey += cipher.final('hex');
       const authTag = cipher.getAuthTag().toString('hex');
 
+      this.masterKey = targetMasterKey;
       this.vaultMeta = {
         salt: newSalt.toString('hex'),
         iv: newIv.toString('hex'),
@@ -178,10 +188,87 @@ class Database {
       this._dirty = true;
       this.flushSync();
 
-      return { success: true, message: 'Master password updated successfully!' };
+      return { 
+        success: true, 
+        newRecoveryCode: newRecoveryCode,
+        message: regenerateRecoveryKey 
+          ? 'Master password updated and new recovery key generated successfully!' 
+          : 'Master password updated successfully!' 
+      };
     } catch (e) {
       console.error('Password change error:', e);
       return { success: false, error: e.message || 'Failed to update master password.' };
+    }
+  }
+
+  regenerateRecoveryKey(currentPassword) {
+    if (this.isLocked() || !this.masterKey) {
+      return { success: false, error: 'Vault must be unlocked to regenerate recovery key.' };
+    }
+
+    try {
+      if (!this.vaultMeta) {
+        if (!fs.existsSync(this.encPath)) {
+          return { success: false, error: 'Vault file not found.' };
+        }
+        const filePayload = JSON.parse(fs.readFileSync(this.encPath, 'utf8'));
+        this.vaultMeta = filePayload.vault;
+      }
+
+      // Verify current password
+      const derivedKey = crypto.pbkdf2Sync(currentPassword, Buffer.from(this.vaultMeta.salt, 'hex'), 100000, 32, 'sha256');
+      const decipher = crypto.createDecipheriv('aes-256-gcm', derivedKey, Buffer.from(this.vaultMeta.iv, 'hex'));
+      decipher.setAuthTag(Buffer.from(this.vaultMeta.authTag, 'hex'));
+      
+      let decryptedKey;
+      try {
+        decryptedKey = Buffer.concat([
+          decipher.update(Buffer.from(this.vaultMeta.encryptedMasterKey, 'hex')),
+          decipher.final()
+        ]);
+      } catch (err) {
+        return { success: false, error: 'Current password is incorrect.' };
+      }
+
+      if (!decryptedKey || !decryptedKey.equals(this.masterKey)) {
+        return { success: false, error: 'Current password is incorrect.' };
+      }
+
+      // Generate new 32-byte master key
+      const newMasterKey = crypto.randomBytes(32);
+      const newRecoveryCode = newMasterKey.toString('hex');
+
+      // Re-encrypt new master key with current password
+      const newSalt = crypto.randomBytes(16);
+      const newDerivedKey = crypto.pbkdf2Sync(currentPassword, newSalt, 100000, 32, 'sha256');
+      const newIv = crypto.randomBytes(12);
+
+      const cipher = crypto.createCipheriv('aes-256-gcm', newDerivedKey, newIv);
+      let encryptedMasterKey = cipher.update(newMasterKey, null, 'hex');
+      encryptedMasterKey += cipher.final('hex');
+      const authTag = cipher.getAuthTag().toString('hex');
+
+      this.masterKey = newMasterKey;
+      this.vaultMeta = {
+        salt: newSalt.toString('hex'),
+        iv: newIv.toString('hex'),
+        authTag: authTag,
+        encryptedMasterKey: encryptedMasterKey
+      };
+
+      // Re-encrypt entire database under the new master key
+      this.getData();
+      this._dirty = true;
+      this.flushSync();
+
+      return { 
+        success: true, 
+        newRecoveryCode: newRecoveryCode, 
+        message: 'New recovery key generated and vault re-keyed successfully!' 
+      };
+    } catch (e) {
+      console.error('Regenerate recovery key error:', e);
+      return { success: false, error: e.message || 'Failed to regenerate recovery key.' };
     }
   }
 

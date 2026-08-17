@@ -64,9 +64,20 @@ export function setupMockBackend() {
         mockLocked = false;
         return true;
       },
-      changePassword: async (currentPassword: string, newPassword: string) => {
+      changePassword: async (currentPassword: string, newPassword: string, regenerateRecoveryKey?: boolean) => {
         if (newPassword.length < 8) return { success: false, error: 'New password must be at least 8 characters long.' };
-        return { success: true, message: 'Password changed successfully!' };
+        return { 
+          success: true, 
+          message: regenerateRecoveryKey ? 'Password changed and new recovery key generated!' : 'Password changed successfully!',
+          newRecoveryCode: regenerateRecoveryKey ? 'mock-new-recovery-code-9876543210fedcba' : null
+        };
+      },
+      regenerateRecoveryKey: async (currentPassword: string) => {
+        return { 
+          success: true, 
+          message: 'New recovery key generated and vault re-keyed successfully!',
+          newRecoveryCode: 'mock-regenerated-recovery-code-abcdef1234567890'
+        };
       },
       getRecoveryCode: async () => "mock-recovery-code-1234567890abcdef",
       lockVault: async () => {

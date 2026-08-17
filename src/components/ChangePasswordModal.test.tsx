@@ -60,7 +60,7 @@ describe('ChangePasswordModal Component', () => {
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(window.api.changePassword).toHaveBeenCalledWith('currentPass123', 'newSecurePass456');
+      expect(window.api.changePassword).toHaveBeenCalledWith('currentPass123', 'newSecurePass456', false);
     });
   });
 
@@ -78,6 +78,32 @@ describe('ChangePasswordModal Component', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Current password is incorrect.')).toBeDefined();
+    });
+  });
+
+  test('submits with regenerateKey option and displays new recovery key screen', async () => {
+    window.api.changePassword = vi.fn().mockResolvedValue({
+      success: true,
+      newRecoveryCode: 'brand-new-64-character-recovery-code-1234567890abcdef1234567890abcdef'
+    });
+
+    render(<ChangePasswordModal isOpen={true} onClose={() => {}} />);
+
+    fireEvent.change(screen.getByPlaceholderText('Enter current password'), { target: { value: 'currentPass123' } });
+    fireEvent.change(screen.getByPlaceholderText('At least 8 characters'), { target: { value: 'newSecurePass456' } });
+    fireEvent.change(screen.getByPlaceholderText('Re-enter new password'), { target: { value: 'newSecurePass456' } });
+
+    // Check regenerate key box
+    const checkbox = screen.getByLabelText(/also generate a new recovery key/i);
+    fireEvent.click(checkbox);
+
+    const submitBtn = screen.getByRole('button', { name: /update & re-key/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(window.api.changePassword).toHaveBeenCalledWith('currentPass123', 'newSecurePass456', true);
+      expect(screen.getByText('Password Updated & Vault Re-Keyed!')).toBeDefined();
+      expect(screen.getByText('brand-new-64-character-recovery-code-1234567890abcdef1234567890abcdef')).toBeDefined();
     });
   });
 });
