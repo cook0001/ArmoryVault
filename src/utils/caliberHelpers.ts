@@ -108,8 +108,14 @@ export const buildCustomCategories = (ammoList: Ammo[]): Record<string, string> 
   return map;
 };
 
-export const pistolCalibers = ['9mm', '45 ACP', '40 S&W', '380 ACP', '380 Auto', '38 Special', '357 Mag', '10mm', '44 Mag', '44 Special', '45 Colt', '25 ACP', '32 ACP', '5.7x28', '5.7', '9x19', '32 Auto', '25 Auto'];
-export const rifleCalibers = ['223 Rem', '223', '5.56 NATO', '5.56', '308 Win', '308', '7.62 NATO', '7.62x39', '7.62', '6.5 Creedmoor', '6.5', '30-06', '270 Win', '270', '300 Blackout', '300 Win Mag', '300', '22 LR', '22 Long', '22 WMR', '17 HMR', '7mm Rem Mag', '7mm', '30-30', '45-70', '5.45'];
+export const pistolCalibers = [
+  '9mm', '45 ACP', '40 S&W', '380 ACP', '380 Auto', '38 Special', '357 Mag', '10mm', '44 Mag', '44 Special', '45 Colt', '25 ACP', '32 ACP', '5.7x28', '5.7', '9x19', '32 Auto', '25 Auto',
+  '7.62x25', '7.62x38', '9x18', '7.63x25', '7.65x21', '455 Webley', '38 S&W', '38/200', '32 S&W', '38-40', '44-40', '9mm Makarov', '7.62 Tokarev', '7.62 Nagant', '30 Luger', '30 Mauser'
+];
+export const rifleCalibers = [
+  '223 Rem', '223', '5.56 NATO', '5.56', '308 Win', '308', '7.62 NATO', '7.62x39', '7.62', '6.5 Creedmoor', '6.5', '30-06', '270 Win', '270', '300 Blackout', '300 Win Mag', '300', '22 LR', '22 Long', '22 WMR', '17 HMR', '7mm Rem Mag', '7mm', '30-30', '45-70', '5.45',
+  '30-40 Krag', '30 Carbine', '303 British', '7.62x54', '7.62x54r', '7.92x57', '8mm Mauser', '8x57', '6.5x55', '6.5 Swede', '7.5x55', '7.5 Swiss', '7.65x53', '7x57', '7mm Mauser', '6.5x50', 'Arisaka', '7.7x58', '6.5x52', 'Carcano', '7.35x51', '8x56', '8x50', '7.5x54', 'French', '405 Win', '32 Win Special', '35 Rem', '300 Savage', '250-3000'
+];
 
 /**
  * Comprehensive master list of bullet and projectile types (standard, match, defensive, and proprietary).

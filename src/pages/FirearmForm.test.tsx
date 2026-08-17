@@ -44,5 +44,38 @@ describe('FirearmForm Component', () => {
       }));
     });
   });
+
+  test('submits vintage and collectible firearm with C&R type and condition', async () => {
+    render(
+      <MemoryRouter>
+        <FirearmForm />
+      </MemoryRouter>
+    );
+
+    const makeInput = screen.getByLabelText('Make');
+    const modelInput = screen.getByLabelText('Model');
+    const caliberInput = screen.getByLabelText('Caliber');
+    const typeInput = screen.getByLabelText('Type');
+    const conditionInput = screen.getByLabelText('Condition');
+
+    await userEvent.type(makeInput, 'Winchester');
+    await userEvent.type(modelInput, 'Model 1895');
+    await userEvent.type(caliberInput, '.30-06 Springfield');
+    await userEvent.type(typeInput, 'Curio & Relic (C&R) Rifle');
+    await userEvent.type(conditionInput, 'NRA Fine (90-95%)');
+
+    const submitBtns = screen.getAllByRole('button', { name: /save firearm/i });
+    fireEvent.click(submitBtns[0]);
+
+    await waitFor(() => {
+      expect(window.api.addFirearm).toHaveBeenCalledWith(expect.objectContaining({
+        make: 'Winchester',
+        model: 'Model 1895',
+        caliber: '.30-06 Springfield',
+        firearm_type: 'Curio & Relic (C&R) Rifle',
+        condition: 'NRA Fine (90-95%)'
+      }));
+    });
+  });
 });
 

@@ -90,4 +90,62 @@ describe('Maintenance Presets & Action Detection', () => {
     expect(cleanItem?.interval_days).toBe(90);
     expect(cleanItem?.interval_rounds).toBe(300);
   });
+
+  test('detects M1 Garand profile and includes op-rod and Lubriplate tasks', () => {
+    const garand: Partial<Firearm> = {
+      make: 'Springfield Armory',
+      model: 'M1 Garand',
+      caliber: '.30-06 Springfield',
+      action_type: 'Semi-Automatic'
+    };
+
+    const profile = detectFirearmScheduleProfile(garand);
+    expect(profile.id).toBe('m1_garand');
+    expect(profile.tasks.some(t => t.task_name.toLowerCase().includes('op-rod'))).toBe(true);
+    expect(profile.tasks.some(t => t.task_name.toLowerCase().includes('lubriplate'))).toBe(true);
+    expect(profile.tasks.some(t => t.task_name.toLowerCase().includes('en-bloc') || t.task_name.toLowerCase().includes('clip latch'))).toBe(true);
+  });
+
+  test('detects M1 Carbine profile and includes gas tappet and slide spring tasks', () => {
+    const carbine: Partial<Firearm> = {
+      make: 'Inland Manufacturing',
+      model: 'M1 Carbine',
+      caliber: '.30 Carbine',
+      action_type: 'Semi-Automatic'
+    };
+
+    const profile = detectFirearmScheduleProfile(carbine);
+    expect(profile.id).toBe('m1_carbine');
+    expect(profile.tasks.some(t => t.task_name.toLowerCase().includes('tappet'))).toBe(true);
+    expect(profile.tasks.some(t => t.task_name.toLowerCase().includes('mag catch') || t.task_name.toLowerCase().includes('magazine catch'))).toBe(true);
+  });
+
+  test('detects Springfield 1903A3 / vintage CRF bolt action profile', () => {
+    const m1903: Partial<Firearm> = {
+      make: 'Remington',
+      model: '1903A3',
+      caliber: '.30-06',
+      action_type: 'Bolt Action'
+    };
+
+    const profile = detectFirearmScheduleProfile(m1903);
+    expect(profile.id).toBe('vintage_bolt_crf');
+    expect(profile.tasks.some(t => t.task_name.toLowerCase().includes('claw extractor'))).toBe(true);
+    expect(profile.tasks.some(t => t.task_name.toLowerCase().includes('corrosive') || t.task_name.toLowerCase().includes('decontamination'))).toBe(true);
+  });
+
+  test('detects Winchester Model 1895 vintage box-magazine lever action profile', () => {
+    const win1895: Partial<Firearm> = {
+      make: 'Winchester',
+      model: 'Model 1895',
+      caliber: '.30-40 Krag',
+      action_type: 'Lever Action'
+    };
+
+    const profile = detectFirearmScheduleProfile(win1895);
+    expect(profile.id).toBe('vintage_box_lever');
+    expect(profile.tasks.some(t => t.task_name.toLowerCase().includes('tang screw') || t.task_name.toLowerCase().includes('wrist'))).toBe(true);
+    expect(profile.tasks.some(t => t.task_name.toLowerCase().includes('box magazine'))).toBe(true);
+    expect(profile.tasks.some(t => t.task_name.toLowerCase().includes('locking bolt'))).toBe(true);
+  });
 });

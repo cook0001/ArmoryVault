@@ -1094,6 +1094,7 @@ export const AmmoDashboard = () => {
 
       {/* Datalists for Autocomplete */}
       <datalist id="calibers-list">
+        {/* Modern Calibers */}
         <option value="9mm Luger" />
         <option value=".45 ACP" />
         <option value=".223 Remington" />
@@ -1104,6 +1105,9 @@ export const AmmoDashboard = () => {
         <option value=".22 LR" />
         <option value="12 Gauge" />
         <option value="20 Gauge" />
+        <option value="16 Gauge" />
+        <option value="28 Gauge" />
+        <option value=".410 Bore" />
         <option value=".380 ACP" />
         <option value=".38 Special" />
         <option value=".357 Magnum" />
@@ -1112,6 +1116,45 @@ export const AmmoDashboard = () => {
         <option value="5.7x28mm" />
         <option value=".300 Blackout" />
         <option value="6.5mm Creedmoor" />
+        <option value=".300 Winchester Magnum" />
+        <option value=".270 Winchester" />
+        <option value="7mm Remington Magnum" />
+
+        {/* Historic & Military Surplus Calibers */}
+        <option value=".30-06 Springfield" />
+        <option value=".30 Carbine" />
+        <option value=".30-40 Krag" />
+        <option value=".30-30 Winchester" />
+        <option value=".45-70 Government" />
+        <option value=".405 Winchester" />
+        <option value=".32 Winchester Special" />
+        <option value=".35 Remington" />
+        <option value=".300 Savage" />
+        <option value=".250-3000 Savage" />
+        <option value=".303 British" />
+        <option value="7.62x54mmR" />
+        <option value="7.92x57mm Mauser (8mm Mauser)" />
+        <option value="6.5x55mm Swedish Mauser" />
+        <option value="7.5x55mm Swiss (GP11)" />
+        <option value="7.65x53mm Argentine Mauser" />
+        <option value="7x57mm Mauser (7mm Mauser)" />
+        <option value="6.5x50mmSR Arisaka" />
+        <option value="7.7x58mm Arisaka" />
+        <option value="6.5x52mm Carcano" />
+        <option value="7.35x51mm Carcano" />
+        <option value="8x56mmR Steyr-Mannlicher" />
+        <option value="8x50mmR Lebel" />
+        <option value="7.5x54mm French" />
+        <option value="7.62x25mm Tokarev" />
+        <option value="9x18mm Makarov" />
+        <option value="7.62x38mmR (Nagant)" />
+        <option value="7.63x25mm Mauser (.30 Mauser)" />
+        <option value="7.65x21mm Parabellum (.30 Luger)" />
+        <option value=".455 Webley" />
+        <option value=".38 S&W (.38/200)" />
+        <option value=".38-40 Winchester (.38 WCF)" />
+        <option value=".44-40 Winchester (.44 WCF)" />
+        <option value=".45 Colt (.45 Long Colt)" />
       </datalist>
 
       <datalist id="ammo-makes-list">

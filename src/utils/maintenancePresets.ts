@@ -119,6 +119,61 @@ export const MAINTENANCE_PROFILES: Record<string, MaintenanceProfile> = {
       { task_name: 'Inspect Firing Pins & Return Springs', interval_rounds: 5000, notes: 'Check for pitted firing pin tips and weak return springs.' },
       { task_name: 'Inspect Lockup Tightness & Top Lever Position', interval_rounds: 5000, notes: 'Verify locking bolt engagement and bite.' }
     ]
+  },
+  m1_garand: {
+    id: 'm1_garand',
+    name: 'M1 Garand & Surplus Gas Rifles',
+    category: 'Vintage / Surplus',
+    description: 'M1 Garand (.30-06 / .308), SKS, SVT-40, FN49 gas-operated military surplus',
+    tasks: [
+      { task_name: 'Bore, Chamber & Gas Cylinder Clean / Corrosive Flush', interval_rounds: 250, interval_days: 60, notes: 'Clean bore from muzzle using brass bore guide. Clean gas cylinder and piston. If shooting surplus ammo, flush with hot water/solvent immediately to dissolve corrosive salts.' },
+      { task_name: 'Lubriplate / High-Temp Synthetic Grease Application', interval_rounds: 500, interval_days: 90, notes: 'Apply Lubriplate 130A / synthetic grease to bolt lugs, op-rod cam track, receiver slide grooves, hammer hooks, and bullet guide. Never run M1 Garands dry!' },
+      { task_name: 'Op-Rod Tilt Test & Op-Rod Spring Length Check', interval_rounds: 1500, interval_days: 365, notes: 'Verify op-rod moves freely at 45° tilt without stock drag. Measure op-rod spring free length (standard min 19.5", replace if under 19.5" to avoid cracked receiver heels).' },
+      { task_name: 'Clip Latch, Clip Ejector & Bullet Guide Inspection', interval_rounds: 3000, interval_days: 730, notes: 'Inspect en-bloc clip latch pin wear, accelerator tab, and ejector spring tension to prevent 7th round stoppage or premature clip ejection.' },
+      { task_name: 'Gas Cylinder, Throat (TE) & Muzzle Wear (MW) Gauge', interval_rounds: 3000, interval_days: 730, notes: 'Check gas cylinder internal diameter (< 0.532"). Measure throat erosion (TE) and muzzle wear (MW) with armorer plug gauges.' },
+      { task_name: 'Stock Lockup & Linseed Oil Conditioning', interval_rounds: 2000, interval_days: 180, notes: 'Inspect front handguard clearance (prevent barrel binding) and condition walnut stock with pure tung oil or boiled linseed oil (BLO).' }
+    ]
+  },
+  m1_carbine: {
+    id: 'm1_carbine',
+    name: 'M1 Carbine & Short-Stroke Gas Carbines',
+    category: 'Vintage / Surplus',
+    description: 'M1 / M2 Carbine (.30 Carbine - Inland, Winchester, Underwood, Rock-Ola, NPM, Quality Hardware)',
+    tasks: [
+      { task_name: 'Bore Clean, Bolt & Slide Rail Lubrication', interval_rounds: 300, interval_days: 90, notes: 'Clean bore from breech or with crown guard. Lightly lube slide handle track and bolt lugs with light grease/CLP.' },
+      { task_name: 'Gas Tappet Piston Free-Movement Check (Keep Dry)', interval_rounds: 600, interval_days: 180, notes: 'Verify short-stroke gas piston moves freely inside cylinder nut. Keep dry or clean with evaporating solvent; excess oil burns into carbon fouling and jams piston.' },
+      { task_name: 'Replace Recoil Spring & Operating Slide Spring', interval_rounds: 2500, interval_days: 365, notes: 'Replace primary recoil spring (standard min 10.25", replace if compressed < 9.75") to prevent bolt bounce and feeding failures.' },
+      { task_name: 'Magazine Catch & Feed Lip Tension Inspection', interval_rounds: 1500, interval_days: 365, notes: 'Inspect mag catch plunger and feed lips. M1 Carbines are prone to feeding failures if mag catch is worn or mag springs weaken.' },
+      { task_name: 'Bolt Disassembly, Extractor & Ejector Springs', interval_rounds: 4000, interval_days: 730, notes: 'Use M1 Carbine bolt tool to disassemble bolt. Clean firing pin channel and replace extractor spring/ejector plunger spring.' }
+    ]
+  },
+  vintage_bolt_crf: {
+    id: 'vintage_bolt_crf',
+    name: 'Vintage Military CRF Bolt Action',
+    category: 'Vintage / Surplus',
+    description: 'Controlled-round-feed service rifles (Springfield M1903/M1903A3, Mauser K98k, Lee-Enfield, Mosin-Nagant, Swiss K31, Arisaka)',
+    tasks: [
+      { task_name: 'Bore Decontamination & Action Wipe Down', interval_rounds: 200, interval_days: 60, notes: 'Clean rifling from breech with bore guide. If shooting surplus military ammo, rinse bore and bolt face with hot water/solvent to dissolve primer salts.' },
+      { task_name: 'Disassemble Striker & Bolt Internals Deep Clean', interval_rounds: 1000, interval_days: 365, notes: 'Disassemble bolt sleeve and striker assembly. Remove hardened cosmoline or varnish. Inspect mainspring length and firing pin protrusion (.055"-.065").' },
+      { task_name: 'Claw Extractor & Spring Collar Tension Check', interval_rounds: 2000, interval_days: 730, notes: 'Inspect non-rotating Mauser claw extractor lip for chips or rounding. Ensure extractor collar snaps firmly. Never single-load direct into chamber over the claw!' },
+      { task_name: 'Guard Screws & Stock Band Torque / Harmonic Check', interval_rounds: 1000, interval_days: 180, notes: 'Torque front/rear action screws to 35-45 in-lbs. Check front barrel band and handguard tension for consistent barrel harmonics.' },
+      { task_name: 'Headspace & Throat Erosion (TE) Verification', interval_rounds: 3000, interval_days: 730, notes: 'Verify headspace with precision GO and FIELD gauges. Measure throat wear.' },
+      { task_name: 'Wood Stock Conditioning & Moisture Barrier', interval_rounds: 2000, interval_days: 180, notes: 'Apply thin coat of Raw/Boiled Linseed Oil or Renaissance Wax to wood furniture and metal surfaces to prevent rust and wood shrinkage in storage.' }
+    ]
+  },
+  vintage_box_lever: {
+    id: 'vintage_box_lever',
+    name: 'Vintage Box-Magazine Lever Action',
+    category: 'Vintage / Hunting',
+    description: 'Box-magazine lever actions (Winchester Model 1895, Savage Model 99, Browning BLR)',
+    tasks: [
+      { task_name: 'Chamber & Bore Clean, Action Pivot Lubrication', interval_rounds: 250, interval_days: 90, notes: 'Clean chamber throat and bore from muzzle with brass guide. Apply high-pressure gun grease to vertical locking bolts and lever pivot pins.' },
+      { task_name: 'Box Magazine Spring & Follower Clean', interval_rounds: 1000, interval_days: 365, notes: 'Clean integral box magazine. Inspect spring tension and follower movement to ensure smooth feeding of pointed/spitzer high-power cartridges (.30-06, .30-40 Krag, 7.62x54R, .405 Win).' },
+      { task_name: 'Tang Screws & Buttstock Wrist Torque Check', interval_rounds: 500, interval_days: 180, notes: 'Check upper and lower tang screws. Heavy-recoil Model 1895s can split the stock wrist if tang screws work loose.' },
+      { task_name: 'Vertical Locking Bolt & Extractor Inspection', interval_rounds: 2500, interval_days: 730, notes: 'Inspect dual vertical locking bolts for uniform mortise contact. Check top-ejector spring and extractor hook for positive casing extraction.' },
+      { task_name: 'Finger Lever Linkage & Pin Wear Inspection', interval_rounds: 4000, interval_days: 1095, notes: 'Inspect finger lever link, pivot pins, and lever latch spring for excessive play or slop during cycling.' },
+      { task_name: 'Walnut Stock Conditioning & Rust Barrier', interval_rounds: 2000, interval_days: 180, notes: 'Condition stock with Linseed Oil/Tung Oil and apply microcrystalline wax or CLP rust inhibitor to blued carbon steel surfaces.' }
+    ]
   }
 };
 
@@ -132,7 +187,67 @@ export function detectFirearmScheduleProfile(firearm: Partial<Firearm>): Mainten
   const caliber = (firearm.caliber || '').toLowerCase();
   const text = `${action} ${make} ${model} ${caliber}`.toLowerCase();
 
-  // 1. Pump Action
+  // 1. M1 Garand
+  if (
+    text.includes('garand') || 
+    text.includes('m1 garand') || 
+    text.includes('svt-40') || 
+    text.includes('svt40') || 
+    text.includes('fn49') || 
+    text.includes('fn-49') || 
+    text.includes('sks')
+  ) {
+    return MAINTENANCE_PROFILES.m1_garand;
+  }
+
+  // 2. M1 Carbine
+  if (
+    text.includes('m1 carbine') || 
+    text.includes('m2 carbine') || 
+    (text.includes('carbine') && (text.includes('.30 carbine') || text.includes('inland') || text.includes('rock-ola') || text.includes('underwood') || text.includes('postal meter') || text.includes('universal carbine')))
+  ) {
+    return MAINTENANCE_PROFILES.m1_carbine;
+  }
+
+  // 3. Vintage Box-Magazine Lever Action (Winchester 1895, Savage 99)
+  if (
+    text.includes('1895') || 
+    text.includes('winchester 1895') || 
+    text.includes('model 1895') || 
+    text.includes('savage 99') || 
+    text.includes('model 99')
+  ) {
+    return MAINTENANCE_PROFILES.vintage_box_lever;
+  }
+
+  // 4. Vintage Military Controlled-Round-Feed Bolt Action (1903, 1903A3, Mauser, Mosin, Enfield, K31)
+  if (
+    text.includes('1903') || 
+    text.includes('1903a3') || 
+    text.includes('03a3') || 
+    text.includes('springfield 1903') || 
+    text.includes('k98') || 
+    text.includes('kar98') || 
+    text.includes('gewehr') || 
+    text.includes('mauser 98') || 
+    text.includes('enfield') || 
+    text.includes('smle') || 
+    text.includes('no. 4') || 
+    text.includes('no. 1 mk') || 
+    text.includes('mosin') || 
+    text.includes('nagant') || 
+    text.includes('k31') || 
+    text.includes('schmidt-rubin') || 
+    text.includes('arisaka') || 
+    text.includes('carcano') || 
+    text.includes('m39') || 
+    text.includes('m1917') || 
+    text.includes('krag')
+  ) {
+    return MAINTENANCE_PROFILES.vintage_bolt_crf;
+  }
+
+  // 5. Pump Action
   if (
     action.includes('pump') || 
     text.includes('pump action') || 
@@ -148,7 +263,7 @@ export function detectFirearmScheduleProfile(firearm: Partial<Firearm>): Mainten
     return MAINTENANCE_PROFILES.pump_action;
   }
 
-  // 2. Revolver
+  // 6. Revolver
   if (
     action.includes('revolver') || 
     text.includes('revolver') || 
@@ -163,21 +278,20 @@ export function detectFirearmScheduleProfile(firearm: Partial<Firearm>): Mainten
     return MAINTENANCE_PROFILES.revolver;
   }
 
-  // 3. Lever Action
+  // 7. Lever Action (Tubular)
   if (
     action.includes('lever') || 
     text.includes('lever action') || 
     text.includes('marlin') || 
     text.includes('henry') || 
     text.includes('winchester 94') || 
-    text.includes('1895') || 
     text.includes('30-30') || 
     text.includes('45-70')
   ) {
     return MAINTENANCE_PROFILES.lever_action;
   }
 
-  // 4. Break Action (O/U, SxS)
+  // 8. Break Action (O/U, SxS)
   if (
     action.includes('break') || 
     text.includes('break action') || 
@@ -190,7 +304,7 @@ export function detectFirearmScheduleProfile(firearm: Partial<Firearm>): Mainten
     return MAINTENANCE_PROFILES.break_action;
   }
 
-  // 5. Bolt Action
+  // 9. Modern Bolt Action
   if (
     action.includes('bolt') || 
     text.includes('bolt action') || 
@@ -204,7 +318,7 @@ export function detectFirearmScheduleProfile(firearm: Partial<Firearm>): Mainten
     return MAINTENANCE_PROFILES.bolt_action;
   }
 
-  // 6. Semi-Auto Shotgun
+  // 10. Semi-Auto Shotgun
   const isShotgunCaliber = caliber.includes('ga') || caliber.includes('gauge') || caliber.includes('12') || caliber.includes('20') || caliber.includes('.410');
   if (
     (action.includes('semi') || text.includes('semi-automatic')) && isShotgunCaliber ||
@@ -219,7 +333,7 @@ export function detectFirearmScheduleProfile(firearm: Partial<Firearm>): Mainten
     return MAINTENANCE_PROFILES.semi_shotgun;
   }
 
-  // 7. Semi-Auto Rifle (AR-15 / AK / PCC)
+  // 11. Modern Semi-Auto Rifle (AR-15 / AK / PCC)
   if (
     text.includes('ar-15') || 
     text.includes('ar-10') || 

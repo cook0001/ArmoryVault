@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.7.0]
+### Added
+- **Vintage & Military Surplus Firearm Autocomplete Support**: Added comprehensive datalist choices in `Add Firearm` for historic and collectible firearms across USGI arsenals (Springfield Armory, Inland, Rock-Ola, Underwood, Smith-Corona, Eddystone, H&R, Ithaca, Union Switch & Signal), European arsenals (Mauser Oberndorf/DWM, Enfield RSAF, Lithgow, Tula, Izhevsk, Waffenfabrik Bern, Carl Gustafs, Husqvarna, Terni, Steyr, Radom, Zastava), and collectible reproductions (Uberti, Pietta, Pedersoli, Cimarron).
+- **Curio & Relic (C&R) Models & Classifications**: Added models and firearm types including `Curio & Relic (C&R) Rifle/Handgun`, `Military Surplus Service Rifle/Handgun`, `Antique / Blackpowder`, with NRA Antique Condition standards (`NRA Excellent 98-100%`, `NRA Fine`, `NRA Very Good`, `NRA Good`, `CMP Service/Collector/Field/Rack Grade`, `All-Matching Numbers`).
+- **Comprehensive Historic Caliber Master List**: Added support and auto-categorization for classic military surplus calibers (.30-06 Springfield, .30 Carbine, .30-40 Krag, .303 British, 7.62x54mmR, 7.92x57mm 8mm Mauser, 6.5x55mm Swedish, 7.5x55mm Swiss GP11, 7.65x53mm Argentine, 7x57mm Mauser, 6.5x50mm/7.7x58mm Arisaka, 6.5x52mm Carcano, 8x56mmR Steyr, 8x50mmR Lebel, 7.5x54mm French, 7.62x25mm Tokarev, 9x18mm Makarov, 7.62x38mmR Nagant, 7.63x25mm Mauser, 7.65x21mm Luger, .455 Webley, .45-70 Govt, .405 Win, .30-30 Win).
+- **Specialized Vintage Maintenance Profiles**: Added 4 pre-configured maintenance schedules with auto-detection for M1 Garand, M1 Carbine, Vintage Controlled-Round-Feed Bolt Actions (Springfield 1903/1903A3, Mauser 98, Lee-Enfield, Mosin-Nagant, K31), and Box-Magazine Lever Actions (Winchester Model 1895, Savage 99).
+
 ## [2.6.1]
 ### Added
 - **Master Vault Password Management & Security Hub**: Users can now change their master encryption password anytime from Settings -> **Vault Security & Encryption**. Features secure envelope re-encryption of the AES-256 master key with PBKDF2 key derivation (100,000 rounds) and live password strength/matching validation.
