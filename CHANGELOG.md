@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.7.1]
+### Fixed & Improved
+- **Robust Full Zip Archive Backup Engine**: Replaced stream-based archiver with pure in-memory/synchronous `adm-zip` packaging. Resolves production ASAR stream locking and unhandled stream errors when creating full `.zip` archives.
+- **Enhanced Backup Feedback & Error Reporting**: Attached main window handle to system save dialogs and added rich error messages with cancel safety when generating full vault `.zip` backup archives.
+- **CI/CD Multi-Platform Release Race Condition Fix**: Integrated an automated 3-stage GitHub Actions pipeline (`prepare-release` draft initializer, parallel matrix build, and `verify-and-publish` artifact inspection) to eliminate `422 already_exists` release collisions and verify all `.dmg`, `.exe`, and `.AppImage` packages.
+
 ## [2.7.0]
 ### Added
 - **Vintage & Military Surplus Firearm Autocomplete Support**: Added comprehensive datalist choices in `Add Firearm` for historic and collectible firearms across USGI arsenals (Springfield Armory, Inland, Rock-Ola, Underwood, Smith-Corona, Eddystone, H&R, Ithaca, Union Switch & Signal), European arsenals (Mauser Oberndorf/DWM, Enfield RSAF, Lithgow, Tula, Izhevsk, Waffenfabrik Bern, Carl Gustafs, Husqvarna, Terni, Steyr, Radom, Zastava), and collectible reproductions (Uberti, Pietta, Pedersoli, Cimarron).

@@ -187,39 +187,22 @@ app.whenReady().then(() => {
   ipcMain.handle('get-backup-folder', () => db.getBackupPath());
   ipcMain.handle('create-zip-backup', async () => {
     try {
-      const archiver = require('archiver');
-      const fs = require('fs');
-      
-      const { canceled, filePath } = await dialog.showSaveDialog({
-        title: 'Save Full Backup Archive',
-        defaultPath: 'ArmoryVault_Full_Backup.zip',
-        filters: [{ name: 'Zip Archives', extensions: ['zip'] }]
+      const defaultDate = new Date().toISOString().split('T')[0];
+      const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+        title: 'Save Full Backup Archive (.zip)',
+        defaultPath: `ArmoryVault_Full_Backup_${defaultDate}.zip`,
+        filters: [{ name: 'Zip Archives (*.zip)', extensions: ['zip'] }]
       });
       
-      if (canceled || !filePath) return false;
+      if (canceled || !filePath) {
+        return { success: false, canceled: true };
+      }
       
-      // Ensure all in-memory changes (including custom SKUs) are flushed to disk before archiving
-      db.flushSync();
-
-      return new Promise((resolve, reject) => {
-        const output = fs.createWriteStream(filePath);
-        const archive = archiver('zip', { zlib: { level: 9 } });
-        
-        output.on('close', () => resolve(true));
-        archive.on('error', (err) => reject(err));
-        
-        archive.pipe(output);
-        
-        if (fs.existsSync(db.encPath)) archive.file(db.encPath, { name: 'firearms_inventory.enc' });
-        if (fs.existsSync(db.dbPath)) archive.file(db.dbPath, { name: 'firearms_inventory.json' });
-        if (fs.existsSync(db.photoDir)) archive.directory(db.photoDir, 'photos');
-        if (fs.existsSync(db.docDir)) archive.directory(db.docDir, 'documents');
-        
-        archive.finalize();
-      });
+      db.createZipBackup(filePath);
+      return { success: true, filePath };
     } catch (e) {
       console.error('Error creating zip backup:', e);
-      return false;
+      return { success: false, error: e.message || String(e) };
     }
   });
   ipcMain.handle('select-backup-folder', async () => {

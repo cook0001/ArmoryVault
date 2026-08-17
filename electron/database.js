@@ -428,6 +428,69 @@ class Database {
     }
   }
 
+  createZipBackup(targetPath) {
+    if (!targetPath) {
+      throw new Error("Target backup path is required.");
+    }
+
+    // Flush any pending in-memory changes to disk first
+    this.flushSync();
+
+    const AdmZip = require('adm-zip');
+    const zip = new AdmZip();
+
+    // 1. Add database file(s)
+    let hasDb = false;
+    if (fs.existsSync(this.encPath)) {
+      zip.addLocalFile(this.encPath);
+      hasDb = true;
+    }
+    if (fs.existsSync(this.dbPath)) {
+      zip.addLocalFile(this.dbPath);
+      hasDb = true;
+    }
+
+    if (!hasDb) {
+      throw new Error("No active database found to archive. Please initialize or unlock the vault first.");
+    }
+
+    // 2. Add photos folder if it exists
+    if (fs.existsSync(this.photoDir)) {
+      const photos = fs.readdirSync(this.photoDir);
+      for (const file of photos) {
+        if (file.startsWith('.')) continue; // skip hidden files like .DS_Store
+        const fullPath = path.join(this.photoDir, file);
+        try {
+          if (fs.statSync(fullPath).isFile()) {
+            zip.addLocalFile(fullPath, 'photos');
+          }
+        } catch (e) {
+          console.warn("Could not add photo to zip:", fullPath, e);
+        }
+      }
+    }
+
+    // 3. Add documents folder if it exists
+    if (fs.existsSync(this.docDir)) {
+      const docs = fs.readdirSync(this.docDir);
+      for (const file of docs) {
+        if (file.startsWith('.')) continue; // skip hidden files like .DS_Store
+        const fullPath = path.join(this.docDir, file);
+        try {
+          if (fs.statSync(fullPath).isFile()) {
+            zip.addLocalFile(fullPath, 'documents');
+          }
+        } catch (e) {
+          console.warn("Could not add document to zip:", fullPath, e);
+        }
+      }
+    }
+
+    // 4. Write zip file synchronously and safely
+    zip.writeZip(targetPath);
+    return true;
+  }
+
   restoreBackup(sourcePath) {
     if (!fs.existsSync(sourcePath)) {
       throw new Error("Backup file not found at " + sourcePath);

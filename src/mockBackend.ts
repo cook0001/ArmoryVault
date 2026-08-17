@@ -250,7 +250,7 @@ export function setupMockBackend() {
       },
       getBackupFolder: async () => null,
       selectBackupFolder: async () => "/mock/backup/path",
-      createZipBackup: async () => { console.log('Mock zip backup'); return true; },
+      createZipBackup: async () => { console.log('Mock zip backup'); return { success: true, filePath: '/mock/backup.zip' }; },
       restoreBackup: async () => { console.log('Mock restore backup'); return { success: true }; },
       getConfig: async (key: string) => {
         const config = JSON.parse(localStorage.getItem('mock_config') || '{}');

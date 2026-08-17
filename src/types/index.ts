@@ -276,7 +276,7 @@ declare global {
       saveDocument: (sourcePath: string, filename: string) => Promise<string | null>;
       
       getBackupFolder: () => Promise<string | null>;
-      createZipBackup: () => Promise<boolean>;
+      createZipBackup: () => Promise<{ success: boolean; canceled?: boolean; filePath?: string; error?: string } | boolean>;
       restoreBackup: () => Promise<{ success: boolean; canceled?: boolean; requiresRelogin?: boolean; error?: string; filePath?: string }>;
       selectBackupFolder: () => Promise<string | null>;
       getConfig: (key: string) => Promise<any>;

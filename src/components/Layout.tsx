@@ -153,13 +153,18 @@ export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
   const handleCreateZipBackup = async () => {
     if (window.api && window.api.createZipBackup) {
       try {
-        const success = await window.api.createZipBackup();
-        if (success) {
-          alert('Full archive backup successfully created!');
+        const res: any = await window.api.createZipBackup();
+        if (res === true || (res && res.success)) {
+          alert('Full archive backup (.zip) successfully created!');
+        } else if (res && res.canceled) {
+          // User canceled file dialog - do nothing
+        } else {
+          const detail = (res && res.error) ? `: ${res.error}` : '';
+          alert(`Failed to create full zip archive${detail}`);
         }
-      } catch (e) {
-        console.error(e);
-        alert('Failed to create archive backup.');
+      } catch (e: any) {
+        console.error('Create zip backup error:', e);
+        alert(`Failed to create full zip archive: ${e?.message || 'Unknown error'}`);
       }
     }
   };
