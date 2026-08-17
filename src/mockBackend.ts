@@ -1,4 +1,4 @@
-import { Firearm, Ammo, CustomSkuDatabase } from './types';
+import { Firearm, Ammo, Accessory, ReloadingComponent, CustomSkuDatabase } from './types';
 
 // This provides a fallback localStorage backend if the app is run in a standard 
 // web browser (via `npm run dev`) rather than inside the Electron shell.
@@ -29,21 +29,21 @@ export function setupMockBackend() {
       localStorage.setItem(AMMO_STORAGE_KEY, JSON.stringify(ammoList));
     };
     
-    const getStoredAccessories = (): any[] => {
+    const getStoredAccessories = (): Accessory[] => {
       const data = localStorage.getItem(ACCESSORY_STORAGE_KEY);
       return data ? JSON.parse(data) : [];
     };
 
-    const saveAccessories = (list: any[]) => {
+    const saveAccessories = (list: Accessory[]) => {
       localStorage.setItem(ACCESSORY_STORAGE_KEY, JSON.stringify(list));
     };
 
-    const getStoredComponents = (): any[] => {
+    const getStoredComponents = (): ReloadingComponent[] => {
       const data = localStorage.getItem(COMPONENT_STORAGE_KEY);
       return data ? JSON.parse(data) : [];
     };
 
-    const saveComponents = (list: any[]) => {
+    const saveComponents = (list: ReloadingComponent[]) => {
       localStorage.setItem(COMPONENT_STORAGE_KEY, JSON.stringify(list));
     };
 
@@ -63,6 +63,9 @@ export function setupMockBackend() {
       unlockWithRecoveryCode: async (code: string) => {
         mockLocked = false;
         return true;
+      },
+      lockVault: async () => {
+        mockLocked = true;
       },
       getFirearms: async () => {
         if (mockLocked) return [];
@@ -94,6 +97,10 @@ export function setupMockBackend() {
         saveFirearms(firearms);
         return id;
       },
+      logRangeSession: async (data: any) => {
+        return { success: true, firearm_rounds: data.rounds_fired, ammo_remaining: 100 };
+      },
+      completeMaintenanceTask: async () => true,
       getAmmo: async () => {
         if (mockLocked) return [];
         return getStoredAmmo();
@@ -201,6 +208,24 @@ export function setupMockBackend() {
         }
         return skuId;
       },
+      getCustomSchedulePresets: async () => {
+        const data = localStorage.getItem('mock_custom_presets');
+        return data ? JSON.parse(data) : [];
+      },
+      saveCustomSchedulePresets: async (presets: any) => {
+        localStorage.setItem('mock_custom_presets', JSON.stringify(presets));
+        return true;
+      },
+      manufactureHandloadBatch: async (ammoId: number, quantity: number, deductions: any) => {
+        console.log('Mock manufacture batch:', { ammoId, quantity, deductions });
+        let ammo = getStoredAmmo();
+        const aIndex = ammo.findIndex(a => a.id === ammoId);
+        if (aIndex !== -1) {
+          ammo[aIndex].count = (ammo[aIndex].count || 0) + quantity;
+          saveAmmo(ammo);
+        }
+        return { success: true };
+      },
       savePhoto: async (sourcePath: string, filename: string) => {
         return sourcePath;
       },
@@ -210,6 +235,7 @@ export function setupMockBackend() {
       getBackupFolder: async () => null,
       selectBackupFolder: async () => "/mock/backup/path",
       createZipBackup: async () => { console.log('Mock zip backup'); return true; },
+      restoreBackup: async () => { console.log('Mock restore backup'); return { success: true }; },
       getConfig: async (key: string) => {
         const config = JSON.parse(localStorage.getItem('mock_config') || '{}');
         return config[key];

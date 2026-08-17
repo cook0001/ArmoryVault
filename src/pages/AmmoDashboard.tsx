@@ -1,124 +1,26 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Ammo } from '../types';
-import { PlusCircle, Target, Package, Trash2, Edit, Printer, Upload, AlertTriangle } from 'lucide-react';
+import { PlusCircle, Target, Package, Trash2, Edit, Printer, Upload, AlertTriangle, Tag, Sparkles } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { parseBarcodeData } from '../utils/BarcodeEngine';
-
-const getStandardPelletCount = (caliber?: string, shell_length?: string, shot_size?: string): number | '' => {
-  if (!caliber || !shell_length || !shot_size) return '';
-  const cal = caliber.toLowerCase();
-  const len = shell_length.trim().replace(/"/g, '');
-  const shot = shot_size.trim().toLowerCase();
-
-  if (cal.includes('10')) {
-    if (len === '3 1/2' && shot === '00 buck') return 18;
-    if (len === '3 1/2' && shot === '4 buck') return 54;
-  }
-  if (cal.includes('12')) {
-    if (len === '2 3/4' && shot === '000 buck') return 8;
-    if (len === '3' && shot === '000 buck') return 10;
-    if (len === '2 3/4' && shot === '00 buck') return 9;
-    if (len === '3' && shot === '00 buck') return 12;
-    if (len === '3 1/2' && shot === '00 buck') return 15;
-    if (len === '2 3/4' && shot === '0 buck') return 12;
-    if (len === '2 3/4' && shot === '1 buck') return 16;
-    if (len === '3' && shot === '1 buck') return 24;
-    if (len === '2 3/4' && shot === '2 buck') return 15;
-    if (len === '2 3/4' && shot === '3 buck') return 20;
-    if (len === '2 3/4' && shot === '4 buck') return 27;
-    if (len === '3' && shot === '4 buck') return 41;
-  }
-  if (cal.includes('16')) {
-    if (len === '2 3/4' && shot === '1 buck') return 12;
-    if (len === '2 3/4' && shot === '2 buck') return 14;
-  }
-  if (cal.includes('20')) {
-    if (len === '2 3/4' && shot === '2 buck') return 12;
-    if (len === '3' && shot === '2 buck') return 18;
-    if (len === '2 3/4' && shot === '3 buck') return 20;
-    if (len === '2 3/4' && shot === '4 buck') return 24;
-  }
-  if (cal.includes('28')) {
-    if (len === '2 3/4' && shot === '4 buck') return 15;
-  }
-  if (cal.includes('.410') || cal.includes('410')) {
-    if (len === '2 1/2' && shot === '000 buck') return 3;
-    if (len === '3' && shot === '000 buck') return 5;
-    if (len === '3' && shot === '4 buck') return 9;
-  }
-  return '';
-};
-
-const generateInternalUPC = () => {
-  let upc = '4';
-  for (let i = 0; i < 10; i++) {
-    upc += Math.floor(Math.random() * 10).toString();
-  }
-  let oddSum = 0;
-  let evenSum = 0;
-  for (let i = 0; i < 11; i++) {
-    if (i % 2 === 0) {
-      oddSum += parseInt(upc[i]);
-    } else {
-      evenSum += parseInt(upc[i]);
-    }
-  }
-  const total = (oddSum * 3) + evenSum;
-  const checkDigit = (10 - (total % 10)) % 10;
-  return upc + checkDigit.toString();
-};
-
-export const formatCaliber = (c: string) => {
-  if (!c) return c;
-  let val = c.trim();
-  if (/^\d/.test(val)) {
-    const lower = val.toLowerCase();
-    const isMetric = lower.includes('mm') || lower.includes('x') || 
-                     ['5.56', '7.62', '6.5', '5.7', '5.45'].some(m => lower.startsWith(m));
-    const isGauge = lower.includes('gauge') || lower.includes('ga') || lower.includes('bore');
-    if (!isMetric && !isGauge) {
-      val = '.' + val;
-    }
-  }
-  return val;
-};
-
-const buildCustomCategories = (ammoList: Ammo[]) => {
-  const map: Record<string, string> = {};
-  ammoList.forEach(a => {
-    if (a.category && a.category !== 'Other' && a.caliber) {
-      map[a.caliber.toLowerCase().replace(/\s+/g, '')] = a.category;
-    }
-  });
-  return map;
-};
-
-const pistolCalibers = ['9mm', '45 ACP', '40 S&W', '380 ACP', '380 Auto', '38 Special', '357 Mag', '10mm', '44 Mag', '44 Special', '45 Colt', '25 ACP', '32 ACP', '5.7x28', '5.7', '9x19', '32 Auto', '25 Auto'];
-const rifleCalibers = ['223 Rem', '223', '5.56 NATO', '5.56', '308 Win', '308', '7.62 NATO', '7.62x39', '7.62', '6.5 Creedmoor', '6.5', '30-06', '270 Win', '270', '300 Blackout', '300 Win Mag', '300', '22 LR', '22 Long', '22 WMR', '17 HMR', '7mm Rem Mag', '7mm', '30-30', '45-70', '5.45'];
-
-const escapeRegExp = (string: string) => {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-};
-
-const getAmmoCategory = (caliber: string, customMap?: Record<string, string>): 'Pistol' | 'Rifle' | 'Shotgun' | 'Other' => {
-  if (!caliber) return 'Other';
-  const c = caliber.toLowerCase().replace(/\s+/g, '');
-  if (customMap && customMap[c]) return customMap[c] as any;
-  if (c.includes('gauge') || c.includes('ga') || c.includes('.410') || c.includes('bore')) return 'Shotgun';
-  if (pistolCalibers.some(p => c.includes(p.toLowerCase().replace(/\s+/g, '')))) return 'Pistol';
-  if (rifleCalibers.some(r => c.includes(r.toLowerCase().replace(/\s+/g, '')))) return 'Rifle';
-  return 'Other';
-};
+import { getStandardPelletCount, generateInternalUPC, formatCaliber, buildCustomCategories, getAmmoCategory, escapeRegExp, COMPREHENSIVE_BULLET_TYPES } from '../utils/caliberHelpers';
+import { AmmoCanLabelModal } from '../components/AmmoCanLabelModal';
+import { BatchManufactureModal } from '../components/BatchManufactureModal';
+// formatCaliber is re-exported for other consumers
+export { formatCaliber } from '../utils/caliberHelpers';
 
 
 export const AmmoDashboard = () => {
   const [ammoList, setAmmoList] = useState<Ammo[]>([]);
   const [activeTab, setActiveTab] = useState<'factory' | 'handload'>('factory');
   const [searchQuery, setSearchQuery] = useState('');
+  const [onlyLowStock, setOnlyLowStock] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAddingStockMode, setIsAddingStockMode] = useState(false);
   const [editingAmmo, setEditingAmmo] = useState<Ammo | null>(null);
   const [inspectingAmmo, setInspectingAmmo] = useState<Ammo | null>(null);
+  const [labelModalAmmo, setLabelModalAmmo] = useState<Ammo | null>(null);
+  const [batchManufactureAmmo, setBatchManufactureAmmo] = useState<Ammo | null>(null);
   const [upcStatus, setUpcStatus] = useState<{ message: string, type: 'success' | 'error' | 'info' | 'loading' } | null>(null);
   const [calcRds, setCalcRds] = useState<number | ''>('');
   const [calcBoxes, setCalcBoxes] = useState<number>(1);
@@ -414,8 +316,16 @@ export const AmmoDashboard = () => {
     loadAmmo();
   };
 
+  const isAmmoLow = (a: Ammo) => {
+    const threshold = a.min_threshold ?? a.low_stock_threshold;
+    if (threshold !== undefined && threshold > 0 && a.count <= threshold) return true;
+    if (a.target_stock_goal && (a.count / a.target_stock_goal * 100) <= (a.alert_percentage || 20)) return true;
+    return false;
+  };
+
   const filteredAmmo = ammoList.filter(a => {
     if (a.type !== activeTab) return false;
+    if (onlyLowStock && !isAmmoLow(a)) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       const searchable = `${a.caliber} ${a.manufacturer || ''} ${a.projectile || ''} ${a.powder || ''} ${a.shot_size || ''} ${a.notes || ''}`.toLowerCase();
@@ -425,11 +335,7 @@ export const AmmoDashboard = () => {
   });
 
   const lowAmmoAlerts = useMemo(() => {
-    return ammoList.filter(ammo => {
-      if (!ammo.target_stock_goal) return false;
-      const threshold = ammo.alert_percentage || 20; // default to 20%
-      return (ammo.count / ammo.target_stock_goal * 100) <= threshold;
-    });
+    return ammoList.filter(ammo => isAmmoLow(ammo));
   }, [ammoList]);
 
   return (
@@ -445,10 +351,10 @@ export const AmmoDashboard = () => {
         </button>
       </div>
 
-      {lowAmmoAlerts.length > 0 && (
+      {lowAmmoAlerts.length > 0 && !onlyLowStock && (
         <div style={{ marginBottom: '2rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '12px', padding: '1rem 1.5rem' }}>
           <h3 style={{ margin: '0 0 1rem 0', color: '#f87171', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <AlertTriangle size={20} /> Low Stock Alerts
+            <AlertTriangle size={20} /> Low Stock Alerts ({lowAmmoAlerts.length})
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
             {lowAmmoAlerts.map(ammo => (
@@ -458,7 +364,9 @@ export const AmmoDashboard = () => {
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{ammo.type === 'factory' ? ammo.manufacturer : 'Handload'} • {ammo.projectile || ammo.shot_size || 'N/A'}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontWeight: 'bold', color: '#f87171', fontSize: '1.2rem' }}>{ammo.count} <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 'normal' }}>/ {ammo.target_stock_goal}</span></div>
+                  <div style={{ fontWeight: 'bold', color: '#f87171', fontSize: '1.2rem' }}>
+                    {ammo.count} <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 'normal' }}>/ {ammo.min_threshold ?? ammo.low_stock_threshold ?? ammo.target_stock_goal ?? 'min'}</span>
+                  </div>
                 </div>
               </div>
             ))}
@@ -466,7 +374,7 @@ export const AmmoDashboard = () => {
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div style={{ display: 'flex', gap: '1rem' }}>
           <button 
             onClick={() => setActiveTab('factory')} 
@@ -481,21 +389,32 @@ export const AmmoDashboard = () => {
             <Target size={20} /> Custom Handloads
           </button>
         </div>
-        <div>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          {lowAmmoAlerts.length > 0 && (
+            <button
+              className={onlyLowStock ? 'btn-danger' : 'btn-secondary'}
+              onClick={() => setOnlyLowStock(!onlyLowStock)}
+              style={{ padding: '0.5rem 0.9rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}
+            >
+              ⚠️ Low Stock ({lowAmmoAlerts.length})
+            </button>
+          )}
           <input 
             type="text" 
             className="form-input" 
             placeholder="Search calibers, bullets, powder..." 
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            style={{ minWidth: '300px', marginBottom: 0 }}
+            style={{ minWidth: '260px', marginBottom: 0 }}
           />
         </div>
       </div>
 
       <div>
         {['Pistol', 'Rifle', 'Shotgun', 'Other'].map(category => {
-          const categoryAmmo = filteredAmmo.filter(a => getAmmoCategory(a.caliber, customCategories) === category);
+          const categoryAmmo = filteredAmmo
+            .filter(a => getAmmoCategory(a.caliber, customCategories) === category)
+            .sort((a, b) => (a.caliber || '').localeCompare(b.caliber || ''));
           if (categoryAmmo.length === 0) return null;
           return (
             <div key={category} style={{ marginBottom: '3rem' }}>
@@ -503,19 +422,29 @@ export const AmmoDashboard = () => {
                 {category}
               </h2>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.5rem' }}>
-                {categoryAmmo.map(ammo => (
-                  <div key={ammo.id} className="card ammo-card" onClick={() => setInspectingAmmo(ammo)} style={{ position: 'relative', cursor: 'pointer' }}>
-                    <div style={{ position: 'absolute', top: '1rem', right: '1rem', display: 'flex', gap: '0.5rem' }}>
-                      <button onClick={(e) => { e.stopPropagation(); handlePrintAmmoQR(ammo); }} style={{ background: 'transparent', border: 'none', color: '#60a5fa', cursor: 'pointer' }} title="Print QR Label"><Printer size={16} /></button>
-                      <button onClick={(e) => { e.stopPropagation(); handleSaveAmmoQR(ammo); }} style={{ background: 'transparent', border: 'none', color: '#60a5fa', cursor: 'pointer' }} title="Save QR Code"><Upload size={16} /></button>
-                      <button onClick={(e) => { e.stopPropagation(); openEditModal(ammo); }} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}><Edit size={16} /></button>
-                      <button onClick={(e) => { e.stopPropagation(); handleDelete(ammo.id!); }} style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><Trash2 size={16} /></button>
+                {categoryAmmo.map(ammo => {
+                  const isLow = isAmmoLow(ammo);
+                  return (
+                  <div key={ammo.id} className="card ammo-card" onClick={() => setInspectingAmmo(ammo)} style={{ position: 'relative', cursor: 'pointer', border: isLow ? '1px solid rgba(239, 68, 68, 0.4)' : undefined, background: isLow ? 'rgba(239, 68, 68, 0.03)' : undefined }}>
+                    <div style={{ position: 'absolute', top: '1rem', right: '1rem', display: 'flex', gap: '0.4rem' }}>
+                      <button onClick={(e) => { e.stopPropagation(); setLabelModalAmmo(ammo); }} style={{ background: 'transparent', border: 'none', color: '#38bdf8', cursor: 'pointer', padding: '0.2rem' }} title="Print Can / Box Sticker Label"><Tag size={16} /></button>
+                      <button onClick={(e) => { e.stopPropagation(); handlePrintAmmoQR(ammo); }} style={{ background: 'transparent', border: 'none', color: '#60a5fa', cursor: 'pointer', padding: '0.2rem' }} title="Print Standard QR Sheet"><Printer size={16} /></button>
+                      <button onClick={(e) => { e.stopPropagation(); handleSaveAmmoQR(ammo); }} style={{ background: 'transparent', border: 'none', color: '#60a5fa', cursor: 'pointer', padding: '0.2rem' }} title="Save QR Image"><Upload size={16} /></button>
+                      <button onClick={(e) => { e.stopPropagation(); openEditModal(ammo); }} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '0.2rem' }}><Edit size={16} /></button>
+                      <button onClick={(e) => { e.stopPropagation(); handleDelete(ammo.id!); }} style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '0.2rem' }}><Trash2 size={16} /></button>
                     </div>
                     
-                    <h3 style={{ fontSize: '1.25rem', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      {ammo.caliber}
-                      {ammo.isPlusP && <span style={{ fontSize: '0.75rem', padding: '0.1rem 0.4rem', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', borderRadius: '4px', border: '1px solid rgba(239, 68, 68, 0.3)', verticalAlign: 'middle', fontWeight: 'bold' }}>+P</span>}
-                    </h3>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
+                      <h3 style={{ fontSize: '1.25rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        {ammo.caliber}
+                        {ammo.isPlusP && <span style={{ fontSize: '0.75rem', padding: '0.1rem 0.4rem', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', borderRadius: '4px', border: '1px solid rgba(239, 68, 68, 0.3)', verticalAlign: 'middle', fontWeight: 'bold' }}>+P</span>}
+                      </h3>
+                      {isLow && (
+                        <span style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
+                          Low Stock
+                        </span>
+                      )}
+                    </div>
                     <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>
                       {(() => {
                         const isShotgun = category === 'Shotgun';
@@ -570,14 +499,38 @@ export const AmmoDashboard = () => {
                     </div>
 
                     {ammo.type === 'handload' && (
-                      <div style={{ marginTop: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                        <div><strong>Primer:</strong> {ammo.primer_type ? `${ammo.primer_type} (${ammo.primer || 'Unknown'})` : (ammo.primer || 'N/A')}</div>
-                        <div><strong>Brass/Hull:</strong> {ammo.brass || ammo.shell_length || 'N/A'}</div>
-                        <div><strong>OAL:</strong> {ammo.oal ? `${ammo.oal}"` : 'N/A'}</div>
-                      </div>
+                      <>
+                        <div style={{ marginTop: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                          <div><strong>Primer:</strong> {ammo.primer_type ? `${ammo.primer_type} (${ammo.primer || 'Unknown'})` : (ammo.primer || 'N/A')}</div>
+                          <div><strong>Brass/Hull:</strong> {ammo.brass || ammo.shell_length || 'N/A'}</div>
+                          <div><strong>OAL:</strong> {ammo.oal ? `${ammo.oal}"` : 'N/A'}</div>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn-primary"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setBatchManufactureAmmo(ammo);
+                          }}
+                          style={{
+                            marginTop: '0.85rem',
+                            padding: '0.45rem 0.85rem',
+                            fontSize: '0.85rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.4rem',
+                            width: '100%'
+                          }}
+                          title="Manufacture a batch of this recipe and deduct powder, primers, brass, and bullets automatically"
+                        >
+                          <Sparkles size={15} /> Assemble / Manufacture Batch
+                        </button>
+                      </>
                     )}
                   </div>
-                ))}
+                );
+              })}
               </div>
             </div>
           );
@@ -591,8 +544,8 @@ export const AmmoDashboard = () => {
     </div>
 
       {isModalOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="card" style={{ width: '100%', maxWidth: formData.type === 'handload' ? '850px' : '650px', maxHeight: '90vh', overflowY: 'auto', padding: '2.5rem' }}>
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: formData.type === 'handload' ? '850px' : '650px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '1rem' }}>
               <h2 style={{ margin: 0, padding: 0, border: 'none' }}>
                 {isAddingStockMode ? 'Add Stock' : editingAmmo ? 'Edit' : 'Add'} {formData.type === 'factory' ? 'Factory Ammo' : 'Custom Handload'}
@@ -989,8 +942,8 @@ export const AmmoDashboard = () => {
       )}
 
       {inspectingAmmo && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="card" style={{ width: '100%', maxWidth: '500px', padding: '2.5rem' }}>
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: '500px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '1rem' }}>
               <div>
                 <h2 style={{ margin: 0, padding: 0, border: 'none', fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -1218,16 +1171,29 @@ export const AmmoDashboard = () => {
       </datalist>
 
       <datalist id="bullet-types-list">
-        <option value="FMJ (Full Metal Jacket)" />
-        <option value="JHP (Jacketed Hollow Point)" />
-        <option value="TMJ (Total Metal Jacket)" />
-        <option value="SP (Soft Point)" />
-        <option value="Match" />
-        <option value="Green Tip (M855)" />
-        <option value="Tracer" />
-        <option value="Frangible" />
-        <option value="Subsonic" />
+        {COMPREHENSIVE_BULLET_TYPES.map((bt, idx) => (
+          <option key={idx} value={bt} />
+        ))}
       </datalist>
+
+      {labelModalAmmo && (
+        <AmmoCanLabelModal
+          isOpen={!!labelModalAmmo}
+          onClose={() => setLabelModalAmmo(null)}
+          ammo={labelModalAmmo}
+        />
+      )}
+
+      {batchManufactureAmmo && (
+        <BatchManufactureModal
+          isOpen={!!batchManufactureAmmo}
+          ammo={batchManufactureAmmo}
+          onClose={() => setBatchManufactureAmmo(null)}
+          onSuccess={() => {
+            loadAmmo();
+          }}
+        />
+      )}
 
     </>
   );

@@ -50,12 +50,22 @@ export const SyncInbox = () => {
         acc = await window.api.getAccessories();
         setAccessoriesList(acc);
       }
+      if (window.api.getSkus) {
+        const s = await window.api.getSkus();
+        setSkus(s || {});
+      }
 
       const q = await window.api.getSyncQueue();
       // Pre-categorize universal scans if they already exist in inventory
       const processedQueue = q.map((item: any) => {
         if (item.type === 'universal_scan') {
           const upcOrId = String(item.upcOrId);
+          if (upcOrId.startsWith('AV-AMMO-')) {
+            const ammoId = parseInt(upcOrId.replace('AV-AMMO-', ''));
+            if (ammo.some((a: any) => a.id === ammoId)) {
+              return { ...item, type: 'ammo_adjustment', upcOrId: String(ammoId) };
+            }
+          }
           if (ammo.some((a: any) => String(a.id) === upcOrId || a.upc_code === upcOrId)) {
             return { ...item, type: 'ammo_adjustment' };
           }
@@ -87,6 +97,77 @@ export const SyncInbox = () => {
     setIsResolving(item.id!);
     try {
       const upcOrId = String(item.upcOrId);
+
+      // 1. Check Custom SKU Dictionary first
+      if (skus) {
+        const matchedSkuKey = Object.keys(skus).find(k => k.trim().toUpperCase() === upcOrId.trim().toUpperCase());
+        if (matchedSkuKey) {
+          const skuData = skus[matchedSkuKey];
+          const cat = skuData.category || (skuData.accessoryType ? 'accessory' : skuData.componentType ? 'component' : 'ammo');
+          
+          if (cat === 'accessory') {
+            await window.api.removeSyncItem(item.id!);
+            navigate('/accessories', {
+              state: {
+                openAddModal: true,
+                upc: matchedSkuKey,
+                initialData: {
+                  type: skuData.accessoryType || 'Optic',
+                  manufacturer: skuData.manufacturer || '',
+                  model: skuData.model || '',
+                  caliber: skuData.caliber || skuData.supportedModels || '',
+                  supportedModels: skuData.supportedModels || '',
+                  value: skuData.value,
+                  notes: skuData.notes
+                },
+                syncItemId: item.id
+              }
+            });
+            return;
+          } else if (cat === 'component') {
+            await window.api.removeSyncItem(item.id!);
+            navigate('/components', {
+              state: {
+                openAddModal: true,
+                upc: matchedSkuKey,
+                parsedData: {
+                  type: skuData.componentType || 'Powder',
+                  manufacturer: skuData.manufacturer || '',
+                  name: skuData.name || '',
+                  caliber: skuData.caliber || '',
+                  quantity: skuData.quantity || 0,
+                  cost: skuData.cost,
+                  weightUnit: skuData.weightUnit
+                },
+                syncItemId: item.id
+              }
+            });
+            return;
+          } else if (cat === 'ammo') {
+            await window.api.removeSyncItem(item.id!);
+            navigate('/ammo', {
+              state: {
+                openAddModal: true,
+                upc: matchedSkuKey,
+                parsedData: {
+                  manufacturer: skuData.manufacturer || '',
+                  caliber: skuData.caliber || '',
+                  grain: skuData.grain,
+                  projectile: skuData.projectile || '',
+                  isPlusP: skuData.isPlusP,
+                  count: skuData.count,
+                  boxPrice: skuData.boxPrice,
+                  costPerRound: skuData.costPerRound
+                },
+                syncItemId: item.id
+              }
+            });
+            return;
+          }
+        }
+      }
+
+      // 2. Fallback to online lookup
       const data = await window.api.lookupUPC(upcOrId);
 
       let parsedData: any = { category: 'unknown', upcOrId };
@@ -142,7 +223,8 @@ export const SyncInbox = () => {
     // Save to skus DB for future
     const upc = target.upc_code || String(item.upcOrId);
     if (upc) {
-      const newSkus = { ...skus, [upc]: { ...(skus[upc] || {}), count: size } };
+      const currentDbSkus = (window.api && window.api.getSkus) ? await window.api.getSkus() : skus;
+      const newSkus = { ...currentDbSkus, [upc]: { ...(currentDbSkus[upc] || {}), count: size } };
       await window.api.saveSkus(newSkus);
       setSkus(newSkus);
     }
@@ -175,7 +257,8 @@ export const SyncInbox = () => {
                 if (parsed.parsedAmmo && parsed.parsedAmmo.count) {
                    boxSize = parsed.parsedAmmo.count;
                    if (ammo.upc_code) {
-                     const newSkus = { ...skus, [ammo.upc_code]: { ...(skus[ammo.upc_code] || {}), count: boxSize } };
+                     const currentDbSkus = (window.api && window.api.getSkus) ? await window.api.getSkus() : skus;
+                     const newSkus = { ...currentDbSkus, [ammo.upc_code]: { ...(currentDbSkus[ammo.upc_code] || {}), count: boxSize } };
                      await window.api.saveSkus(newSkus);
                      setSkus(newSkus);
                    }
@@ -214,7 +297,8 @@ export const SyncInbox = () => {
                 if (parsed.parsedComponent && parsed.parsedComponent.quantity) {
                    unitSize = parsed.parsedComponent.quantity;
                    if (component.upc_code) {
-                     const newSkus = { ...skus, [component.upc_code]: { ...(skus[component.upc_code] || {}), count: unitSize } };
+                     const currentDbSkus = (window.api && window.api.getSkus) ? await window.api.getSkus() : skus;
+                     const newSkus = { ...currentDbSkus, [component.upc_code]: { ...(currentDbSkus[component.upc_code] || {}), count: unitSize } };
                      await window.api.saveSkus(newSkus);
                      setSkus(newSkus);
                    }
@@ -286,6 +370,23 @@ export const SyncInbox = () => {
           const updatedPhotos = [...(firearm.photos || []), image_path];
           await window.api.updateFirearm(fId, { ...firearm, photos: updatedPhotos });
         }
+        await window.api.removeSyncItem(item.id!);
+        loadData();
+      }
+    } else if (item.type === 'range_session') {
+      const fId = Number(item.firearm_id);
+      const aId = item.ammo_id ? Number(item.ammo_id) : undefined;
+      const rounds = Number(item.rounds_fired || item.count) || 0;
+      
+      if (window.api && window.api.logRangeSession) {
+        await window.api.logRangeSession({
+          firearm_id: fId,
+          ammo_id: aId,
+          rounds_fired: rounds,
+          date: item.date || new Date(item.timestamp).toISOString().split('T')[0],
+          notes: item.notes || '',
+          cost: item.cost || 0
+        });
         await window.api.removeSyncItem(item.id!);
         loadData();
       }
@@ -721,6 +822,51 @@ export const SyncInbox = () => {
                             </button>
                           )}
                           <button className="btn-icon" onClick={() => handleDelete(item.id!)} style={{ color: 'var(--danger)' }} title="Delete">
+                            <Trash2 size={20} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  } else if (item.type === 'range_session') {
+                    const fId = Number(item.firearm_id);
+                    const firearm = firearms.find(f => f.id === fId);
+                    const ammo = item.ammo_id ? ammoList.find(a => a.id === Number(item.ammo_id)) : null;
+                    const rounds = item.rounds_fired || item.count || 0;
+
+                    return (
+                      <div key={item.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.5rem', background: 'rgba(56, 189, 248, 0.03)', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                            <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 'bold' }}>Range Trip Session</span>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{item.date || new Date(item.timestamp).toLocaleDateString()}</span>
+                          </div>
+
+                          <div>
+                            <h3 style={{ fontSize: '1.15rem', margin: '0 0 0.25rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <CheckCircle size={18} color="var(--success)" />
+                              {firearm ? `${firearm.make} ${firearm.model} (${firearm.caliber})` : `Firearm #${fId}`}
+                            </h3>
+                            <div style={{ fontSize: '0.9rem', color: 'var(--text-primary)', marginTop: '0.25rem' }}>
+                              Fired: <strong style={{ color: 'var(--accent)' }}>{rounds} rounds</strong>
+                              {ammo && (
+                                <span style={{ color: 'var(--text-secondary)', marginLeft: '0.5rem' }}>
+                                  &bull; Ammo: {ammo.manufacturer || 'Custom'} {ammo.caliber} {ammo.grain ? `${ammo.grain}gr` : ''} (Will deduct from stock: {ammo.count} rds)
+                                </span>
+                              )}
+                            </div>
+                            {item.notes && (
+                              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem', fontStyle: 'italic' }}>
+                                Notes: {item.notes}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button className="btn-primary" onClick={() => handleApprove(item)} style={{ background: 'var(--success)' }}>
+                            Approve
+                          </button>
+                          <button className="btn-icon" onClick={() => handleDelete(item.id!)} style={{ color: 'var(--danger)' }} title="Decline / Delete">
                             <Trash2 size={20} />
                           </button>
                         </div>

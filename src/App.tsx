@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { HashRouter, Routes, Route } from 'react-router-dom';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { FirearmForm } from './pages/FirearmForm';
@@ -12,10 +13,13 @@ import { MaintenanceDashboard } from './pages/MaintenanceDashboard';
 import { SyncInbox } from './pages/SyncInbox';
 import { ReloadingComponents } from './pages/ReloadingComponents';
 
+const AUTO_LOCK_MS = 15 * 60 * 1000; // 15 minutes of inactivity
+
 function App() {
   const [isLocked, setIsLocked] = useState(true);
   const [isSetup, setIsSetup] = useState(false);
   const [loading, setLoading] = useState(true);
+  const autoLockTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const checkVault = async () => {
@@ -34,6 +38,37 @@ function App() {
     checkVault();
   }, []);
 
+  const lockVault = useCallback(async () => {
+    if (window.api && window.api.lockVault) {
+      await window.api.lockVault();
+    }
+    setIsLocked(true);
+  }, []);
+
+  // Auto-lock timer: resets on user activity
+  const resetAutoLock = useCallback(() => {
+    if (autoLockTimer.current) clearTimeout(autoLockTimer.current);
+    if (!isLocked) {
+      autoLockTimer.current = setTimeout(() => {
+        lockVault();
+      }, AUTO_LOCK_MS);
+    }
+  }, [isLocked, lockVault]);
+
+  useEffect(() => {
+    if (isLocked) return;
+
+    // Start the timer and listen for user activity
+    resetAutoLock();
+    const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'];
+    events.forEach(e => window.addEventListener(e, resetAutoLock));
+
+    return () => {
+      events.forEach(e => window.removeEventListener(e, resetAutoLock));
+      if (autoLockTimer.current) clearTimeout(autoLockTimer.current);
+    };
+  }, [isLocked, resetAutoLock]);
+
   if (loading) {
     return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>Loading Secure Vault...</div>;
   }
@@ -44,8 +79,9 @@ function App() {
 
   return (
     <HashRouter>
+      <ErrorBoundary>
       <Routes>
-        <Route path="/" element={<Layout />}>
+        <Route path="/" element={<Layout onLockVault={lockVault} />}>
           <Route index element={<Dashboard />} />
           <Route path="add" element={<FirearmForm />} />
           <Route path="edit/:id" element={<FirearmForm />} />
@@ -58,6 +94,7 @@ function App() {
           <Route path="sync" element={<SyncInbox />} />
         </Route>
       </Routes>
+      </ErrorBoundary>
     </HashRouter>
   );
 }

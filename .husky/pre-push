@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "==========================================="
+echo "Running Pre-Push TypeScript Checks..."
+echo "==========================================="
+
+npm run build
+
+if [ $? -ne 0 ]; then
+  echo "❌ Push blocked! TypeScript compilation failed."
+  echo "Please fix the errors above before pushing to GitHub."
+  exit 1
+fi
+
+echo "✅ All checks passed! Proceeding with push."
+exit 0

@@ -13,6 +13,7 @@ export const ReloadingComponents = () => {
   
   const [formData, setFormData] = useState<Partial<ReloadingComponent>>({});
   const [pendingSyncId, setPendingSyncId] = useState<number | null>(null);
+  const [onlyLowStock, setOnlyLowStock] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
@@ -54,14 +55,18 @@ export const ReloadingComponents = () => {
     }
   };
 
+  const lowStockCount = components.filter(c => c.min_threshold !== undefined && c.min_threshold > 0 && c.quantity <= c.min_threshold).length;
+
   const filteredComponents = components.filter(c => {
     const term = search.toLowerCase();
-    return (
+    const matchesSearch = (
       c.manufacturer.toLowerCase().includes(term) ||
       (c.name && c.name.toLowerCase().includes(term)) ||
       c.type.toLowerCase().includes(term) ||
       (c.caliber && c.caliber.toLowerCase().includes(term))
     );
+    const matchesLowStock = !onlyLowStock || (c.min_threshold !== undefined && c.min_threshold > 0 && c.quantity <= c.min_threshold);
+    return matchesSearch && matchesLowStock;
   });
 
   const handleEdit = (comp: ReloadingComponent) => {
@@ -153,14 +158,25 @@ export const ReloadingComponents = () => {
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div className="search-bar" style={{ flex: 1, maxWidth: '400px' }}>
-          <Search size={20} color="var(--text-secondary)" />
-          <input 
-            type="text" 
-            placeholder="Search components..." 
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1, maxWidth: '600px', flexWrap: 'wrap' }}>
+          <div className="search-bar" style={{ flex: 1, minWidth: '240px' }}>
+            <Search size={20} color="var(--text-secondary)" />
+            <input 
+              type="text" 
+              placeholder="Search components..." 
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          {lowStockCount > 0 && (
+            <button
+              className={onlyLowStock ? 'btn-danger' : 'btn-secondary'}
+              onClick={() => setOnlyLowStock(!onlyLowStock)}
+              style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}
+            >
+              ⚠️ Low Stock ({lowStockCount})
+            </button>
+          )}
         </div>
         <div style={{ background: 'var(--bg-card)', padding: '0.8rem 1.5rem', borderRadius: '8px', border: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div>
@@ -194,17 +210,26 @@ export const ReloadingComponents = () => {
                   {typeGroup === 'Brass' ? 'Brass & Hulls' : typeGroup === 'Bullet' ? 'Bullets & Projectiles' : typeGroup + 's'}
                 </h2>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
-                  {groupItems.map(c => (
-                    <div key={c.id} className="card" style={{ display: 'flex', flexDirection: 'column', padding: '1rem' }}>
+                  {groupItems.map(c => {
+                    const isLow = c.min_threshold !== undefined && c.min_threshold > 0 && c.quantity <= c.min_threshold;
+                    return (
+                    <div key={c.id} className="card" style={{ display: 'flex', flexDirection: 'column', padding: '1rem', border: isLow ? '1px solid rgba(239, 68, 68, 0.4)' : undefined, background: isLow ? 'rgba(239, 68, 68, 0.04)' : undefined }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
                         <div style={{ flex: 1, paddingRight: '1rem' }}>
-                          <h3 style={{ margin: '0 0 0.2rem 0', fontSize: '1.1rem' }}>
-                            {c.manufacturer} {c.name}
-                          </h3>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.2rem' }}>
+                            <h3 style={{ margin: 0, fontSize: '1.1rem' }}>
+                              {c.manufacturer} {c.name}
+                            </h3>
+                            {isLow && (
+                              <span style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
+                                Low Stock (≤{c.min_threshold})
+                              </span>
+                            )}
+                          </div>
                           {renderComponentDetails(c)}
                         </div>
                         <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: '1.2rem', fontWeight: 600 }}>
+                          <div style={{ fontSize: '1.2rem', fontWeight: 600, color: isLow ? '#f87171' : 'var(--text-primary)' }}>
                             {c.type === 'Powder' ? '' : c.quantity}
                           </div>
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
@@ -238,7 +263,8 @@ export const ReloadingComponents = () => {
                         </div>
                       </div>
                     </div>
-                  ))}
+                  );
+                })}
                 </div>
               </div>
             );

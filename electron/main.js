@@ -107,6 +107,7 @@ app.whenReady().then(() => {
   ipcMain.handle('setup-vault', (_, password) => db.setupVault(password));
   ipcMain.handle('unlock-vault', (_, password) => db.unlockVault(password));
   ipcMain.handle('unlock-with-recovery-code', (_, code) => db.unlockWithRecoveryCode(code));
+  ipcMain.handle('lock-vault', () => db.lockVault());
 
   ipcMain.handle('get-firearms', () => db.getFirearms());
   ipcMain.handle('add-firearm', (_, firearm) => db.addFirearm(firearm));
@@ -144,6 +145,26 @@ app.whenReady().then(() => {
     return true; 
   });
 
+  ipcMain.handle('log-range-session', (_, data) => {
+    const res = db.logRangeSession(data);
+    if (mainWindow) mainWindow.webContents.send('sync-received');
+    return res;
+  });
+
+  ipcMain.handle('complete-maintenance-task', (_, firearmId, taskId, logData) => {
+    const res = db.completeMaintenanceTask(firearmId, taskId, logData);
+    if (mainWindow) mainWindow.webContents.send('sync-received');
+    return res;
+  });
+
+  ipcMain.handle('get-custom-schedule-presets', () => db.getCustomSchedulePresets());
+  ipcMain.handle('save-custom-schedule-presets', (_, presets) => db.saveCustomSchedulePresets(presets));
+  ipcMain.handle('manufacture-handload-batch', (_, ammoId, quantity, deductions) => {
+    const res = db.manufactureHandloadBatch(ammoId, quantity, deductions);
+    if (mainWindow) mainWindow.webContents.send('sync-received');
+    return res;
+  });
+
   ipcMain.handle('save-photo', (_, sourcePath, filename) => db.savePhoto(sourcePath, filename));
   ipcMain.handle('save-base64-photo', (_, base64Data, filename) => {
     try {
@@ -174,6 +195,9 @@ app.whenReady().then(() => {
       
       if (canceled || !filePath) return false;
       
+      // Ensure all in-memory changes (including custom SKUs) are flushed to disk before archiving
+      db.flushSync();
+
       return new Promise((resolve, reject) => {
         const output = fs.createWriteStream(filePath);
         const archive = archiver('zip', { zlib: { level: 9 } });
@@ -205,6 +229,29 @@ app.whenReady().then(() => {
       return filePaths[0];
     }
     return null;
+  });
+
+  ipcMain.handle('restore-backup', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+      title: 'Select Backup File to Restore',
+      properties: ['openFile'],
+      filters: [
+        { name: 'ArmoryVault Backups (*.enc, *.zip)', extensions: ['enc', 'zip'] },
+        { name: 'Encrypted Vault (*.enc)', extensions: ['enc'] },
+        { name: 'Full Zip Archive (*.zip)', extensions: ['zip'] }
+      ]
+    });
+    if (canceled || !filePaths || filePaths.length === 0) {
+      return { canceled: true };
+    }
+
+    try {
+      const result = db.restoreBackup(filePaths[0]);
+      return { success: true, filePath: filePaths[0], ...result };
+    } catch (e) {
+      console.error('Failed to restore backup:', e);
+      return { success: false, error: e.message };
+    }
   });
 
   ipcMain.handle('get-config', (_, key) => {
@@ -691,6 +738,48 @@ app.whenReady().then(() => {
       }
     });
 
+    expressApp.get('/api/inventory/cache', (req, res) => {
+      try {
+        const firearms = db.getFirearms() || [];
+        const ammo = db.getAmmo() || [];
+        const components = db.getComponents() || [];
+        const skus = db.getSkus() || {};
+        res.json({
+          success: true,
+          firearms: firearms.map(f => ({
+            id: f.id,
+            make: f.make,
+            model: f.model,
+            caliber: f.caliber,
+            serial_number: f.serial_number,
+            total_rounds: (f.logs || []).filter(l => l.type === 'Range').reduce((sum, l) => sum + (l.rounds_fired || 0), 0)
+          })),
+          ammo: ammo.map(a => ({
+            id: a.id,
+            caliber: a.caliber,
+            type: a.type,
+            count: a.count,
+            manufacturer: a.manufacturer,
+            grain: a.grain,
+            projectile: a.projectile,
+            upc_code: a.upc_code
+          })),
+          components: components.map(c => ({
+            id: c.id,
+            type: c.type,
+            manufacturer: c.manufacturer,
+            name: c.name,
+            quantity: c.quantity,
+            caliber: c.caliber
+          })),
+          skus
+        });
+      } catch (e) {
+        console.error("Inventory cache error:", e);
+        res.status(500).json({ success: false, error: e.message });
+      }
+    });
+
     expressApp.post('/api/sync', (req, res) => {
       console.log("Received sync payload from mobile:", req.body);
       try {
@@ -749,6 +838,10 @@ app.whenReady().then(() => {
       createWindow();
     }
   });
+});
+
+app.on('before-quit', () => {
+  db.flushSync();
 });
 
 app.on('window-all-closed', () => {

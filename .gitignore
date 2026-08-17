@@ -26,3 +26,12 @@ out
 *.njsproj
 *.sln
 *.sw?
+
+# Environment files
+.env
+.env.local
+.env.*
+
+# Encrypted vault data (user data — never commit)
+*.enc
+*.bak

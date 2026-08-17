@@ -26,9 +26,26 @@ export const mockWindowApi = () => {
 
   window.api = {
     getFirearms: vi.fn().mockResolvedValue(mockFirearms),
+    lockVault: vi.fn().mockResolvedValue(undefined),
     addFirearm: vi.fn().mockResolvedValue(2),
     updateFirearm: vi.fn().mockResolvedValue(1),
     deleteFirearm: vi.fn().mockResolvedValue(1),
+    logRangeSession: vi.fn().mockResolvedValue({ success: true, firearm_rounds: 50, ammo_remaining: 150 }),
+    completeMaintenanceTask: vi.fn().mockResolvedValue(true),
     savePhoto: vi.fn().mockResolvedValue('/path/to/mock_photo.jpg'),
-  };
+    getAmmo: vi.fn().mockResolvedValue([]),
+    getAccessories: vi.fn().mockResolvedValue([]),
+    getComponents: vi.fn().mockResolvedValue([]),
+    getSkus: vi.fn().mockResolvedValue({}),
+    getConfig: vi.fn().mockResolvedValue(null),
+    setConfig: vi.fn().mockResolvedValue(undefined),
+    getBackupFolder: vi.fn().mockResolvedValue(null),
+    restoreBackup: vi.fn().mockResolvedValue({ success: true }),
+    getSyncQueue: vi.fn().mockResolvedValue([]),
+    onSyncReceived: vi.fn().mockReturnValue(() => {}),
+    onUpdateMessage: vi.fn().mockReturnValue(() => {}),
+    getPlatform: vi.fn().mockReturnValue('browser'),
+    selectAndSavePhoto: vi.fn().mockResolvedValue(null),
+    exportData: vi.fn().mockResolvedValue('test.csv'),
+  } as any;
 };

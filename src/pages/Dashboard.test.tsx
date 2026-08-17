@@ -1,3 +1,6 @@
+/**
+ * @vitest-environment jsdom
+ */
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -11,7 +14,7 @@ describe('Dashboard Component', () => {
         <Dashboard />
       </MemoryRouter>
     );
-    expect(screen.getByText('Inventory Dashboard')).toBeInTheDocument();
+    expect(screen.getByText('Inventory Dashboard')).toBeDefined();
   });
 
   test('loads and displays firearms from mock API', async () => {
@@ -23,9 +26,9 @@ describe('Dashboard Component', () => {
 
     // Wait for the mock data to appear
     await waitFor(() => {
-      expect(screen.getByText('Glock')).toBeInTheDocument();
-      expect(screen.getByText('19 Gen 5')).toBeInTheDocument();
-      expect(screen.getByText('GLK12345')).toBeInTheDocument();
+      expect(screen.getByText('Glock')).toBeDefined();
+      expect(screen.getByText('19 Gen 5')).toBeDefined();
+      expect(screen.getByText('GLK12345')).toBeDefined();
     });
   });
 });

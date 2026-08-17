@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Firearm } from '../types';
-import { formatCaliber } from './AmmoDashboard';
+import { formatCaliber } from '../utils/caliberHelpers';
 import { Upload, Save, X } from 'lucide-react';
 
 export const FirearmForm = () => {

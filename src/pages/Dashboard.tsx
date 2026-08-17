@@ -1,23 +1,51 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Firearm } from '../types';
-import { Search, Info, Download, Target, DollarSign, Package } from 'lucide-react';
-import { exportToCSV } from '../utils/csvExport';
+import { Firearm, Ammo, Accessory, ReloadingComponent } from '../types';
+import { Search, Info, Target, DollarSign, Package, ArrowUpDown, ArrowUp, ArrowDown, PieChart, Shield, Wrench, Database } from 'lucide-react';
+
+type SortKey = 'make' | 'model' | 'caliber' | 'serial_number' | 'status';
+type SortDir = 'asc' | 'desc';
 
 export const Dashboard = () => {
   const [firearms, setFirearms] = useState<Firearm[]>([]);
+  const [ammoList, setAmmoList] = useState<Ammo[]>([]);
+  const [accessories, setAccessories] = useState<Accessory[]>([]);
+  const [components, setComponents] = useState<ReloadingComponent[]>([]);
+  const [showCollectionAnalytics, setShowCollectionAnalytics] = useState(false);
+
   const [search, setSearch] = useState('');
   const [filterSold, setFilterSold] = useState<'all' | 'available' | 'sold'>('all');
+  const [sortKey, setSortKey] = useState<SortKey>('make');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
   const navigate = useNavigate();
 
   useEffect(() => {
-    loadFirearms();
+    loadData();
+    const handleReload = () => loadData();
+    window.addEventListener('armoryvault-reload', handleReload);
+    return () => window.removeEventListener('armoryvault-reload', handleReload);
   }, []);
 
-  const loadFirearms = async () => {
+  const loadData = async () => {
     if (window.api) {
       const data = await window.api.getFirearms();
       setFirearms(data);
+
+      if (window.api.getConfig) {
+        const showAnalytics = await window.api.getConfig('showCollectionAnalytics');
+        setShowCollectionAnalytics(!!showAnalytics);
+        
+        if (showAnalytics) {
+          const [ammo, accs, comps] = await Promise.all([
+            window.api.getAmmo(),
+            window.api.getAccessories ? window.api.getAccessories() : Promise.resolve([]),
+            window.api.getComponents ? window.api.getComponents() : Promise.resolve([])
+          ]);
+          setAmmoList(ammo);
+          setAccessories(accs);
+          setComponents(comps);
+        }
+      }
     }
   };
 
@@ -27,9 +55,33 @@ export const Dashboard = () => {
     return matchesSearch && matchesSold;
   });
 
-  const handleExport = async () => {
-    const csvString = exportToCSV(firearms);
-    await window.api.exportData(csvString, 'firearms_inventory.csv');
+  const sorted = [...filtered].sort((a, b) => {
+    let valA: string, valB: string;
+    if (sortKey === 'status') {
+      valA = a.is_sold ? 'Sold' : 'Available';
+      valB = b.is_sold ? 'Sold' : 'Available';
+    } else {
+      valA = (a[sortKey] || '').toString().toLowerCase();
+      valB = (b[sortKey] || '').toString().toLowerCase();
+    }
+    const cmp = valA.localeCompare(valB);
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  };
+
+  const SortIcon = ({ column }: { column: SortKey }) => {
+    if (sortKey !== column) return <ArrowUpDown size={14} style={{ opacity: 0.3, marginLeft: '0.3rem' }} />;
+    return sortDir === 'asc'
+      ? <ArrowUp size={14} style={{ color: 'var(--accent)', marginLeft: '0.3rem' }} />
+      : <ArrowDown size={14} style={{ color: 'var(--accent)', marginLeft: '0.3rem' }} />;
   };
 
   const totalValue = firearms.reduce((acc, f) => {
@@ -49,15 +101,38 @@ export const Dashboard = () => {
       .reduce((sum, l) => sum + (l.rounds_fired || 0), 0);
   };
 
+  const isMaintenanceDue = (f: Firearm) => {
+    if (f.is_sold) return false;
+    const totalLifetimeRounds = f.logs?.filter(l => l.type === 'Range').reduce((sum, l) => sum + (Number(l.rounds_fired) || 0), 0) || 0;
+    
+    // Check custom scheduled tasks
+    if (f.maintenance_schedules && f.maintenance_schedules.length > 0) {
+      const anyDue = f.maintenance_schedules.some(s => {
+        const roundsSince = totalLifetimeRounds - (s.last_performed_rounds || 0);
+        return roundsSince >= (s.interval_rounds || 3000);
+      });
+      if (anyDue) return true;
+    }
+
+    // Check dirty rounds threshold
+    if (getDirtyRounds(f) >= (f.maintenance_round_threshold || 500)) {
+      return true;
+    }
+
+    return false;
+  };
+
+  // Analytics totals
+  const firearmsVal = firearms.filter(f => !f.is_sold).reduce((sum, f) => sum + (Number(f.purchase_price) || 0) + (f.logs?.reduce((lsum, l) => lsum + (Number(l.cost) || 0), 0) || 0), 0);
+  const accessoriesVal = accessories.reduce((sum, a) => sum + (Number(a.value) || 0) * (a.quantity || 1), 0);
+  const ammoVal = ammoList.reduce((sum, a) => sum + (Number(a.count) || 0) * (Number(a.costPerRound) || 0), 0);
+  const componentsVal = components.reduce((sum, c) => sum + (Number(c.cost) || 0), 0);
+  const grandTotalVal = firearmsVal + accessoriesVal + ammoVal + componentsVal;
+
   return (
     <div className="dashboard">
       <div className="page-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <h1>Inventory Dashboard</h1>
-          <button className="btn-secondary" onClick={handleExport} title="Export to CSV">
-            <Download size={18} /> Export
-          </button>
-        </div>
+        <h1>Inventory Dashboard</h1>
         <div className="filters">
           <div className="search-box">
             <Search size={18} />
@@ -120,19 +195,102 @@ export const Dashboard = () => {
         )}
       </div>
 
+      {/* Optional Collection Value Analytics Breakdown Card */}
+      {showCollectionAnalytics && grandTotalVal > 0 && (
+        <div className="card" style={{ padding: '1.5rem', marginBottom: '2.5rem', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-light)', borderRadius: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <PieChart size={20} style={{ color: 'var(--accent)' }} />
+              <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Collection Value & Asset Breakdown</h3>
+            </div>
+            <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--success)' }}>
+              Total Vault Net Worth: ${grandTotalVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+            {/* Firearms */}
+            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                <span>Firearms ({firearms.filter(f => !f.is_sold).length})</span>
+                <span style={{ fontWeight: 600, color: '#60a5fa' }}>{Math.round((firearmsVal / grandTotalVal) * 100)}%</span>
+              </div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: '0.3rem 0', color: '#fff' }}>
+                ${firearmsVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: '4px', height: '6px', overflow: 'hidden' }}>
+                <div style={{ width: `${(firearmsVal / grandTotalVal) * 100}%`, background: '#60a5fa', height: '100%' }} />
+              </div>
+            </div>
+
+            {/* Accessories */}
+            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                <span>Optics & Accessories</span>
+                <span style={{ fontWeight: 600, color: '#34d399' }}>{Math.round((accessoriesVal / grandTotalVal) * 100)}%</span>
+              </div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: '0.3rem 0', color: '#fff' }}>
+                ${accessoriesVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: '4px', height: '6px', overflow: 'hidden' }}>
+                <div style={{ width: `${(accessoriesVal / grandTotalVal) * 100}%`, background: '#34d399', height: '100%' }} />
+              </div>
+            </div>
+
+            {/* Ammo */}
+            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                <span>Ammunition</span>
+                <span style={{ fontWeight: 600, color: '#fbbf24' }}>{Math.round((ammoVal / grandTotalVal) * 100)}%</span>
+              </div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: '0.3rem 0', color: '#fff' }}>
+                ${ammoVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: '4px', height: '6px', overflow: 'hidden' }}>
+                <div style={{ width: `${(ammoVal / grandTotalVal) * 100}%`, background: '#fbbf24', height: '100%' }} />
+              </div>
+            </div>
+
+            {/* Reloading */}
+            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(168, 85, 247, 0.2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                <span>Reloading Supplies</span>
+                <span style={{ fontWeight: 600, color: '#c084fc' }}>{Math.round((componentsVal / grandTotalVal) * 100)}%</span>
+              </div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: '0.3rem 0', color: '#fff' }}>
+                ${componentsVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: '4px', height: '6px', overflow: 'hidden' }}>
+                <div style={{ width: `${(componentsVal / grandTotalVal) * 100}%`, background: '#c084fc', height: '100%' }} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="table-container">
         <table>
           <thead>
             <tr>
-              <th>Make</th>
-              <th>Model</th>
-              <th>Caliber</th>
-              <th>Serial Number</th>
-              <th>Status</th>
+              <th onClick={() => handleSort('make')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center' }}>Make <SortIcon column="make" /></span>
+              </th>
+              <th onClick={() => handleSort('model')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center' }}>Model <SortIcon column="model" /></span>
+              </th>
+              <th onClick={() => handleSort('caliber')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center' }}>Caliber <SortIcon column="caliber" /></span>
+              </th>
+              <th onClick={() => handleSort('serial_number')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center' }}>Serial Number <SortIcon column="serial_number" /></span>
+              </th>
+              <th onClick={() => handleSort('status')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center' }}>Status <SortIcon column="status" /></span>
+              </th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((f, i) => (
+            {sorted.map((f, i) => (
               <tr 
                 key={f.id} 
                 className={f.is_sold ? 'row-sold clickable-row' : 'clickable-row'}
@@ -153,16 +311,21 @@ export const Dashboard = () => {
                         NFA
                       </span>
                     )}
-                    {!f.is_sold && getDirtyRounds(f) >= 500 && (
+                    {!f.is_sold && isMaintenanceDue(f) && (
+                      <span className="status-badge" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.4)', fontWeight: 600 }} title="Scheduled maintenance or cleaning is due">
+                        ⚠️ Service Due
+                      </span>
+                    )}
+                    {!f.is_sold && !isMaintenanceDue(f) && getDirtyRounds(f) >= 300 && (
                       <span className="status-badge" style={{ background: 'rgba(245, 158, 11, 0.1)', color: 'var(--warning)', border: '1px solid rgba(245, 158, 11, 0.3)' }} title={`${getDirtyRounds(f)} rounds since last cleaning`}>
-                        Needs Cleaning
+                        Dirty ({getDirtyRounds(f)} rds)
                       </span>
                     )}
                   </div>
                 </td>
               </tr>
             ))}
-            {filtered.length === 0 && (
+            {sorted.length === 0 && (
               <tr>
                 <td colSpan={5} className="empty-state">No firearms found.</td>
               </tr>

@@ -6,11 +6,14 @@ contextBridge.exposeInMainWorld('api', {
   setupVault: (password) => ipcRenderer.invoke('setup-vault', password),
   unlockVault: (password) => ipcRenderer.invoke('unlock-vault', password),
   unlockWithRecoveryCode: (code) => ipcRenderer.invoke('unlock-with-recovery-code', code),
+  lockVault: () => ipcRenderer.invoke('lock-vault'),
   
   getFirearms: () => ipcRenderer.invoke('get-firearms'),
   addFirearm: (firearm) => ipcRenderer.invoke('add-firearm', firearm),
   updateFirearm: (id, firearm) => ipcRenderer.invoke('update-firearm', id, firearm),
   deleteFirearm: (id) => ipcRenderer.invoke('delete-firearm', id),
+  logRangeSession: (data) => ipcRenderer.invoke('log-range-session', data),
+  completeMaintenanceTask: (firearmId, taskId, logData) => ipcRenderer.invoke('complete-maintenance-task', firearmId, taskId, logData),
   
   getAmmo: () => ipcRenderer.invoke('get-ammo'),
   addAmmo: (ammo) => ipcRenderer.invoke('add-ammo', ammo),
@@ -31,12 +34,17 @@ contextBridge.exposeInMainWorld('api', {
   saveSkus: (skus) => ipcRenderer.invoke('save-skus', skus),
   deleteSku: (skuId) => ipcRenderer.invoke('delete-sku', skuId),
   
+  getCustomSchedulePresets: () => ipcRenderer.invoke('get-custom-schedule-presets'),
+  saveCustomSchedulePresets: (presets) => ipcRenderer.invoke('save-custom-schedule-presets', presets),
+  manufactureHandloadBatch: (ammoId, quantity, deductions) => ipcRenderer.invoke('manufacture-handload-batch', ammoId, quantity, deductions),
+  
   savePhoto: (sourcePath, filename) => ipcRenderer.invoke('save-photo', sourcePath, filename),
   saveBase64Photo: (base64Data, filename) => ipcRenderer.invoke('save-base64-photo', base64Data, filename),
   saveDocument: (sourcePath, filename) => ipcRenderer.invoke('save-document', sourcePath, filename),
   
   getBackupFolder: () => ipcRenderer.invoke('get-backup-folder'),
   createZipBackup: () => ipcRenderer.invoke('create-zip-backup'),
+  restoreBackup: () => ipcRenderer.invoke('restore-backup'),
   selectBackupFolder: () => ipcRenderer.invoke('select-backup-folder'),
   getConfig: (key) => ipcRenderer.invoke('get-config', key),
   setConfig: (key, value) => ipcRenderer.invoke('set-config', key, value),

@@ -29,8 +29,13 @@ export const Accessories = () => {
       if (location.state.parsedData) {
         Object.assign(formDataToSet, location.state.parsedData);
       }
+      if (location.state.initialData) {
+        Object.assign(formDataToSet, location.state.initialData);
+      }
+      if (location.state.upc) {
+        formDataToSet.upc_code = location.state.upc;
+      }
       setFormData(formDataToSet);
-      // We will also pass the raw UPC to AccessoryModal via initialData
       setEditingId(null);
       setIsModalOpen(true);
       window.history.replaceState({}, document.title);
@@ -51,7 +56,10 @@ export const Accessories = () => {
     return (
       a.manufacturer.toLowerCase().includes(term) ||
       a.model.toLowerCase().includes(term) ||
-      a.type.toLowerCase().includes(term)
+      a.type.toLowerCase().includes(term) ||
+      (a.upc_code && a.upc_code.toLowerCase().includes(term)) ||
+      (a.serialNumber && a.serialNumber.toLowerCase().includes(term)) ||
+      (a.supportedModels && a.supportedModels.toLowerCase().includes(term))
     );
   });
 
@@ -147,8 +155,18 @@ export const Accessories = () => {
                   )}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem', flexWrap: 'wrap' }}>
                     <div style={{ fontSize: '0.8rem', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>{acc.type}</div>
+                    {acc.round_count !== undefined && acc.round_count > 0 && (
+                      <span style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.35)', padding: '0.08rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600 }}>
+                        🎯 {acc.round_count.toLocaleString()} rds
+                      </span>
+                    )}
+                    {acc.upc_code && (
+                      <span style={{ background: 'rgba(139, 92, 246, 0.15)', color: '#c084fc', border: '1px solid rgba(139, 92, 246, 0.35)', padding: '0.08rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600, fontFamily: 'monospace' }}>
+                        SKU: {acc.upc_code}
+                      </span>
+                    )}
                     {acc.is_nfa && <span className="status-badge" style={{ background: 'rgba(234, 179, 8, 0.2)', color: '#eab308', border: '1px solid rgba(234, 179, 8, 0.5)', padding: '0.1rem 0.4rem', fontSize: '0.7rem' }}>NFA</span>}
                   </div>
                   <h3 style={{ margin: '0 0 0.3rem 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

@@ -1,5 +1,12 @@
 import { Firearm } from '../types';
 
+/** Escapes a CSV field per RFC 4180: wraps in quotes and doubles any internal quotes. */
+const escapeCSV = (value: string | number | null | undefined): string => {
+  if (value === null || value === undefined) return '""';
+  const str = String(value);
+  return '"' + str.replace(/"/g, '""') + '"';
+};
+
 export const exportToCSV = (firearms: Firearm[]): string => {
   if (!firearms || firearms.length === 0) return '';
 
@@ -12,18 +19,18 @@ export const exportToCSV = (firearms: Firearm[]): string => {
 
   const rows = firearms.map(f => [
     f.id,
-    `"${f.make || ''}"`,
-    `"${f.model || ''}"`,
-    `"${f.serial_number || ''}"`,
-    `"${f.caliber || ''}"`,
-    `"${f.barrel_length || ''}"`,
-    `"${f.action_type || ''}"`,
-    `"${f.purchase_date || ''}"`,
+    escapeCSV(f.make),
+    escapeCSV(f.model),
+    escapeCSV(f.serial_number),
+    escapeCSV(f.caliber),
+    escapeCSV(f.barrel_length),
+    escapeCSV(f.action_type),
+    escapeCSV(f.purchase_date),
     f.purchase_price || '',
-    `"${f.condition || ''}"`,
+    escapeCSV(f.condition),
     f.is_sold ? 'Sold' : 'Available',
-    `"${f.sold_to_name || ''}"`,
-    `"${f.sold_date || ''}"`,
+    escapeCSV(f.sold_to_name),
+    escapeCSV(f.sold_date),
     f.sold_price || ''
   ]);
 

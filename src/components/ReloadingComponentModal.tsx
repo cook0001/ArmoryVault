@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ReloadingComponent } from '../types';
 import { parseBarcodeData } from '../utils/BarcodeEngine';
+import { COMPREHENSIVE_BULLET_TYPES } from '../utils/caliberHelpers';
 
 interface ReloadingComponentModalProps {
   isOpen: boolean;
@@ -36,6 +37,16 @@ export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = (
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [lookupStatus, setLookupStatus] = useState<{message: string, type: 'error' | 'success'} | null>(null);
   const navigate = useNavigate();
+  const dialogRef = React.useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (isOpen && dialog && !dialog.open) {
+      dialog.showModal();
+    } else if (!isOpen && dialog && dialog.open) {
+      dialog.close();
+    }
+  }, [isOpen]);
 
   const lookupUPC = async (upc: string) => {
     if (!upc || !window.api || !window.api.lookupUPC) return;
@@ -154,12 +165,11 @@ export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = (
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="modal-overlay">
-      <div className="modal">
-        <h2>{editingId ? 'Edit Component' : 'Add Component'}</h2>
+    <dialog ref={dialogRef} className="modal" onClose={onClose}>
+      {isOpen && (
+        <>
+          <h2>{editingId ? 'Edit Component' : 'Add Component'}</h2>
         <form onSubmit={handleSave}>
           <div className="form-group" style={{ background: 'rgba(56, 189, 248, 0.05)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.2)', marginBottom: '1.5rem' }}>
             <label>Scan UPC Code (Auto-fill)</label>
@@ -224,7 +234,15 @@ export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div className="form-group">
                 <label>Bullet Type</label>
-                <input required type="text" className="form-input" placeholder="e.g. FMJ" value={formData.bulletType || ''} onChange={e => setFormData({...formData, bulletType: e.target.value})} />
+                <input
+                  required
+                  type="text"
+                  list="reloading-bullet-types-list"
+                  className="form-input"
+                  placeholder="e.g. FMJ, MatchKing, ELD-X, TSX, Gold Dot"
+                  value={formData.bulletType || ''}
+                  onChange={e => setFormData({...formData, bulletType: e.target.value})}
+                />
               </div>
               <div className="form-group">
                 <label>Bullet Weight (grains)</label>
@@ -269,13 +287,13 @@ export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = (
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
             <div className="form-group">
-              <label>{formData.type === 'Powder' ? 'Amount' : 'Quantity'}</label>
+              <label>{formData.type === 'Powder' ? 'Amount' : 'Quantity'} *</label>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <input required type="number" min="0" step={formData.type === 'Powder' ? '0.01' : '1'} className="form-input" style={{ flex: 1 }} value={formData.quantity === undefined || formData.quantity === null ? '' : formData.quantity} onChange={e => setFormData({...formData, quantity: e.target.value === '' ? ('' as any) : parseFloat(e.target.value)})} />
                 {formData.type === 'Powder' && (
-                  <select className="form-input" style={{ width: '100px' }} value={formData.weightUnit || 'lbs'} onChange={e => setFormData({...formData, weightUnit: e.target.value as any})}>
+                  <select className="form-input" style={{ width: '80px' }} value={formData.weightUnit || 'lbs'} onChange={e => setFormData({...formData, weightUnit: e.target.value as any})}>
                     <option value="lbs">lbs</option>
                     <option value="oz">oz</option>
                   </select>
@@ -283,14 +301,18 @@ export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = (
               </div>
             </div>
             <div className="form-group">
+              <label>Low-Stock Alert</label>
+              <input type="number" min="0" step={formData.type === 'Powder' ? '0.1' : '1'} className="form-input" placeholder={formData.type === 'Powder' ? 'e.g. 1 (lb)' : 'e.g. 200'} value={formData.min_threshold === undefined || formData.min_threshold === null ? '' : formData.min_threshold} onChange={e => setFormData({...formData, min_threshold: e.target.value === '' ? undefined : parseFloat(e.target.value)})} />
+            </div>
+            <div className="form-group">
               <label>Cost / Value ($)</label>
               <input type="number" step="0.01" className="form-input" value={formData.cost === undefined || formData.cost === null ? '' : formData.cost} onChange={e => setFormData({...formData, cost: e.target.value === '' ? undefined : parseFloat(e.target.value)})} />
               {formData.cost !== undefined && formData.cost !== null && formData.quantity !== undefined && formData.quantity > 0 && (
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.4rem' }}>
                   {formData.type === 'Powder' ? (
-                    `≈ $${(formData.cost / (formData.quantity * (formData.weightUnit === 'lbs' ? 7000 : 437.5))).toFixed(4)} per grain`
+                    `≈ $${(formData.cost / (formData.quantity * (formData.weightUnit === 'lbs' ? 7000 : 437.5))).toFixed(4)}/gr`
                   ) : (
-                    `≈ $${(formData.cost / formData.quantity).toFixed(3)} per unit`
+                    `≈ $${(formData.cost / formData.quantity).toFixed(3)}/ea`
                   )}
                 </div>
               )}
@@ -338,7 +360,14 @@ export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = (
             <button type="submit" className="btn-primary">Save Component</button>
           </div>
         </form>
-      </div>
-    </div>
+
+        <datalist id="reloading-bullet-types-list">
+          {COMPREHENSIVE_BULLET_TYPES.map((bt, idx) => (
+            <option key={idx} value={bt} />
+          ))}
+        </datalist>
+        </>
+      )}
+    </dialog>
   );
 };

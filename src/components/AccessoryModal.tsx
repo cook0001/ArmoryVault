@@ -25,7 +25,7 @@ const defaultFormData: Partial<Accessory> = {
   supportedModels: '',
   caliber: '',
   capacity: undefined,
-  quantity: '' as any,
+  quantity: undefined,
   serialNumber: '',
   value: null,
   purchaseDate: new Date().toISOString().split('T')[0],
@@ -39,49 +39,87 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({ isOpen, onClose,
   const [upcInput, setUpcInput] = useState('');
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [lookupStatus, setLookupStatus] = useState<{message: string, type: 'error' | 'success'} | null>(null);
+  const [saveToSkuDb, setSaveToSkuDb] = useState(false);
   const navigate = useNavigate();
+  const dialogRef = React.useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (isOpen && dialog && !dialog.open) {
+      dialog.showModal();
+    } else if (!isOpen && dialog && dialog.open) {
+      dialog.close();
+    }
+  }, [isOpen]);
 
   const lookupUPC = async (upc: string) => {
-    if (!upc || !window.api || !window.api.lookupUPC) return;
+    if (!upc || !window.api) return;
     setIsLookingUp(true);
     setLookupStatus(null);
     try {
-      const data = await window.api.lookupUPC(upc);
-      if (data && data.items && data.items.length > 0) {
-        const item = data.items[0];
-        const parsed = parseBarcodeData(item);
-
-        if (parsed.category === 'ammo') {
-          if (window.confirm("This looks like loaded Ammunition. Would you like to redirect to the Ammo tab?")) {
-            navigate('/ammo', { state: { openAddModal: true, upc: upc } });
-            return;
-          }
-        } else if (parsed.category === 'component') {
-          if (window.confirm("This looks like a Reloading Component. Would you like to redirect to the Components tab?")) {
-            navigate('/components', { state: { openAddModal: true, upc: upc } });
-            return;
-          }
-        } else if (parsed.category === 'unknown') {
-          const typeChoice = window.prompt("Is this Ammo, Component, or Accessory? (Type 'ammo', 'component', or 'accessory')", "accessory");
-          if (typeChoice && typeChoice.toLowerCase() === 'ammo') {
-            navigate('/ammo', { state: { openAddModal: true, upc: upc } });
-            return;
-          } else if (typeChoice && typeChoice.toLowerCase() === 'component') {
-            navigate('/components', { state: { openAddModal: true, upc: upc } });
-            return;
-          }
+      // 1. Check Custom SKU Database first
+      if (window.api.getSkus) {
+        const skus = await window.api.getSkus();
+        const matchedSkuKey = Object.keys(skus).find(k => k.trim().toUpperCase() === upc.trim().toUpperCase());
+        if (matchedSkuKey) {
+          const skuData = skus[matchedSkuKey];
+          setFormData(prev => ({
+            ...prev,
+            type: (skuData.accessoryType || (skuData as any).type || prev.type) as any,
+            manufacturer: skuData.manufacturer || prev.manufacturer,
+            model: skuData.model || prev.model,
+            value: skuData.value !== undefined ? skuData.value : ((skuData as any).cost !== undefined ? (skuData as any).cost : prev.value),
+            caliber: skuData.caliber || (skuData as any).supportedModels || prev.caliber,
+            supportedModels: (skuData as any).supportedModels || prev.supportedModels,
+            notes: skuData.notes || prev.notes,
+            upc_code: matchedSkuKey
+          }));
+          setLookupStatus({ message: `Custom SKU "${matchedSkuKey}" matched and loaded!`, type: 'success' });
+          setIsLookingUp(false);
+          return;
         }
+      }
 
-        setFormData(prev => ({
-          ...prev,
-          type: parsed.parsedAccessory?.type || prev.type,
-          manufacturer: parsed.parsedAccessory?.manufacturer || prev.manufacturer,
-          model: parsed.parsedAccessory?.model || prev.model,
-          value: parsed.parsedAccessory?.value || prev.value,
-        }));
-        setLookupStatus({ message: 'Accessory found and parsed automatically!', type: 'success' });
-      } else {
-        setLookupStatus({ message: 'Barcode not found in database.', type: 'error' });
+      // 2. Fallback to online UPC barcode database
+      if (window.api.lookupUPC) {
+        const data = await window.api.lookupUPC(upc);
+        if (data && data.items && data.items.length > 0) {
+          const item = data.items[0];
+          const parsed = parseBarcodeData(item);
+
+          if (parsed.category === 'ammo') {
+            if (window.confirm("This looks like loaded Ammunition. Would you like to redirect to the Ammo tab?")) {
+              navigate('/ammo', { state: { openAddModal: true, upc: upc } });
+              return;
+            }
+          } else if (parsed.category === 'component') {
+            if (window.confirm("This looks like a Reloading Component. Would you like to redirect to the Components tab?")) {
+              navigate('/components', { state: { openAddModal: true, upc: upc } });
+              return;
+            }
+          } else if (parsed.category === 'unknown') {
+            const typeChoice = window.prompt("Is this Ammo, Component, or Accessory? (Type 'ammo', 'component', or 'accessory')", "accessory");
+            if (typeChoice && typeChoice.toLowerCase() === 'ammo') {
+              navigate('/ammo', { state: { openAddModal: true, upc: upc } });
+              return;
+            } else if (typeChoice && typeChoice.toLowerCase() === 'component') {
+              navigate('/components', { state: { openAddModal: true, upc: upc } });
+              return;
+            }
+          }
+
+          setFormData(prev => ({
+            ...prev,
+            type: parsed.parsedAccessory?.type || prev.type,
+            manufacturer: parsed.parsedAccessory?.manufacturer || prev.manufacturer,
+            model: parsed.parsedAccessory?.model || prev.model,
+            value: parsed.parsedAccessory?.value || prev.value,
+            upc_code: upc
+          }));
+          setLookupStatus({ message: 'Accessory found and parsed automatically!', type: 'success' });
+        } else {
+          setLookupStatus({ message: 'Barcode / SKU not found. You can enter details manually and save as a custom SKU.', type: 'error' });
+        }
       }
     } catch (e: any) {
       console.error(e);
@@ -95,6 +133,7 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({ isOpen, onClose,
     if (isOpen) {
       setUpcInput('');
       setLookupStatus(null);
+      setSaveToSkuDb(false);
       if (initialData) {
         setFormData({ ...defaultFormData, ...initialData });
       } else {
@@ -125,6 +164,9 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({ isOpen, onClose,
     if (!window.api || !window.api.addAccessory || !window.api.updateAccessory) return;
     
     const newAcc = { ...formData } as Accessory;
+    if (upcInput && !newAcc.upc_code) {
+      newAcc.upc_code = upcInput.trim().toUpperCase();
+    }
 
     if (editingId) {
       await window.api.updateAccessory(editingId, newAcc);
@@ -153,17 +195,34 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({ isOpen, onClose,
         await window.api.addAccessory(newAcc);
       }
     }
+
+    // Save to Custom SKU database if requested
+    if (saveToSkuDb && newAcc.upc_code && window.api && window.api.saveSkus) {
+      const existingSkus = (window.api.getSkus ? await window.api.getSkus() : {}) || {};
+      const updated = {
+        ...existingSkus,
+        [newAcc.upc_code.trim().toUpperCase()]: {
+          category: 'accessory' as const,
+          accessoryType: newAcc.type,
+          manufacturer: newAcc.manufacturer,
+          model: newAcc.model,
+          caliber: newAcc.caliber || newAcc.supportedModels || newAcc.ratedCalibers,
+          value: newAcc.value || undefined,
+          notes: newAcc.notes
+        }
+      };
+      await window.api.saveSkus(updated);
+    }
     
     onSave();
     onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="modal-overlay">
-      <div className="modal">
-        <h2>{editingId ? 'Edit Accessory' : 'Add Accessory'}</h2>
+    <dialog ref={dialogRef} className="modal" onClose={onClose}>
+      {isOpen && (
+        <>
+          <h2>{editingId ? 'Edit Accessory' : 'Add Accessory'}</h2>
         
         <form onSubmit={handleSave}>
           
@@ -277,23 +336,50 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({ isOpen, onClose,
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
             <div className="form-group">
               <label>Quantity</label>
               <input type="number" min="1" className="form-input" value={formData.quantity === undefined || formData.quantity === null ? '' : formData.quantity} onChange={e => setFormData({...formData, quantity: e.target.value === '' ? ('' as any) : parseInt(e.target.value)})} />
             </div>
             <div className="form-group">
-              <label>Value / Price (Per Item, $)</label>
+              <label>Value / Price ($)</label>
               <input type="number" step="0.01" className="form-input" value={formData.value === undefined || formData.value === null ? '' : formData.value} onChange={e => setFormData({...formData, value: e.target.value === '' ? null : parseFloat(e.target.value)})} />
+            </div>
+            <div className="form-group">
+              <label>Rounds on Gear</label>
+              <input type="number" min="0" step="1" className="form-input" value={formData.round_count === undefined || formData.round_count === null ? '' : formData.round_count} onChange={e => setFormData({...formData, round_count: e.target.value === '' ? undefined : parseInt(e.target.value)})} placeholder="e.g. 1500" />
             </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div className="form-group">
               <label>Serial Number (Leave blank if tracking multiple qty)</label>
-              <input type="text" className="form-input" value={formData.serialNumber || ''} onChange={e => setFormData({...formData, serialNumber: e.target.value})} />
+              <input type="text" className="form-input" value={formData.serialNumber || ''} onChange={e => setFormData({...formData, serialNumber: e.target.value})} placeholder="e.g. SN-981240" />
+            </div>
+            <div className="form-group">
+              <label>Part # / SKU / UPC Barcode</label>
+              <input type="text" className="form-input" value={formData.upc_code || upcInput || ''} onChange={e => {
+                const val = e.target.value;
+                setFormData({...formData, upc_code: val});
+                setUpcInput(val);
+              }} placeholder="e.g. APX-EXT-100, HS507C-X2" />
             </div>
           </div>
+
+          {(formData.upc_code || upcInput) && (
+            <div style={{ background: 'rgba(139, 92, 246, 0.08)', border: '1px solid rgba(139, 92, 246, 0.25)', padding: '0.75rem 1rem', borderRadius: '8px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <input
+                type="checkbox"
+                id="saveToSkuDb"
+                checked={saveToSkuDb}
+                onChange={e => setSaveToSkuDb(e.target.checked)}
+                style={{ width: '1.2rem', height: '1.2rem', accentColor: '#8b5cf6', cursor: 'pointer' }}
+              />
+              <label htmlFor="saveToSkuDb" style={{ fontSize: '0.85rem', cursor: 'pointer', margin: 0, color: 'var(--text-primary)' }}>
+                Save this part to <strong>Custom SKU Dictionary</strong> for instant auto-filling when scanning
+              </label>
+            </div>
+          )}
 
           <div className="form-group" style={{ gridColumn: '1 / -1', marginBottom: '1rem' }}>
             <label>Mounting & Allocations</label>
@@ -438,7 +524,8 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({ isOpen, onClose,
             <button type="submit" className="btn-primary">Save Accessory</button>
           </div>
         </form>
-      </div>
-    </div>
+        </>
+      )}
+    </dialog>
   );
 };
