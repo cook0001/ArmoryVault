@@ -4,19 +4,47 @@ on:
   workflow_dispatch:
   push:
     tags:
-      - 'v*' # Trigger on tags starting with v (e.g. v1.0.0)
+      - 'v*' # Trigger on version tags (e.g. v1.0.0, v2.7.0)
 
 permissions:
   contents: write
 
 jobs:
-  release:
+  # Step 1: Create a single Draft release first to avoid matrix race conditions (422 already_exists)
+  prepare-release:
+    name: Prepare GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v4
+
+      - name: Ensure Draft Release Exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="${GITHUB_REF_NAME}"
+          echo "Preparing release for tag: $TAG_NAME"
+          
+          # Delete any partial/stale release for this tag if it exists without assets
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            echo "Release $TAG_NAME already exists, converting to draft or reusing."
+          else
+            gh release create "$TAG_NAME" \
+              --draft \
+              --title "ArmoryVault $TAG_NAME" \
+              --generate-notes || true
+          fi
+
+  # Step 2: Build on all OS platforms and upload assets directly to the existing draft
+  build-matrix:
+    name: Build (${{ matrix.os }})
+    needs: prepare-release
     runs-on: ${{ matrix.os }}
-    
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        
+        os: [macos-latest, windows-latest, ubuntu-latest]
+
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v4
@@ -30,7 +58,66 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Build and Publish Release
+      - name: Build & Package Artifacts
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run release
+
+  # Step 3: Publish the release and verify all OS assets exist
+  verify-and-publish:
+    name: Verify Assets & Publish Release
+    needs: build-matrix
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v4
+
+      - name: Verify Multi-Platform Assets and Publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="${GITHUB_REF_NAME}"
+          echo "Verifying published assets for $TAG_NAME..."
+
+          # Publish release (remove draft status)
+          gh release edit "$TAG_NAME" --draft=false || true
+
+          # Fetch asset list
+          ASSETS=$(gh release view "$TAG_NAME" --json assets -q '.assets[].name')
+          echo "============================================"
+          echo "Uploaded Release Assets:"
+          echo "$ASSETS"
+          echo "============================================"
+
+          HAS_MAC=$(echo "$ASSETS" | grep -iE '\.dmg$' || true)
+          HAS_WIN=$(echo "$ASSETS" | grep -iE '\.exe$' || true)
+          HAS_LINUX=$(echo "$ASSETS" | grep -iE '\.AppImage$' || true)
+
+          ERRORS=0
+          if [ -z "$HAS_MAC" ]; then
+            echo "⚠️ WARNING: macOS installer (.dmg) missing from release assets!"
+            ERRORS=$((ERRORS+1))
+          else
+            echo "✅ macOS installer (.dmg) verified."
+          fi
+
+          if [ -z "$HAS_WIN" ]; then
+            echo "⚠️ WARNING: Windows installer (.exe) missing from release assets!"
+            ERRORS=$((ERRORS+1))
+          else
+            echo "✅ Windows installer (.exe) verified."
+          fi
+
+          if [ -z "$HAS_LINUX" ]; then
+            echo "⚠️ WARNING: Linux package (.AppImage) missing from release assets!"
+            ERRORS=$((ERRORS+1))
+          else
+            echo "✅ Linux package (.AppImage) verified."
+          fi
+
+          if [ $ERRORS -gt 0 ]; then
+            echo "❌ Release asset verification failed with $ERRORS missing platform builds."
+            exit 1
+          fi
+
+          echo "🎉 All multi-platform installers verified and release published successfully!"
