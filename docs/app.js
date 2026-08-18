@@ -197,37 +197,37 @@ function applyChannelAssets(channel) {
   const apkAsset = assets.find(a => a.name.endsWith('.apk'));
 
   const isNightly = channel === 'nightly';
-  const prefix = isNightly ? '[Nightly] ' : '';
+  const tagShort = isNightly ? (tagName.replace('v', '').split('-')[0] + '-nightly') : tagName;
 
   updateDownloadBtn(
     'btn-download-mac-arm', 
     macArmAsset ? macArmAsset.browser_download_url : `${repoBase}/tag/${tagName}`, 
-    `${prefix}${tagName} (Apple Silicon)`
+    isNightly ? `${tagShort} (ARM64)` : `${tagName} (Apple Silicon)`
   );
   
   updateDownloadBtn(
     'btn-download-mac-intel', 
     macIntelAsset ? macIntelAsset.browser_download_url : `${repoBase}/tag/${tagName}`, 
-    `${prefix}${tagName} (Intel x64)`
+    isNightly ? `${tagShort} (Intel x64)` : `${tagName} (Intel x64)`
   );
 
   updateDownloadBtn(
     'btn-download-win', 
     winAsset ? winAsset.browser_download_url : `${repoBase}/tag/${tagName}`, 
-    `${prefix}${tagName} (Windows .exe)`
+    isNightly ? `${tagShort} (Windows .exe)` : `${tagName} (Windows .exe)`
   );
 
   updateDownloadBtn(
     'btn-download-linux', 
     linuxAsset ? linuxAsset.browser_download_url : `${repoBase}/tag/${tagName}`, 
-    `${prefix}${tagName} (Linux .AppImage)`
+    isNightly ? `${tagShort} (Linux .AppImage)` : `${tagName} (Linux .AppImage)`
   );
 
   if (apkAsset) {
     updateDownloadBtn(
       'btn-download-mobile', 
       apkAsset.browser_download_url, 
-      `${prefix}${tagName} (.apk)`
+      isNightly ? `${tagShort} (.apk)` : `${tagName} (.apk)`
     );
   }
 }

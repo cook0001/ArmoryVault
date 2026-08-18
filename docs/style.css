@@ -1152,19 +1152,21 @@ code, pre {
   grid-template-columns: repeat(4, 1fr);
   gap: 1.25rem;
   margin-bottom: 2.5rem;
+  width: 100%;
 }
 
 .download-card {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  padding: 1.75rem;
+  padding: 1.75rem 1.25rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   transition: all var(--transition-fast);
   position: relative;
+  min-width: 0;
 }
 
 .download-card.recommended {
@@ -1220,6 +1222,22 @@ code, pre {
   flex-direction: column;
   gap: 0.5rem;
   margin-top: auto;
+}
+
+.download-btn-group .btn {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.download-btn-group .btn .btn-subtext {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 /* Terminal Command Helper Box */
