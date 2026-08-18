@@ -4,7 +4,7 @@
 ### Fixed & Improved
 - **Robust Full Zip Archive Backup Engine**: Replaced stream-based archiver with pure in-memory/synchronous `adm-zip` packaging. Resolves production ASAR stream locking and unhandled stream errors when creating full `.zip` archives.
 - **Enhanced Backup Feedback & Error Reporting**: Attached main window handle to system save dialogs and added rich error messages with cancel safety when generating full vault `.zip` backup archives.
-- **CI/CD Multi-Platform Release Race Condition Fix**: Integrated an automated 3-stage GitHub Actions pipeline (`prepare-release` draft initializer, parallel matrix build, and `verify-and-publish` artifact inspection) to eliminate `422 already_exists` release collisions and verify all `.dmg`, `.exe`, and `.AppImage` packages.
+- **Official GitHub Pages Website & Community Feedback Hub**: Created a responsive, dark glassmorphism landing website in `docs/` ready for GitHub Pages hosting (`https://cook0001.github.io/ArmoryVault/`). Includes interactive UI showcases, range logger simulation demo, dedicated Apple Silicon (`arm64`) vs Intel (`x64`) macOS download buttons with system auto-detection, and a 1-click Feature Suggestion & Bug Reporting portal integrated with GitHub Issues.
 
 ## [2.7.0]
 ### Added

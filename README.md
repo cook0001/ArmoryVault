@@ -1,5 +1,11 @@
 # ArmoryVault 🛡️
 
+[![Website](https://img.shields.io/badge/Website-cook0001.github.io%2FArmoryVault-blue?style=flat-square&logo=github)](https://cook0001.github.io/ArmoryVault/)
+[![Release](https://img.shields.io/github/v/release/cook0001/ArmoryVault?style=flat-square&color=emerald)](https://github.com/cook0001/ArmoryVault/releases/latest)
+[![License](https://img.shields.io/badge/License-ISC-purple?style=flat-square)](LICENSE)
+
+> 🌐 **Live Website & Download Portal**: [https://cook0001.github.io/ArmoryVault/](https://cook0001.github.io/ArmoryVault/)
+
 A secure, premium, cross-platform desktop application designed for serious collectors and firearms owners. ArmoryVault provides local inventory tracking, maintenance logs, and printable "Bound Book" ledgers wrapped in a stunning, modern Glassmorphism interface.
 
 ## ✨ Features

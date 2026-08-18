@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ArmoryVault — Private Firearm, Ammo & Reloading Inventory Software</title>
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="ArmoryVault is a secure, 100% offline, encrypted firearm, ammunition, and reloading component inventory software with ATF A&D Bound Book ledgers, barcode scanning, and local Wi-Fi mobile companion sync." />
+  <meta name="keywords" content="firearm inventory software, ammo tracking, reloading inventory, ATF bound book, gun collection software, gunsmith maintenance log, offline inventory, firearm encryption, gun tracking app" />
+  <meta name="author" content="Daniel C. (cook0001)" />
+  <meta name="theme-color" content="#0b0f19" />
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://cook0001.github.io/ArmoryVault/" />
+  <meta property="og:title" content="ArmoryVault — Private Firearm & Ammo Inventory Software" />
+  <meta property="og:description" content="Secure, air-gapped, cross-platform desktop vault with companion mobile sync, barcode scanning, and ATF Bound Book ledgers." />
+  <meta property="og:image" content="https://cook0001.github.io/ArmoryVault/assets/icon.png" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:url" content="https://cook0001.github.io/ArmoryVault/" />
+  <meta name="twitter:title" content="ArmoryVault — Private Firearm & Ammo Inventory Software" />
+  <meta name="twitter:description" content="Secure, air-gapped, cross-platform desktop vault with companion mobile sync, barcode scanning, and ATF Bound Book ledgers." />
+  <meta name="twitter:image" content="https://cook0001.github.io/ArmoryVault/assets/icon.png" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="assets/icon.png" />
+  <link rel="apple-touch-icon" href="assets/icon.png" />
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Structured Data (Schema.org) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "ArmoryVault",
+    "operatingSystem": "macOS, Windows, Linux, Android",
+    "applicationCategory": "UtilitiesApplication, ProductivityApplication",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "description": "Secure, 100% offline, encrypted firearm, ammunition, and reloading component inventory software with ATF Bound Book generation.",
+    "author": {
+      "@type": "Person",
+      "name": "cook0001"
+    },
+    "url": "https://cook0001.github.io/ArmoryVault/",
+    "downloadUrl": "https://github.com/cook0001/ArmoryVault/releases/latest"
+  }
+  </script>
+</head>
+<body>
+  <!-- Ambient Background Gradients -->
+  <div class="bg-mesh" aria-hidden="true"></div>
+  <div class="bg-grid" aria-hidden="true"></div>
+
+  <!-- Header Navigation -->
+  <header class="navbar">
+    <div class="container nav-container">
+      <a href="#" class="nav-brand">
+        <div class="brand-icon">
+          <img src="assets/icon.png" alt="ArmoryVault Logo" />
+        </div>
+        <span>ArmoryVault</span>
+        <span class="brand-tag release-version-tag">v2.7.1</span>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="#features" class="nav-link">Features</a></li>
+        <li><a href="#showcase" class="nav-link">App Preview</a></li>
+        <li><a href="#privacy" class="nav-link">Zero-Cloud Security</a></li>
+        <li><a href="#download" class="nav-link">Download</a></li>
+        <li><a href="#feedback" class="nav-link">Suggest & Report</a></li>
+        <li><a href="#faq" class="nav-link">FAQ</a></li>
+      </ul>
+
+      <div class="nav-actions">
+        <a href="https://github.com/cook0001/ArmoryVault" target="_blank" rel="noopener" class="btn-github">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+          <span>GitHub</span>
+        </a>
+        <a href="#download" class="btn btn-primary btn-sm">
+          <span>Get ArmoryVault</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </a>
+      </div>
+
+      <button class="nav-toggle" aria-label="Toggle Menu">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+      </button>
+    </div>
+
+    <!-- Mobile Dropdown Menu -->
+    <div class="mobile-nav-menu">
+      <a href="#features" class="mobile-nav-link">Features</a>
+      <a href="#showcase" class="mobile-nav-link">App Preview</a>
+      <a href="#privacy" class="mobile-nav-link">Zero-Cloud Security</a>
+      <a href="#download" class="mobile-nav-link">Download Installers</a>
+      <a href="#feedback" class="mobile-nav-link">Feature Suggestions & Bugs</a>
+      <a href="#faq" class="mobile-nav-link">FAQ</a>
+      <a href="#download" class="btn btn-primary" style="width: 100%;">Get ArmoryVault</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="container hero-content">
+        <div class="hero-badge-wrapper">
+          <div class="badge badge-pill">
+            <span class="badge-dot"></span>
+            <span>Version <strong class="release-version-tag">v2.7.1</strong> is Live &middot; 100% Offline & Encrypted</span>
+          </div>
+        </div>
+
+        <h1 class="hero-title">
+          The Tactical Inventory Vault for <br />
+          <span class="gradient-text">Serious Collectors & Reloaders</span>
+        </h1>
+
+        <p class="hero-subtitle">
+          Track firearms, optics, ammunition stock, and reloading supplies with AES-256 local encryption. Generate ATF-compliant Bound Books, log live range sessions, and pair over local Wi-Fi with zero cloud dependencies.
+        </p>
+
+        <div class="hero-actions">
+          <a href="#download" class="btn btn-primary btn-lg">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <span>Download Desktop Vault</span>
+          </a>
+          <a href="#showcase" class="btn btn-secondary btn-lg">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+            <span>Explore App Live Demo</span>
+          </a>
+        </div>
+
+        <div class="hero-meta">
+          <div class="hero-meta-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>100% Air-Gapped & Zero Cloud</span>
+          </div>
+          <div class="hero-meta-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>PBKDF2 & AES-256 Encryption</span>
+          </div>
+          <div class="hero-meta-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>Local Wi-Fi Companion Sync</span>
+          </div>
+        </div>
+
+        <!-- Platform Switcher -->
+        <div class="hero-switcher">
+          <button class="hero-tab-btn active" data-target="desktop">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+            <span>Desktop Application</span>
+          </button>
+          <button class="hero-tab-btn" data-target="mobile">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+            <span>Mobile Companion App</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Interactive Showcase Area -->
+      <div class="container showcase-wrapper" id="showcase">
+        <div class="showcase-glow" aria-hidden="true"></div>
+
+        <!-- Desktop Showcase View -->
+        <div class="device-frame" id="showcase-desktop">
+          <div class="device-header">
+            <div class="window-dots">
+              <span class="window-dot red"></span>
+              <span class="window-dot yellow"></span>
+              <span class="window-dot green"></span>
+            </div>
+            <div class="device-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+              <span>ArmoryVault Pro &mdash; Encrypted Local Vault</span>
+            </div>
+            <div class="device-nav-tabs">
+              <button class="device-tab active" data-screen="dashboard">Dashboard</button>
+              <button class="device-tab" data-screen="ammo">Ammo & Reloading</button>
+              <button class="device-tab" data-screen="boundbook">A&D Bound Book</button>
+              <button class="device-tab" data-screen="simulator">Range Logger Sim</button>
+            </div>
+          </div>
+
+          <div class="device-body">
+            <!-- Screen 1: Dashboard -->
+            <div class="screen-panel active" id="screen-dashboard">
+              <div class="mockup-grid">
+                <div class="mockup-sidebar">
+                  <div class="mockup-nav-item active">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+                    <span>Dashboard</span>
+                  </div>
+                  <div class="mockup-nav-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line></svg>
+                    <span>Firearms</span>
+                    <span class="badge-count">14</span>
+                  </div>
+                  <div class="mockup-nav-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    <span>Ammunition</span>
+                    <span class="badge-count">9,420</span>
+                  </div>
+                  <div class="mockup-nav-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+                    <span>Maintenance</span>
+                  </div>
+                  <div class="mockup-nav-item">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                    <span>Bound Book</span>
+                  </div>
+                </div>
+
+                <div class="mockup-content">
+                  <div class="stats-row">
+                    <div class="stat-card">
+                      <div class="stat-label">Total Weapons</div>
+                      <div class="stat-val">14</div>
+                      <div class="stat-sub">100% Accounted For</div>
+                    </div>
+                    <div class="stat-card">
+                      <div class="stat-label">Total Ammo Count</div>
+                      <div class="stat-val">9,420 <span style="font-size: 0.8rem; font-weight: 500;">rds</span></div>
+                      <div class="stat-sub">+350 Scanned via QR</div>
+                    </div>
+                    <div class="stat-card">
+                      <div class="stat-label">Rounds Fired (All-Time)</div>
+                      <div class="stat-val">18,650</div>
+                      <div class="stat-sub">Telemetry Active</div>
+                    </div>
+                    <div class="stat-card">
+                      <div class="stat-label">Estimated Valuation</div>
+                      <div class="stat-val">$18,420</div>
+                      <div class="stat-sub">Insurance Ready</div>
+                    </div>
+                  </div>
+
+                  <div class="firearm-card-preview">
+                    <div class="inventory-item">
+                      <div class="inventory-item-header">
+                        <span class="inventory-make">Glock</span>
+                        <span class="inventory-caliber-badge">9x19mm</span>
+                      </div>
+                      <div class="inventory-model">Glock 19 Gen 5 MOS</div>
+                      <div class="inventory-telemetry">
+                        <span>Rounds: <strong id="val-rounds-glock19">1,250</strong></span>
+                        <span style="color: var(--accent-emerald);">Wear: 50%</span>
+                      </div>
+                    </div>
+
+                    <div class="inventory-item">
+                      <div class="inventory-item-header">
+                        <span class="inventory-make">Daniel Defense</span>
+                        <span class="inventory-caliber-badge">5.56 NATO</span>
+                      </div>
+                      <div class="inventory-model">DDM4 V7 (Optic Mounted)</div>
+                      <div class="inventory-telemetry">
+                        <span>Rounds: <strong id="val-rounds-ddm4">3,100</strong></span>
+                        <span style="color: var(--accent-amber);">Recoil Spring Due</span>
+                      </div>
+                    </div>
+
+                    <div class="inventory-item">
+                      <div class="inventory-item-header">
+                        <span class="inventory-make">Springfield</span>
+                        <span class="inventory-caliber-badge">.30-06 Sprg</span>
+                      </div>
+                      <div class="inventory-model">M1 Garand (C&R)</div>
+                      <div class="inventory-telemetry">
+                        <span>Rounds: <strong id="val-rounds-m1garand">640</strong></span>
+                        <span style="color: var(--accent-emerald);">Op Rod Greased</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Screen 2: Ammo & Reloading -->
+            <div class="screen-panel" id="screen-ammo">
+              <div style="text-align: left;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                  <h3 style="font-size: 1.1rem;">Ammunition & Handload Depot</h3>
+                  <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.3);">
+                    Low Stock Threshold Alerts Active
+                  </span>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+                  <div class="stat-card" style="border-left: 4px solid var(--accent-primary);">
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">9MM LUGER (DEFENSIVE & TARGET)</div>
+                    <div style="font-size: 1.3rem; font-weight: 700; margin: 0.3rem 0;" id="val-ammo-glock19">2,450 rds</div>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary);">Federal HST 124gr + Blazer Brass 115gr</div>
+                  </div>
+                  <div class="stat-card" style="border-left: 4px solid var(--accent-emerald);">
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">5.56X45MM NATO / .223 REM</div>
+                    <div style="font-size: 1.3rem; font-weight: 700; margin: 0.3rem 0;" id="val-ammo-ddm4">1,800 rds</div>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary);">PMC X-TAC M855 62gr Green Tip</div>
+                  </div>
+                  <div class="stat-card" style="border-left: 4px solid var(--accent-amber);">
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">.30-06 SPRINGFIELD (M2 BALL)</div>
+                    <div style="font-size: 1.3rem; font-weight: 700; margin: 0.3rem 0;" id="val-ammo-m1garand">820 rds</div>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary);">HXP Surplus 150gr En Bloc Clips</div>
+                  </div>
+                </div>
+                <div style="margin-top: 1.5rem; padding: 1rem; background: rgba(11, 15, 25, 0.6); border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+                  <div style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-primary);">Reloading Components Inventory:</div>
+                  <div style="display: flex; gap: 1rem; font-size: 0.8rem; color: var(--text-secondary); flex-wrap: wrap;">
+                    <span>⚡ <strong>Powder:</strong> Varget (4 lbs), CFE 223 (2 lbs), Titegroup (3 lbs)</span>
+                    <span>⚡ <strong>Primers:</strong> CCI #400 Small Rifle (3,000 ct), Federal #205M (1,000 ct)</span>
+                    <span>⚡ <strong>Projectiles:</strong> Sierra 77gr TMK (500 ct), Hornady 124gr XTP (800 ct)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Screen 3: Bound Book -->
+            <div class="screen-panel" id="screen-boundbook">
+              <div style="text-align: left;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                  <h3 style="font-size: 1.1rem;">ATF Acquisition & Disposition (A&D) Bound Book</h3>
+                  <button class="btn btn-secondary btn-sm" onclick="alert('In ArmoryVault, clicking Print generates a stark 8.5x11 printable PDF ledger with zero printer distortion.')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                    <span>Print Standard 8.5x11 Ledger</span>
+                  </button>
+                </div>
+                <div style="overflow-x: auto; background: rgba(11, 15, 25, 0.8); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+                  <table style="width: 100%; border-collapse: collapse; font-size: 0.775rem; text-align: left;">
+                    <thead>
+                      <tr style="border-bottom: 1px solid var(--border-light); background: rgba(30, 41, 59, 0.5);">
+                        <th style="padding: 0.6rem;">Serial #</th>
+                        <th style="padding: 0.6rem;">Manufacturer</th>
+                        <th style="padding: 0.6rem;">Model</th>
+                        <th style="padding: 0.6rem;">Type / Caliber</th>
+                        <th style="padding: 0.6rem;">Acquisition Date & From</th>
+                        <th style="padding: 0.6rem;">Disposition Date & To</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr style="border-bottom: 1px solid var(--border-subtle);">
+                        <td style="padding: 0.6rem; font-family: var(--font-mono); color: #93c5fd;">BKWW492</td>
+                        <td style="padding: 0.6rem;">Glock Inc.</td>
+                        <td style="padding: 0.6rem;">19 Gen 5 MOS</td>
+                        <td style="padding: 0.6rem;">Pistol / 9x19mm</td>
+                        <td style="padding: 0.6rem;">2024-03-12 (Palmetto State Armory)</td>
+                        <td style="padding: 0.6rem; color: var(--text-muted);">[ In Active Vault ]</td>
+                      </tr>
+                      <tr style="border-bottom: 1px solid var(--border-subtle);">
+                        <td style="padding: 0.6rem; font-family: var(--font-mono); color: #93c5fd;">DD089312</td>
+                        <td style="padding: 0.6rem;">Daniel Defense</td>
+                        <td style="padding: 0.6rem;">DDM4 V7</td>
+                        <td style="padding: 0.6rem;">Rifle / 5.56x45mm NATO</td>
+                        <td style="padding: 0.6rem;">2023-08-19 (Brownells FFL)</td>
+                        <td style="padding: 0.6rem; color: var(--text-muted);">[ In Active Vault ]</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 0.6rem; font-family: var(--font-mono); color: #93c5fd;">3491024</td>
+                        <td style="padding: 0.6rem;">Springfield Armory</td>
+                        <td style="padding: 0.6rem;">M1 Garand</td>
+                        <td style="padding: 0.6rem;">C&R Rifle / .30-06 Sprg</td>
+                        <td style="padding: 0.6rem;">2022-11-05 (CMP - Service Grade)</td>
+                        <td style="padding: 0.6rem; color: var(--text-muted);">[ In Active Vault ]</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Screen 4: Simulator -->
+            <div class="screen-panel" id="screen-simulator">
+              <div class="range-simulator" style="text-align: left;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+                  <h4 style="font-size: 1rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color: var(--accent-primary);"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    <span>Test the Live Range Session Logger</span>
+                  </h4>
+                  <span style="font-size: 0.75rem; color: var(--accent-emerald);">Zero-latency local transaction</span>
+                </div>
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                  Simulate logging rounds at the range. Watch the vault decrement caliber-matched stock and increment wear telemetry in real-time.
+                </p>
+
+                <div class="sim-controls">
+                  <div class="sim-field">
+                    <label for="sim-firearm">Select Firearm</label>
+                    <select id="sim-firearm">
+                      <option value="glock19">Glock 19 Gen 5 (9mm)</option>
+                      <option value="ddm4">Daniel Defense DDM4 V7 (5.56 NATO)</option>
+                      <option value="m1garand">M1 Garand (.30-06 Springfield)</option>
+                    </select>
+                  </div>
+                  <div class="sim-field">
+                    <label for="sim-rounds">Rounds Fired</label>
+                    <input type="number" id="sim-rounds" value="50" min="1" max="1000" />
+                  </div>
+                  <button class="btn btn-primary" id="btn-sim-log" style="height: 38px;">
+                    <span>Log Range Trip</span>
+                  </button>
+                </div>
+
+                <div id="sim-feedback" class="sim-feedback" style="display: none;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mobile Companion View -->
+        <div class="device-frame" id="showcase-mobile" style="display: none;">
+          <div class="device-header">
+            <div class="device-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+              <span>ArmoryVault Companion &mdash; Air-Gapped Local Wi-Fi Sync</span>
+            </div>
+            <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); font-size: 0.7rem;">
+              Local Wi-Fi P2P Active
+            </span>
+          </div>
+
+          <div class="device-body">
+            <div class="mobile-mockup-wrapper">
+              <!-- Phone Mockup Frame -->
+              <div class="phone-frame">
+                <div class="phone-notch"></div>
+                <div class="phone-screen">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 700; font-size: 0.9rem;">ArmoryVault Mobile</span>
+                    <span style="font-size: 0.7rem; color: var(--accent-emerald);">● Paired</span>
+                  </div>
+
+                  <div class="phone-card" style="text-align: center; border: 1px dashed var(--accent-primary);">
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem;">SCAN BARCODE OR QR</div>
+                    <div style="background: #000; padding: 0.75rem; border-radius: 8px; display: inline-block;">
+                      <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="1.5">
+                        <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"></path>
+                        <line x1="7" y1="12" x2="17" y2="12" stroke="#ef4444" stroke-width="2"></line>
+                      </svg>
+                    </div>
+                    <div style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.4rem;">Aim camera at ammo box or AV-AMMO QR</div>
+                  </div>
+
+                  <div class="phone-card">
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">OFFLINE CACHED VAULT</div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 0.3rem;">
+                      <span style="font-size: 0.8rem; font-weight: 600;">14 Weapons</span>
+                      <span style="font-size: 0.8rem; font-weight: 600; color: #93c5fd;">9,420 rds</span>
+                    </div>
+                  </div>
+
+                  <div class="phone-card">
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">QUICK RANGE TRIP</div>
+                    <div style="font-size: 0.8rem; font-weight: 600; margin-top: 0.2rem;">Log rounds offline at range & sync when home.</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Wi-Fi Diagram & Explanation -->
+              <div class="wifi-p2p-diagram">
+                <div class="badge badge-pill" style="margin-bottom: 1rem;">
+                  <span>100% Zero-Cloud Architecture</span>
+                </div>
+                <h3 style="font-size: 1.5rem; margin-bottom: 0.75rem;">How Companion Pairing Works</h3>
+                <p style="font-size: 0.95rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+                  ArmoryVault never transmits your firearms or ammunition data to any cloud servers. The Mobile Companion connects directly to your desktop over your home or local Wi-Fi router.
+                </p>
+                <div style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.875rem;">
+                  <div style="display: flex; align-items: flex-start; gap: 0.6rem;">
+                    <div style="width: 24px; height: 24px; border-radius: 50%; background: rgba(59, 130, 246, 0.2); color: #93c5fd; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0;">1</div>
+                    <span>Open <strong>Mobile Pairing</strong> in Desktop Settings to display a dynamic, single-use pairing QR code.</span>
+                  </div>
+                  <div style="display: flex; align-items: flex-start; gap: 0.6rem;">
+                    <div style="width: 24px; height: 24px; border-radius: 50%; background: rgba(59, 130, 246, 0.2); color: #93c5fd; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0;">2</div>
+                    <span>Scan with the Companion App. It securely pulls your encrypted vault cache onto your phone.</span>
+                  </div>
+                  <div style="display: flex; align-items: flex-start; gap: 0.6rem;">
+                    <div style="width: 24px; height: 24px; border-radius: 50%; background: rgba(59, 130, 246, 0.2); color: #93c5fd; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0;">3</div>
+                    <span>Scan ammo boxes or log range trips anywhere (even in zero-reception outdoor ranges). Submissions wait in your desktop <strong>Sync Inbox</strong> for 1-click review.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Key Features Section -->
+    <section class="section" id="features">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-tag">Engineered for Privacy & Precision</span>
+          <h2 class="section-title">Everything Serious Firearms Owners Need</h2>
+          <p class="section-subtitle">
+            From comprehensive C&R military surplus catalogs to custom load recipes and wear schedules, ArmoryVault is built from the ground up for enthusiasts.
+          </p>
+        </div>
+
+        <div class="features-grid">
+          <!-- Feature 1 -->
+          <div class="feature-card">
+            <div class="feature-icon-wrapper">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            </div>
+            <h3 class="feature-title">AES-256 PBKDF2 Vault</h3>
+            <p class="feature-desc">
+              Your inventory is encrypted locally using 100,000 rounds of PBKDF2 key derivation and AES-256 envelope security. Comes with emergency 64-character offline recovery keys.
+            </p>
+            <div class="feature-tags">
+              <span class="feature-tag">100% Offline</span>
+              <span class="feature-tag">Zero-Knowledge</span>
+              <span class="feature-tag">Re-Keying</span>
+            </div>
+          </div>
+
+          <!-- Feature 2 -->
+          <div class="feature-card">
+            <div class="feature-icon-wrapper emerald">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+            </div>
+            <h3 class="feature-title">ATF Bound Book & Dossiers</h3>
+            <p class="feature-desc">
+              Generate stark, compliant Acquisition & Disposition (A&D) ledgers formatted for 8.5x11 printing. Export full provenance dossiers with round telemetry and gunsmith histories.
+            </p>
+            <div class="feature-tags">
+              <span class="feature-tag">ATF Compliance</span>
+              <span class="feature-tag">8.5x11 PDF</span>
+              <span class="feature-tag">CSV Insurance</span>
+            </div>
+          </div>
+
+          <!-- Feature 3 -->
+          <div class="feature-card">
+            <div class="feature-icon-wrapper purple">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            </div>
+            <h3 class="feature-title">Dual Wear & Time Maintenance</h3>
+            <p class="feature-desc">
+              Track maintenance by round count OR elapsed days (e.g. 5,000 rds or 180 days). 8 tailored action-type presets for Revolvers, Pump Actions, Semi-Autos, and Vintage Bolt Actions.
+            </p>
+            <div class="feature-tags">
+              <span class="feature-tag">Telemetry</span>
+              <span class="feature-tag">Part Replacement</span>
+              <span class="feature-tag">8 Presets</span>
+            </div>
+          </div>
+
+          <!-- Feature 4 -->
+          <div class="feature-card">
+            <div class="feature-icon-wrapper amber">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            </div>
+            <h3 class="feature-title">Vintage & C&R Surplus Arsenal</h3>
+            <p class="feature-desc">
+              Full autocomplete catalogs for historic arsenals (Springfield, Mauser Oberndorf, Enfield, Tula, Bern), classic military calibers (.30-06, 7.62x54R, 8mm Mauser, 7.5x55 Swiss), and NRA Antique grades.
+            </p>
+            <div class="feature-tags">
+              <span class="feature-tag">Curio & Relic</span>
+              <span class="feature-tag">CMP Grades</span>
+              <span class="feature-tag">70+ Bullet Types</span>
+            </div>
+          </div>
+
+          <!-- Feature 5 -->
+          <div class="feature-card">
+            <div class="feature-icon-wrapper">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            </div>
+            <h3 class="feature-title">Barcode Engine & QR Label Maker</h3>
+            <p class="feature-desc">
+              Generate high-density QR stickers for ammo boxes (20/50 rd) and 30/50-Cal cans with full load recipes (powder, charge, primer, brass, OAL). Scan instantly with phone camera to update stock.
+            </p>
+            <div class="feature-tags">
+              <span class="feature-tag">UPC Resolution</span>
+              <span class="feature-tag">Custom SKUs</span>
+              <span class="feature-tag">Can Stickers</span>
+            </div>
+          </div>
+
+          <!-- Feature 6 -->
+          <div class="feature-card">
+            <div class="feature-icon-wrapper emerald">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            </div>
+            <h3 class="feature-title">Mounted Accessory Telemetry</h3>
+            <p class="feature-desc">
+              Mount optics, suppressors, lights, and custom barrels to any firearm. Range sessions automatically increment and log wear across all attached equipment simultaneously.
+            </p>
+            <div class="feature-tags">
+              <span class="feature-tag">Optics</span>
+              <span class="feature-tag">Suppressors</span>
+              <span class="feature-tag">Custom Barrels</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Zero-Cloud Architecture & Comparison Matrix -->
+    <section class="section" id="privacy" style="background: rgba(11, 15, 25, 0.4);">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-tag">Privacy Without Compromise</span>
+          <h2 class="section-title">Zero Cloud. Zero Accounts. Zero Leaks.</h2>
+          <p class="section-subtitle">
+            Why firearms enthusiasts and collectors choose local air-gapped architecture over subscription cloud databases.
+          </p>
+        </div>
+
+        <div class="comparison-card">
+          <div class="comparison-table-wrapper">
+            <table class="comparison-table">
+              <thead>
+                <tr>
+                  <th style="width: 35%;">Feature / Security Vector</th>
+                  <th class="highlight" style="width: 25%;">🛡️ ArmoryVault</th>
+                  <th style="width: 20%;">Cloud Apps</th>
+                  <th style="width: 20%;">Excel / Spreadsheets</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Data Storage Location</strong></td>
+                  <td class="highlight" style="color: var(--accent-emerald);">100% Local (Your Machine)</td>
+                  <td style="color: var(--accent-rose);">Remote Cloud Server</td>
+                  <td>Local File</td>
+                </tr>
+                <tr>
+                  <td><strong>Encryption Standard</strong></td>
+                  <td class="highlight" style="color: var(--accent-emerald);">AES-256 PBKDF2 (100k rounds)</td>
+                  <td>Variable (Host holds keys)</td>
+                  <td style="color: var(--accent-rose);">None / Plaintext</td>
+                </tr>
+                <tr>
+                  <td><strong>Account or Email Required</strong></td>
+                  <td class="highlight" style="color: var(--accent-emerald);">Never (No Account)</td>
+                  <td style="color: var(--accent-rose);">Mandatory Email/Login</td>
+                  <td style="color: var(--accent-emerald);">None</td>
+                </tr>
+                <tr>
+                  <td><strong>ATF Bound Book & Dossier PDF</strong></td>
+                  <td class="highlight" style="color: var(--accent-emerald);">Built-in 8.5x11 Print Engine</td>
+                  <td>Limited / Extra Fee</td>
+                  <td style="color: var(--accent-rose);">Manual Formatting</td>
+                </tr>
+                <tr>
+                  <td><strong>Live Telemetry & Round Counts</strong></td>
+                  <td class="highlight" style="color: var(--accent-emerald);">Atomic Range Trip Logger</td>
+                  <td>Manual Form Entries</td>
+                  <td style="color: var(--accent-rose);">Manual Math / Formulas</td>
+                </tr>
+                <tr>
+                  <td><strong>Mobile Sync Method</strong></td>
+                  <td class="highlight" style="color: var(--accent-emerald);">Local Wi-Fi P2P (No Cloud)</td>
+                  <td style="color: var(--accent-rose);">Public Cloud API</td>
+                  <td style="color: var(--accent-rose);">Cloud Storage Sync</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Download Hub Section -->
+    <section class="section" id="download">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-tag">Install & Deploy</span>
+          <h2 class="section-title">Download ArmoryVault for Your OS</h2>
+          <p class="section-subtitle">
+            Current Production Release: <strong class="release-version-tag" style="color: var(--accent-primary-hover);">v2.7.1</strong> &middot; Multi-Platform Native Binaries
+          </p>
+        </div>
+
+        <div class="download-grid">
+          <!-- macOS Apple Silicon Card -->
+          <div class="download-card" id="download-mac-arm">
+            <div class="os-icon">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.63-.76 1.06-1.82.94-2.88-.91.04-2.02.61-2.67 1.37-.58.67-1.09 1.74-.95 2.78 1.02.08 2.06-.51 2.68-1.27z"/>
+              </svg>
+            </div>
+            <div class="download-os">macOS (Apple Silicon)</div>
+            <div class="download-specs">M1 / M2 / M3 / M4 / M5 (arm64)</div>
+            <div class="download-btn-group">
+              <a href="https://github.com/cook0001/ArmoryVault/releases/latest" id="btn-download-mac-arm" class="btn btn-primary btn-sm">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span class="btn-subtext">Download .dmg (arm64)</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- macOS Intel Card -->
+          <div class="download-card" id="download-mac-intel">
+            <div class="os-icon">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.63-.76 1.06-1.82.94-2.88-.91.04-2.02.61-2.67 1.37-.58.67-1.09 1.74-.95 2.78 1.02.08 2.06-.51 2.68-1.27z"/>
+              </svg>
+            </div>
+            <div class="download-os">macOS (Intel)</div>
+            <div class="download-specs">Legacy Intel Core i5/i7/i9 (x64)</div>
+            <div class="download-btn-group">
+              <a href="https://github.com/cook0001/ArmoryVault/releases/latest" id="btn-download-mac-intel" class="btn btn-secondary btn-sm">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span class="btn-subtext">Download .dmg (x64)</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- Windows Card -->
+          <div class="download-card" id="download-windows">
+            <div class="os-icon">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/>
+              </svg>
+            </div>
+            <div class="download-os">Windows</div>
+            <div class="download-specs">Windows 10 / 11 (64-bit Installer)</div>
+            <div class="download-btn-group">
+              <a href="https://github.com/cook0001/ArmoryVault/releases/latest" id="btn-download-win" class="btn btn-primary btn-sm">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span class="btn-subtext">Download .exe Setup</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- Linux Card -->
+          <div class="download-card" id="download-linux">
+            <div class="os-icon">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12.002 0c-2.317 0-4.307 1.004-5.32 2.68-1.013 1.676-.902 3.864-.177 5.75.725 1.886 1.895 3.325 2.76 4.908.432.791.737 1.688.737 2.662 0 .974-.305 1.871-.737 2.662-.865 1.583-2.035 3.022-2.76 4.908-.725 1.886-.836 4.074.177 5.75C7.695 22.996 9.685 24 12.002 24s4.307-1.004 5.32-2.68c1.013-1.676.902-3.864.177-5.75-.725-1.886-1.895-3.325-2.76-4.908-.432-.791-.737-1.688-.737-2.662 0-.974.305-1.871.737-2.662.865-1.583 2.035-3.022 2.76-4.908.725-1.886.836-4.074-.177-5.75C16.309 1.004 14.319 0 12.002 0z"/>
+              </svg>
+            </div>
+            <div class="download-os">Linux</div>
+            <div class="download-specs">Ubuntu, Fedora, Arch (.AppImage)</div>
+            <div class="download-btn-group">
+              <a href="https://github.com/cook0001/ArmoryVault/releases/latest" id="btn-download-linux" class="btn btn-secondary btn-sm">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span class="btn-subtext">Download .AppImage</span>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Terminal Gatekeeper / Quarantine Helper -->
+        <div class="terminal-box">
+          <div style="display: flex; align-items: center; gap: 0.75rem; overflow: hidden;">
+            <span style="color: var(--text-muted);">$</span>
+            <span class="terminal-text" id="mac-cmd">xattr -cr /Applications/ArmoryVault.app</span>
+          </div>
+          <button class="btn-copy btn-copy-cmd" data-cmd="xattr -cr /Applications/ArmoryVault.app" aria-label="Copy macOS Gatekeeper command">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy macOS Fix</span>
+          </button>
+        </div>
+        <p style="text-align: center; font-size: 0.8rem; color: var(--text-muted); margin-top: 0.6rem;">
+          Open-source binaries are not distributed with expensive code-signing certs. Run this command on macOS after dragging to Applications to bypass Gatekeeper.
+        </p>
+      </div>
+    </section>
+
+    <!-- Interactive Feature Suggestion & Bug Report Hub -->
+    <section class="section feedback-section" id="feedback">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-tag">Community & Feedback</span>
+          <h2 class="section-title">Feature Suggestions & Bug Reports</h2>
+          <p class="section-subtitle">
+            Help shape future releases of ArmoryVault. Submit feature ideas or report issues directly to our open-source issue tracker in 1 click.
+          </p>
+        </div>
+
+        <div class="feedback-card">
+          <!-- Switcher: Suggestion vs Bug -->
+          <div class="feedback-tabs">
+            <button class="feedback-tab-btn active" data-type="feature">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="9" y1="18" x2="15" y2="18"></line><line x1="10" y1="22" x2="14" y2="22"></line><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"></path></svg>
+              <span>💡 Feature Suggestion</span>
+            </button>
+            <button class="feedback-tab-btn" data-type="bug">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m8 2 1.88 1.88"></path><path d="M14.12 3.88 16 2"></path><path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"></path><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"></path><path d="M12 20v-9"></path><path d="M6.53 9C4.6 8.8 3 7.1 3 5"></path><path d="M6 13H2"></path><path d="M3 21c0-2.1 1.7-3.9 3.8-4"></path><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"></path><path d="M22 13h-4"></path><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"></path></svg>
+              <span>🐛 Report a Bug</span>
+            </button>
+          </div>
+
+          <form class="feedback-form" onsubmit="return false;">
+            <input type="hidden" id="feedback-type" value="feature" />
+
+            <div class="form-row">
+              <div class="form-group">
+                <label id="label-feedback-title" for="feedback-title">Feature Title</label>
+                <input type="text" id="feedback-title" placeholder="e.g., Add quick search by bullet grain weight" required />
+              </div>
+              <div class="form-group">
+                <label for="feedback-category">Category</label>
+                <select id="feedback-category">
+                  <option value="Firearms & Details">Firearms & Inventory</option>
+                  <option value="Ammunition & Reloading">Ammunition & Reloading Depot</option>
+                  <option value="Maintenance & Wear Schedules">Maintenance & Wear Schedules</option>
+                  <option value="ATF Bound Book & Dossier">ATF Bound Book & Dossier PDF</option>
+                  <option value="Barcode Engine & QR Labels">Barcode Engine & QR Labels</option>
+                  <option value="Mobile Companion & Wi-Fi Sync">Mobile Companion & Wi-Fi Sync</option>
+                  <option value="Security, Encryption & Backups">Security, Encryption & Backups</option>
+                  <option value="UI & Themes">UI, Styling & Performance</option>
+                  <option value="Other">Other Suggestion</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="feedback-os">Operating System</label>
+                <select id="feedback-os">
+                  <option value="macOS">macOS</option>
+                  <option value="Windows">Windows (10/11)</option>
+                  <option value="Linux">Linux (Ubuntu/Fedora/Arch)</option>
+                  <option value="Mobile (Android/iOS)">Mobile Companion (Android)</option>
+                  <option value="All Platforms">All Platforms / General</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>App Version</label>
+                <input type="text" value="v2.7.1 (Current)" readonly style="opacity: 0.7; cursor: not-allowed;" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label id="label-feedback-desc" for="feedback-desc">What problem does this solve & how should it work?</label>
+              <textarea id="feedback-desc" placeholder="Describe the idea or behavior in detail..."></textarea>
+            </div>
+
+            <!-- Live Markdown Preview Box -->
+            <div class="form-group">
+              <label style="color: var(--text-muted); font-size: 0.775rem;">GENERATED GITHUB ISSUE PREVIEW</label>
+              <pre id="feedback-preview" style="background: rgba(11, 15, 25, 0.9); border: 1px solid var(--border-subtle); padding: 1rem; border-radius: var(--radius-sm); font-size: 0.8rem; color: #94a3b8; max-height: 140px; overflow-y: auto; white-space: pre-wrap;"></pre>
+            </div>
+
+            <div class="feedback-actions">
+              <button type="button" id="btn-copy-markdown" class="btn btn-secondary btn-sm">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                <span>Copy Markdown</span>
+              </button>
+              <button type="button" id="btn-submit-issue" class="btn btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                </svg>
+                <span>Submit to GitHub Issues</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="section" id="faq">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-tag">Common Questions</span>
+          <h2 class="section-title">Frequently Asked Questions</h2>
+          <p class="section-subtitle">
+            Answers to common questions regarding security, installation, and mobile synchronization.
+          </p>
+        </div>
+
+        <div class="faq-list">
+          <div class="faq-item">
+            <button class="faq-question">
+              <span>Is ArmoryVault really 100% offline and private?</span>
+              <svg class="faq-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="faq-answer">
+              Yes. ArmoryVault has zero telemetry, zero analytics, and zero cloud databases. All firearm records, serial numbers, maintenance notes, and photos are encrypted directly on your hard drive using AES-256 and PBKDF2 password derivation. No one—not even the creators of ArmoryVault—can access your data.
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-question">
+              <span>Why does macOS say the app "is damaged" or "cannot be verified"?</span>
+              <svg class="faq-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="faq-answer">
+              ArmoryVault is a free, open-source project and is not signed with costly Apple Developer certificates. To open on macOS: drag `ArmoryVault.app` to your Applications folder, open Terminal, and run <code>xattr -cr /Applications/ArmoryVault.app</code>. You can also go to System Settings &gt; Privacy &amp; Security and click "Open Anyway".
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-question">
+              <span>How does the Mobile Companion App sync without the cloud?</span>
+              <svg class="faq-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="faq-answer">
+              The companion app syncs directly with your desktop over your local Wi-Fi network using encrypted peer-to-peer IPC endpoints. When you log range sessions or scan barcodes on your phone, they are sent directly across your local router into your desktop's Sync Inbox for your review.
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-question">
+              <span>What happens if I forget my master vault password?</span>
+              <svg class="faq-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="faq-answer">
+              When you first configure ArmoryVault, the application issues a 64-character permanent Emergency Recovery Key. You can save or print this text file in a safe place. If you forget your master password, you can unlock and re-key the vault using this recovery key.
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-question">
+              <span>Can I generate printable ATF A&D Bound Books and insurance backups?</span>
+              <svg class="faq-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="faq-answer">
+              Yes. ArmoryVault contains a specialized ATF Acquisition &amp; Disposition Bound Book view with dedicated <code>@media print</code> styling for standard 8.5x11 records. In addition, you can export your entire firearm inventory to CSV or create complete `.zip` archives including all high-resolution photos and gunsmith dossiers.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <div class="brand-icon" style="width: 32px; height: 32px;">
+              <img src="assets/icon.png" alt="ArmoryVault" />
+            </div>
+            <strong style="font-size: 1.15rem; color: #fff;">ArmoryVault</strong>
+          </div>
+          <p>
+            Private, encrypted, and air-gapped firearm, ammunition, and reloading component inventory software.
+          </p>
+        </div>
+
+        <div class="footer-col">
+          <h4>Software</h4>
+          <ul class="footer-links">
+            <li><a href="#download" class="footer-link">Download Desktop</a></li>
+            <li><a href="#download" class="footer-link">Mobile Companion APK</a></li>
+            <li><a href="https://github.com/cook0001/ArmoryVault/releases" target="_blank" rel="noopener" class="footer-link">Release Notes</a></li>
+            <li><a href="#showcase" class="footer-link">Interactive Demo</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h4>Community & Code</h4>
+          <ul class="footer-links">
+            <li><a href="https://github.com/cook0001/ArmoryVault" target="_blank" rel="noopener" class="footer-link">GitHub Repository</a></li>
+            <li><a href="#feedback" class="footer-link">Suggest a Feature</a></li>
+            <li><a href="#feedback" class="footer-link">Report a Bug</a></li>
+            <li><a href="https://github.com/cook0001/ArmoryVault/blob/main/CHANGELOG.md" target="_blank" rel="noopener" class="footer-link">Changelog</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h4>Security & Privacy</h4>
+          <ul class="footer-links">
+            <li><a href="#privacy" class="footer-link">Zero-Knowledge Design</a></li>
+            <li><a href="#privacy" class="footer-link">AES-256 Encryption</a></li>
+            <li><a href="#faq" class="footer-link">Recovery Key System</a></li>
+            <li><a href="#faq" class="footer-link">Air-Gapped Wi-Fi Sync</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>
+          &copy; 2026 ArmoryVault. Open-source software released under the ISC / MIT License.
+        </div>
+        <div style="display: flex; gap: 1.25rem;">
+          <a href="https://github.com/cook0001/ArmoryVault" target="_blank" rel="noopener" style="color: var(--text-secondary);">GitHub</a>
+          <a href="#feedback" style="color: var(--text-secondary);">Feedback Portal</a>
+          <a href="#faq" style="color: var(--text-secondary);">Help & FAQ</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="app.js"></script>
+</body>
+</html>
