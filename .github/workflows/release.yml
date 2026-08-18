@@ -2,9 +2,18 @@ name: Build and Release
 
 on:
   workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name for the release (e.g. v2.8.0-nightly.1 or v2.8.0)'
+        required: false
+        default: ''
+      is_prerelease:
+        description: 'Mark as Pre-release / Nightly'
+        type: boolean
+        default: false
   push:
     tags:
-      - 'v*' # Trigger on version tags (e.g. v1.0.0, v2.7.0)
+      - 'v*' # Trigger on version tags (e.g. v1.0.0, v2.8.0-nightly.1)
 
 permissions:
   contents: write
@@ -22,17 +31,31 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG_NAME="${GITHUB_REF_NAME}"
+          TAG_NAME="${{ inputs.tag_name || github.ref_name }}"
           echo "Preparing release for tag: $TAG_NAME"
           
+          IS_PRERELEASE="false"
+          if [[ "$TAG_NAME" == *"nightly"* ]] || [[ "$TAG_NAME" == *"beta"* ]] || [[ "$TAG_NAME" == *"alpha"* ]] || [[ "$TAG_NAME" == *"rc"* ]] || [ "${{ inputs.is_prerelease }}" = "true" ]; then
+            IS_PRERELEASE="true"
+            echo "Release flagged as PRE-RELEASE / NIGHTLY."
+          fi
+
           # Delete any partial/stale release for this tag if it exists without assets
           if gh release view "$TAG_NAME" >/dev/null 2>&1; then
             echo "Release $TAG_NAME already exists, converting to draft or reusing."
           else
-            gh release create "$TAG_NAME" \
-              --draft \
-              --title "ArmoryVault $TAG_NAME" \
-              --generate-notes || true
+            if [ "$IS_PRERELEASE" = "true" ]; then
+              gh release create "$TAG_NAME" \
+                --draft \
+                --prerelease \
+                --title "ArmoryVault $TAG_NAME (Nightly Preview)" \
+                --generate-notes || true
+            else
+              gh release create "$TAG_NAME" \
+                --draft \
+                --title "ArmoryVault $TAG_NAME" \
+                --generate-notes || true
+            fi
           fi
 
   # Step 2: Build on all OS platforms and upload assets directly to the existing draft
@@ -76,11 +99,20 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG_NAME="${GITHUB_REF_NAME}"
+          TAG_NAME="${{ inputs.tag_name || github.ref_name }}"
           echo "Verifying published assets for $TAG_NAME..."
 
-          # Publish release (remove draft status)
-          gh release edit "$TAG_NAME" --draft=false || true
+          IS_PRERELEASE="false"
+          if [[ "$TAG_NAME" == *"nightly"* ]] || [[ "$TAG_NAME" == *"beta"* ]] || [[ "$TAG_NAME" == *"alpha"* ]] || [[ "$TAG_NAME" == *"rc"* ]] || [ "${{ inputs.is_prerelease }}" = "true" ]; then
+            IS_PRERELEASE="true"
+          fi
+
+          # Publish release (remove draft status, preserve prerelease flag if applicable)
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            gh release edit "$TAG_NAME" --draft=false --prerelease=true || true
+          else
+            gh release edit "$TAG_NAME" --draft=false --prerelease=false || true
+          fi
 
           # Fetch asset list
           ASSETS=$(gh release view "$TAG_NAME" --json assets -q '.assets[].name')

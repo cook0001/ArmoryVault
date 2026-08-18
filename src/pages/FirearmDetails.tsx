@@ -381,21 +381,42 @@ export const FirearmDetails = () => {
     <>
       <div className="details-page">
       <div className="page-header">
-        <button className="btn-icon" onClick={() => navigate('/')}>
-          <ArrowLeft size={24} />
-        </button>
-        <div>
-          <h1 style={{ margin: 0 }}>{firearm.make} {firearm.model}</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+          <button 
+            className="btn-icon" 
+            onClick={() => navigate('/')}
+            title="Back to Inventory Dashboard"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+              <h1 style={{ margin: 0 }}>{firearm.make} {firearm.model}</h1>
+              {firearm.caliber && (
+                <span className="inventory-caliber-badge">{firearm.caliber}</span>
+              )}
+              {firearm.is_sold ? (
+                <span className="status-badge sold">Sold Ledger</span>
+              ) : (
+                <span className="status-badge available">● In Safe</span>
+              )}
+              {firearm.is_nfa && (
+                <span className="status-badge" style={{ background: 'rgba(234, 179, 8, 0.2)', color: '#eab308', border: '1px solid rgba(234, 179, 8, 0.4)' }}>
+                  NFA
+                </span>
+              )}
+            </div>
             {showTotalSetupValue && (
-              <div style={{ fontSize: '1rem', color: 'var(--text-secondary)', marginTop: '0.5rem', fontWeight: 500 }}>
-                Setup Value: ${((firearm.purchase_price || 0) + attachedAccessories.reduce((sum, a) => {
+              <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '0.25rem', fontWeight: 500 }}>
+                Total Setup Value: <strong style={{ color: 'var(--success)' }}>${((firearm.purchase_price || 0) + attachedAccessories.reduce((sum, a) => {
                   const allocatedQty = a.mounts?.find(m => m.firearmId === Number(id))?.quantity || 1;
                   return sum + ((a.value || 0) * allocatedQty);
-                }, 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                }, 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
               </div>
             )}
+          </div>
         </div>
-        <div className="header-actions" style={{ gap: '0.5rem', background: 'rgba(0,0,0,0.2)', padding: '0.4rem', borderRadius: '12px', border: '1px solid var(--border-light)' }}>
+        <div className="header-actions" style={{ gap: '0.5rem', background: 'rgba(11, 15, 25, 0.6)', padding: '0.35rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
           {!firearm.is_sold && (
             <button className="btn-success" onClick={() => setIsSelling(true)} style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', background: 'transparent', border: 'none', color: '#4ade80' }}>
               <DollarSign size={14} /> Mark Sold
@@ -450,28 +471,30 @@ export const FirearmDetails = () => {
       <div className="details-content">
         <div className="details-card main-info">
           {(firearm.photos && firearm.photos.length > 0) ? (
-            <div style={{ position: 'relative' }}>
+            <div className="details-image-wrapper">
               <img 
                 src={`local-file://${firearm.photos[0]}`} 
                 alt="Firearm" 
                 className="details-image" 
-                style={{ cursor: 'pointer' }}
                 onClick={() => { setLightboxImages(firearm.photos!); setLightboxIndex(0); }}
+                title="Click to view full photo in lightbox"
               />
               {firearm.photos.length > 1 && (
-                <div style={{ position: 'absolute', bottom: '10px', right: '10px', background: 'rgba(0,0,0,0.7)', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', pointerEvents: 'none' }}>
-                  1 / {firearm.photos.length}
+                <div className="details-image-count">
+                  1 / {firearm.photos.length} Photos
                 </div>
               )}
             </div>
           ) : firearm.image_path ? (
-            <img 
-              src={`local-file://${firearm.image_path}`} 
-              alt="Firearm" 
-              className="details-image" 
-              style={{ cursor: 'pointer' }}
-              onClick={() => { setLightboxImages([firearm.image_path]); setLightboxIndex(0); }}
-            />
+            <div className="details-image-wrapper">
+              <img 
+                src={`local-file://${firearm.image_path}`} 
+                alt="Firearm" 
+                className="details-image" 
+                onClick={() => { setLightboxImages([firearm.image_path]); setLightboxIndex(0); }}
+                title="Click to view full photo in lightbox"
+              />
+            </div>
           ) : (
             <div className="no-image">No Photo Available</div>
           )}

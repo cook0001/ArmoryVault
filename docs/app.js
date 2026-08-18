@@ -112,48 +112,123 @@ function highlightDownloadCard(cardId) {
 }
 
 /* ==========================================================================
-   3. Live GitHub Release Asset Resolution
+   3. Live GitHub Release Asset Resolution & Channel Switching
    ========================================================================== */
+let globalReleases = {
+  stable: null,
+  nightly: null,
+  activeChannel: 'stable'
+};
+
 async function initReleaseData() {
   const repoOwner = 'cook0001';
   const repoName = 'ArmoryVault';
-  const apiUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/releases/latest`;
+  const apiUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/releases`;
 
-  const fallbackVersion = 'v2.7.1';
-  const fallbackBaseUrl = `https://github.com/${repoOwner}/${repoName}/releases/latest`;
+  const fallbackStableTag = 'v2.7.1';
+  const fallbackNightlyTag = 'v2.8.0-nightly.1';
 
   try {
     const response = await fetch(apiUrl, { cache: 'no-cache' });
     if (!response.ok) throw new Error(`GitHub API returned status ${response.status}`);
     
-    const release = await response.json();
-    const tagName = release.tag_name || fallbackVersion;
+    const releases = await response.json();
     
-    // Update version labels across page
+    // Find latest stable and latest prerelease
+    const stable = releases.find(r => !r.prerelease && !r.draft) || releases[0];
+    const nightly = releases.find(r => r.prerelease || r.tag_name?.includes('nightly') || r.tag_name?.includes('beta'));
+
+    globalReleases.stable = stable || { tag_name: fallbackStableTag, assets: [] };
+    globalReleases.nightly = nightly || { tag_name: fallbackNightlyTag, assets: [] };
+
+    // Update tag text in headers
     document.querySelectorAll('.release-version-tag').forEach(el => {
-      el.textContent = tagName;
+      el.textContent = globalReleases.stable.tag_name || fallbackStableTag;
     });
 
-    const assets = release.assets || [];
+    document.querySelectorAll('.nightly-version-tag').forEach(el => {
+      el.textContent = globalReleases.nightly.tag_name || fallbackNightlyTag;
+    });
 
-    // Match assets
-    const macArmAsset = assets.find(a => a.name.endsWith('.dmg') && (a.name.includes('arm64') || a.name.includes('aarch64')));
-    const macIntelAsset = assets.find(a => a.name.endsWith('.dmg') && (a.name.includes('x64') || a.name.includes('x86_64') || (!a.name.includes('arm64') && !a.name.includes('aarch64'))));
-    const winAsset = assets.find(a => a.name.endsWith('.exe'));
-    const linuxAsset = assets.find(a => a.name.endsWith('.AppImage'));
-    const apkAsset = assets.find(a => a.name.endsWith('.apk'));
-
-    if (macArmAsset) updateDownloadBtn('btn-download-mac-arm', macArmAsset.browser_download_url, `${tagName} (Apple Silicon)`);
-    if (macIntelAsset) updateDownloadBtn('btn-download-mac-intel', macIntelAsset.browser_download_url, `${tagName} (Intel)`);
-    if (winAsset) updateDownloadBtn('btn-download-win', winAsset.browser_download_url, `${tagName} (.exe)`);
-    if (linuxAsset) updateDownloadBtn('btn-download-linux', linuxAsset.browser_download_url, `${tagName} (.AppImage)`);
-    if (apkAsset) updateDownloadBtn('btn-download-mobile', apkAsset.browser_download_url, `${tagName} (.apk)`);
+    applyChannelAssets('stable');
 
   } catch (err) {
     console.log('Using default release fallback urls:', err.message);
-    document.querySelectorAll('.release-version-tag').forEach(el => {
-      el.textContent = fallbackVersion;
+    globalReleases.stable = { tag_name: fallbackStableTag, assets: [] };
+    globalReleases.nightly = { tag_name: fallbackNightlyTag, assets: [] };
+    applyChannelAssets('stable');
+  }
+
+  // Setup Channel Switcher Buttons
+  const stableBtn = document.getElementById('tab-channel-stable');
+  const nightlyBtn = document.getElementById('tab-channel-nightly');
+  const nightlyBanner = document.getElementById('channel-banner-nightly');
+
+  if (stableBtn && nightlyBtn) {
+    stableBtn.addEventListener('click', () => {
+      stableBtn.classList.add('active');
+      nightlyBtn.classList.remove('active');
+      if (nightlyBanner) nightlyBanner.style.display = 'none';
+      globalReleases.activeChannel = 'stable';
+      applyChannelAssets('stable');
     });
+
+    nightlyBtn.addEventListener('click', () => {
+      nightlyBtn.classList.add('active');
+      stableBtn.classList.remove('active');
+      if (nightlyBanner) nightlyBanner.style.display = 'block';
+      globalReleases.activeChannel = 'nightly';
+      applyChannelAssets('nightly');
+    });
+  }
+}
+
+function applyChannelAssets(channel) {
+  const rel = channel === 'nightly' ? globalReleases.nightly : globalReleases.stable;
+  const tagName = rel?.tag_name || (channel === 'nightly' ? 'v2.8.0-nightly.1' : 'v2.7.1');
+  const assets = rel?.assets || [];
+  const repoBase = 'https://github.com/cook0001/ArmoryVault/releases';
+
+  // Match assets
+  const macArmAsset = assets.find(a => a.name.endsWith('.dmg') && (a.name.includes('arm64') || a.name.includes('aarch64')));
+  const macIntelAsset = assets.find(a => a.name.endsWith('.dmg') && (a.name.includes('x64') || a.name.includes('x86_64') || (!a.name.includes('arm64') && !a.name.includes('aarch64'))));
+  const winAsset = assets.find(a => a.name.endsWith('.exe'));
+  const linuxAsset = assets.find(a => a.name.endsWith('.AppImage'));
+  const apkAsset = assets.find(a => a.name.endsWith('.apk'));
+
+  const isNightly = channel === 'nightly';
+  const prefix = isNightly ? '[Nightly] ' : '';
+
+  updateDownloadBtn(
+    'btn-download-mac-arm', 
+    macArmAsset ? macArmAsset.browser_download_url : `${repoBase}/tag/${tagName}`, 
+    `${prefix}${tagName} (Apple Silicon)`
+  );
+  
+  updateDownloadBtn(
+    'btn-download-mac-intel', 
+    macIntelAsset ? macIntelAsset.browser_download_url : `${repoBase}/tag/${tagName}`, 
+    `${prefix}${tagName} (Intel x64)`
+  );
+
+  updateDownloadBtn(
+    'btn-download-win', 
+    winAsset ? winAsset.browser_download_url : `${repoBase}/tag/${tagName}`, 
+    `${prefix}${tagName} (Windows .exe)`
+  );
+
+  updateDownloadBtn(
+    'btn-download-linux', 
+    linuxAsset ? linuxAsset.browser_download_url : `${repoBase}/tag/${tagName}`, 
+    `${prefix}${tagName} (Linux .AppImage)`
+  );
+
+  if (apkAsset) {
+    updateDownloadBtn(
+      'btn-download-mobile', 
+      apkAsset.browser_download_url, 
+      `${prefix}${tagName} (.apk)`
+    );
   }
 }
 

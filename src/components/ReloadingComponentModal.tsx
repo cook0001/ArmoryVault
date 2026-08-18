@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ReloadingComponent } from '../types';
 import { parseBarcodeData } from '../utils/BarcodeEngine';
 import { COMPREHENSIVE_BULLET_TYPES } from '../utils/caliberHelpers';
+import { X } from 'lucide-react';
 
 interface ReloadingComponentModalProps {
   isOpen: boolean;
@@ -37,16 +38,6 @@ export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = (
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [lookupStatus, setLookupStatus] = useState<{message: string, type: 'error' | 'success'} | null>(null);
   const navigate = useNavigate();
-  const dialogRef = React.useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (isOpen && dialog && !dialog.open) {
-      dialog.showModal();
-    } else if (!isOpen && dialog && dialog.open) {
-      dialog.close();
-    }
-  }, [isOpen]);
 
   const lookupUPC = async (upc: string) => {
     if (!upc || !window.api || !window.api.lookupUPC) return;
@@ -165,11 +156,22 @@ export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = (
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <dialog ref={dialogRef} className="modal" onClose={onClose}>
-      {isOpen && (
-        <>
-          <h2>{editingId ? 'Edit Component' : 'Add Component'}</h2>
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '640px' }}>
+        <div className="modal-header">
+          <h2 style={{ margin: 0 }}>{editingId ? 'Edit Component' : 'Add Component'}</h2>
+          <button 
+            type="button" 
+            className="btn-icon" 
+            onClick={onClose}
+            title="Close modal"
+          >
+            <X size={18} />
+          </button>
+        </div>
         <form onSubmit={handleSave}>
           <div className="form-group" style={{ background: 'rgba(56, 189, 248, 0.05)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.2)', marginBottom: '1.5rem' }}>
             <label>Scan UPC Code (Auto-fill)</label>
@@ -366,8 +368,7 @@ export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = (
             <option key={idx} value={bt} />
           ))}
         </datalist>
-        </>
-      )}
-    </dialog>
+      </div>
+    </div>
   );
 };

@@ -336,18 +336,29 @@ app.whenReady().then(() => {
 
   ipcMain.handle('export-data', async (_, dataString, filename) => {
     try {
-      const { filePath } = await dialog.showSaveDialog(mainWindow, {
-        defaultPath: filename,
-        filters: [{ name: 'JSON', extensions: ['json'] }]
+      const ext = filename && filename.includes('.') ? filename.split('.').pop().toLowerCase() : 'csv';
+      let filterName = 'CSV Spreadsheet (*.csv)';
+      if (ext === 'json') filterName = 'JSON Document (*.json)';
+      else if (ext === 'txt') filterName = 'Text Document (*.txt)';
+      else if (ext === 'csv') filterName = 'CSV Spreadsheet (*.csv)';
+      else filterName = `${ext.toUpperCase()} File (*.${ext})`;
+
+      const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+        title: 'Export Data',
+        defaultPath: filename || 'export.csv',
+        filters: [
+          { name: filterName, extensions: [ext] },
+          { name: 'All Files', extensions: ['*'] }
+        ]
       });
-      if (filePath) {
-        require('fs').writeFileSync(filePath, dataString);
-        return true;
+      if (!canceled && filePath) {
+        require('fs').writeFileSync(filePath, dataString, 'utf-8');
+        return filePath;
       }
-      return false;
+      return null;
     } catch (err) {
       console.error('Error exporting data', err);
-      return false;
+      return null;
     }
   });
 

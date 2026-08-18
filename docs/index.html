@@ -103,10 +103,12 @@
       <a href="#features" class="mobile-nav-link">Features</a>
       <a href="#showcase" class="mobile-nav-link">App Preview</a>
       <a href="#privacy" class="mobile-nav-link">Zero-Cloud Security</a>
-      <a href="#download" class="mobile-nav-link">Download Installers</a>
+      <a href="#download" class="mobile-nav-link highlight">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        <span>Get ArmoryVault (Download)</span>
+      </a>
       <a href="#feedback" class="mobile-nav-link">Feature Suggestions & Bugs</a>
       <a href="#faq" class="mobile-nav-link">FAQ</a>
-      <a href="#download" class="btn btn-primary" style="width: 100%;">Get ArmoryVault</a>
     </div>
   </header>
 
@@ -678,8 +680,28 @@
           <span class="section-tag">Install & Deploy</span>
           <h2 class="section-title">Download ArmoryVault for Your OS</h2>
           <p class="section-subtitle">
-            Current Production Release: <strong class="release-version-tag" style="color: var(--accent-primary-hover);">v2.7.1</strong> &middot; Multi-Platform Native Binaries
+            Official Binaries &middot; Multi-Platform Native Packages
           </p>
+        </div>
+
+        <!-- Release Channel Selector: Stable vs Nightly / Beta -->
+        <div class="channel-selector-wrap">
+          <div class="channel-tabs">
+            <button class="channel-tab-btn active" data-channel="stable" id="tab-channel-stable">
+              <span class="channel-indicator-dot stable"></span>
+              <span>Stable (<strong class="release-version-tag">v2.7.1</strong>)</span>
+            </button>
+            <button class="channel-tab-btn" data-channel="nightly" id="tab-channel-nightly">
+              <span class="channel-indicator-dot nightly"></span>
+              <span>⚡ Nightly &amp; Beta Preview (<strong class="nightly-version-tag">v2.8.0-nightly.1</strong>)</span>
+            </button>
+          </div>
+          <div class="channel-banner" id="channel-banner-nightly" style="display: none;">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.85rem; color: #fbbf24;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m13 2-2 2.5V8l2 2 2-2V4.5L13 2z"></path><path d="M12 12v9"></path><path d="M8 17h8"></path></svg>
+              <span><strong>Nightly Build Active:</strong> Bleeding-edge test build featuring Top Navigation, Command Center Dashboard, and Wear Gauges. Please test and submit bug reports below!</span>
+            </div>
+          </div>
         </div>
 
         <div class="download-grid">

@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.8.0-nightly.1]
+### Preview & Community Bug Testing Release
+- **Unified Ammo & Reloading Depot**: Merged separate Ammo and Reloading tabs into a single, cohesive command center in the top navigation bar. Features 3 integrated depot sub-views (`🎯 Live Ammunition`, `🧪 Reloading Supplies`, `📊 Combined Overview`), top caliber quick-stock showcase cards matching the website preview (colored accent borders, live counts, top load types, and stock goal gauges), unified tactical control deck, and full batch manufacture integration.
+- **Customizable Metric Cards & Visibility Toggles**: Added a `⚙️ Customize Cards` popover slider allowing users to toggle individual live ammo and reloading metric cards on or off with persistent `localStorage` preferences across both the Dashboard and Depot.
+- **Command Center Dashboard with Tactical Card & Table Views**: Complete redesign of the primary inventory dashboard. Includes a persistent Card View 🔲 vs Compact Table View 📋 switcher, unified control deck with 1-click Category Filter Chips (Handguns, Rifles, Shotguns, C&R / Vintage, NFA, ⚠️ Service Due), real-time search, status dropdown, live ammo inventory telemetry, lifetime rounds fired tracker, visual round wear gauges with maintenance progress meters, mounted accessories pill clouds, and a customizable metrics popover with persistent card visibility preferences.
+- **ATF A&D Bound Book Overhaul**: Rebuilt the Bound Book page to match the modern tactical theme. Features compliance metrics (Total Records, Active in Safe, Transferred/Sold, ATF Standard), unified search & filter deck, two-tier A&D table with cyber-blue monospace serial number pills, status badges, and 1-click CSV and 8.5x11 landscape printing.
+- **Firearm Details Dossier Polish**: Refactored the firearm details view into a clean 2-column dossier grid with constrained photo showcase gallery (`240px` cover with hover zoom and lightbox expansion), inline caliber & safe status badges, and neatly proportioned specification matrices.
+- **Centered Modal Positioning & Backdrop Blur**: Converted `AccessoryModal` and `ReloadingComponentModal` to the fixed `.modal-overlay` system with `backdrop-filter: blur(16px)` and dedicated header with `✕` close button, ensuring perfect viewport centering.
+- **Glassmorphic Top Navigation & Modern Tactical Styling**: Replaced the desktop sidebar with a full-width sticky Glassmorphic Top Navigation Bar matching the official website preview. Upgraded typography (Outfit + Inter + JetBrains Mono), ambient background radial mesh glows, stat card containers, metric pills, and primary gradient buttons.
+- **Pre-Release & Nightly CI/CD Release Pipeline**: Added automated `--prerelease` detection and workflow dispatch triggers to `.github/workflows/release.yml` so nightly/beta test builds are built and distributed across macOS (Apple Silicon + Intel), Windows, and Linux without interfering with stable auto-update channels.
+- **Website Preview & Nightly Download Hub**: Updated the official website with a dedicated Release Channel Switcher (`Stable` vs `Nightly / Beta`) with live asset resolution and direct bug reporting links.
+
 ## [2.7.1]
 ### Fixed & Improved
 - **Robust Full Zip Archive Backup Engine**: Replaced stream-based archiver with pure in-memory/synchronous `adm-zip` packaging. Resolves production ASAR stream locking and unhandled stream errors when creating full `.zip` archives.

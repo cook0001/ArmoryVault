@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Accessory, Firearm } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { parseBarcodeData } from '../utils/BarcodeEngine';
-import { Target, AlertTriangle } from 'lucide-react';
-import { Camera } from 'lucide-react';
+import { Target, AlertTriangle, Camera, X } from 'lucide-react';
 
 interface AccessoryModalProps {
   isOpen: boolean;
@@ -41,16 +40,6 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({ isOpen, onClose,
   const [lookupStatus, setLookupStatus] = useState<{message: string, type: 'error' | 'success'} | null>(null);
   const [saveToSkuDb, setSaveToSkuDb] = useState(false);
   const navigate = useNavigate();
-  const dialogRef = React.useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (isOpen && dialog && !dialog.open) {
-      dialog.showModal();
-    } else if (!isOpen && dialog && dialog.open) {
-      dialog.close();
-    }
-  }, [isOpen]);
 
   const lookupUPC = async (upc: string) => {
     if (!upc || !window.api) return;
@@ -218,11 +207,22 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({ isOpen, onClose,
     onClose();
   };
 
+  if (!isOpen) return null;
+
   return (
-    <dialog ref={dialogRef} className="modal" onClose={onClose}>
-      {isOpen && (
-        <>
-          <h2>{editingId ? 'Edit Accessory' : 'Add Accessory'}</h2>
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '640px' }}>
+        <div className="modal-header">
+          <h2 style={{ margin: 0 }}>{editingId ? 'Edit Accessory' : 'Add Accessory'}</h2>
+          <button 
+            type="button" 
+            className="btn-icon" 
+            onClick={onClose}
+            title="Close modal"
+          >
+            <X size={18} />
+          </button>
+        </div>
         
         <form onSubmit={handleSave}>
           
@@ -524,8 +524,7 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({ isOpen, onClose,
             <button type="submit" className="btn-primary">Save Accessory</button>
           </div>
         </form>
-        </>
-      )}
-    </dialog>
+      </div>
+    </div>
   );
 };

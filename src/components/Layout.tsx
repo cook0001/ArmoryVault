@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Shield, PlusCircle, LayoutDashboard, BookOpen, DownloadCloud, RefreshCw, Target, Settings, FolderOpen, Edit, Trash2, Database, Crosshair, Wrench, Package, Smartphone, Lock, Download, HardDrive, ExternalLink, Sliders, CheckCircle, UploadCloud, RotateCcw, Key } from 'lucide-react';
+import { Shield, PlusCircle, LayoutDashboard, BookOpen, DownloadCloud, RefreshCw, Target, Settings, FolderOpen, Edit, Trash2, Database, Crosshair, Wrench, Package, Smartphone, Lock, Download, HardDrive, ExternalLink, Sliders, CheckCircle, UploadCloud, RotateCcw, Key, Layers } from 'lucide-react';
 import { CustomSkuDatabase, CustomSkuItem, Ammo } from '../types';
 import { exportToCSV } from '../utils/csvExport';
 import { RangeSessionModal } from './RangeSessionModal';
@@ -221,86 +221,103 @@ export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
   };
 
   return (
-    <div className="layout">
-      <aside className="sidebar">
-        <div className="sidebar-header">
-          <Shield className="logo-icon" size={22} />
-          <h2>ArmoryVault</h2>
-        </div>
-        <nav className="sidebar-nav">
-          {/* — INVENTORY — */}
-          <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', padding: '0.6rem 1rem 0.15rem', fontWeight: 600, opacity: 0.6 }}>
-            Inventory
+    <div className="app-layout">
+      {/* Ambient background mesh & grid */}
+      <div className="bg-mesh" aria-hidden="true"></div>
+      <div className="bg-grid" aria-hidden="true"></div>
+
+      <header className="app-topbar">
+        {/* Brand Header */}
+        <div className="topbar-brand" onClick={() => navigate('/')}>
+          <div className="topbar-brand-icon">
+            <Shield size={20} style={{ color: 'var(--accent)' }} />
           </div>
-          <button onClick={() => navigate('/')} className={`nav-item ${isActive('/')}`}>
-            <LayoutDashboard size={18} />
+          <span>ArmoryVault</span>
+          <span className="topbar-version-tag">v{packageJson.version}</span>
+        </div>
+
+        {/* Center Navigation Links */}
+        <nav className="topbar-nav">
+          <button onClick={() => navigate('/')} className={`topbar-nav-link ${isActive('/')}`}>
+            <LayoutDashboard size={16} />
             <span>Dashboard</span>
           </button>
-          <button className={`nav-item ${isActive('/bound-book')}`} onClick={() => navigate('/bound-book')}>
-            <BookOpen size={18} />
+          <button className={`topbar-nav-link ${isActive('/bound-book')}`} onClick={() => navigate('/bound-book')}>
+            <BookOpen size={16} />
             <span>Bound Book</span>
           </button>
-
-          {/* — MANAGE — */}
-          <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', padding: '0.5rem 1rem 0.15rem', fontWeight: 600, opacity: 0.6, borderTop: '1px solid var(--border-light)', marginTop: '0.25rem' }}>
-            Manage
-          </div>
-          <button onClick={() => navigate('/add')} className={`nav-item ${isActive('/add')}`}>
-            <PlusCircle size={18} />
-            <span>Add Firearm</span>
+          <button className={`topbar-nav-link ${isActive('/ammo') || isActive('/components')}`} onClick={() => navigate('/ammo')}>
+            <Layers size={16} />
+            <span>Ammo & Reloading</span>
           </button>
-          <button className={`nav-item ${isActive('/ammo')}`} onClick={() => navigate('/ammo')}>
-            <Target size={18} />
-            <span>Ammo & Handloads</span>
-          </button>
-          <button className={`nav-item ${isActive('/components')}`} onClick={() => navigate('/components')}>
-            <Database size={18} />
-            <span>Reloading Supplies</span>
-          </button>
-          <button className={`nav-item ${isActive('/accessories')}`} onClick={() => navigate('/accessories')}>
-            <Package size={18} />
+          <button className={`topbar-nav-link ${isActive('/accessories')}`} onClick={() => navigate('/accessories')}>
+            <Package size={16} />
             <span>Accessories</span>
           </button>
-
-          {/* — TOOLS — */}
-          <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', padding: '0.5rem 1rem 0.15rem', fontWeight: 600, opacity: 0.6, borderTop: '1px solid var(--border-light)', marginTop: '0.25rem' }}>
-            Tools
-          </div>
-          <button className="nav-item" onClick={() => setIsRangeModalOpen(true)} title="Quickly log rounds fired and deduct ammo in one action">
-            <Crosshair size={18} style={{ color: 'var(--accent)' }} />
-            <span>Log Range Trip</span>
-          </button>
-          <button className={`nav-item ${isActive('/maintenance')}`} onClick={() => navigate('/maintenance')}>
-            <Wrench size={18} />
+          <button className={`topbar-nav-link ${isActive('/maintenance')}`} onClick={() => navigate('/maintenance')}>
+            <Wrench size={16} />
             <span>Maintenance</span>
           </button>
-          <button className={`nav-item ${isActive('/sync')}`} onClick={() => navigate('/sync')}>
+        </nav>
+
+        {/* Right Action Tools */}
+        <div className="topbar-actions">
+          <button 
+            className="btn-secondary" 
+            onClick={() => setIsRangeModalOpen(true)} 
+            title="Quickly log rounds fired and deduct ammo in one action"
+            style={{ padding: '0.45rem 0.85rem', fontSize: '0.85rem' }}
+          >
+            <Crosshair size={16} style={{ color: 'var(--accent)' }} />
+            <span>Log Range Trip</span>
+          </button>
+
+          <button 
+            onClick={() => navigate('/add')} 
+            className="btn-primary"
+            style={{ padding: '0.45rem 0.95rem', fontSize: '0.85rem' }}
+          >
+            <PlusCircle size={16} />
+            <span>Add Firearm</span>
+          </button>
+
+          <button 
+            className={`btn-icon ${isActive('/sync') ? 'active' : ''}`} 
+            onClick={() => navigate('/sync')} 
+            title="Mobile Sync Inbox"
+            style={{ position: 'relative' }}
+          >
             <Smartphone size={18} />
-            <span>Mobile Sync</span>
             {syncQueueCount > 0 && (
-              <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.7rem', fontWeight: 'bold', padding: '0.1rem 0.4rem', borderRadius: '12px', marginLeft: 'auto' }}>
+              <span style={{ 
+                position: 'absolute', 
+                top: '-2px', 
+                right: '-2px', 
+                background: '#ef4444', 
+                color: '#fff', 
+                fontSize: '0.65rem', 
+                fontWeight: 'bold', 
+                padding: '0.1rem 0.35rem', 
+                borderRadius: '10px',
+                boxShadow: '0 0 8px rgba(239,68,68,0.8)'
+              }}>
                 {syncQueueCount}
               </span>
             )}
           </button>
-        </nav>
-        
-        <div style={{ marginTop: 'auto', paddingTop: '0.5rem', borderTop: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', gap: '0.15rem', flexShrink: 0 }}>
-          <button onClick={() => setIsSettingsOpen(true)} className="nav-item" style={{ width: '100%' }}>
+
+          <button className="btn-icon" onClick={() => setIsSettingsOpen(true)} title="Vault Settings">
             <Settings size={18} />
-            <span>Settings</span>
           </button>
+
           {onLockVault && (
-            <button onClick={onLockVault} className="nav-item" style={{ width: '100%', color: 'var(--warning)' }} title="Lock vault and return to login">
+            <button className="btn-icon" onClick={onLockVault} title="Lock Vault" style={{ color: 'var(--warning)' }}>
               <Lock size={18} />
-              <span>Lock Vault</span>
             </button>
           )}
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '0.25rem', opacity: 0.5 }}>
-            v{packageJson.version}
-          </div>
         </div>
-      </aside>
+      </header>
+
       <main className="main-content">
         {updateStatus !== 'idle' && (
           <div style={{ background: 'rgba(59, 130, 246, 0.1)', borderBottom: '1px solid var(--border-light)', padding: '1rem 2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', animation: 'fadeIn 0.3s ease-out' }}>
