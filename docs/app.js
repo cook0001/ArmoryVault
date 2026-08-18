@@ -150,6 +150,20 @@ async function initReleaseData() {
       el.textContent = globalReleases.nightly.tag_name || fallbackNightlyTag;
     });
 
+    // Update feedback version dropdown options
+    const feedbackVersionSelect = document.getElementById('feedback-version');
+    if (feedbackVersionSelect) {
+      const stableTag = globalReleases.stable.tag_name || fallbackStableTag;
+      const nightlyTag = globalReleases.nightly.tag_name || fallbackNightlyTag;
+      feedbackVersionSelect.innerHTML = `
+        <option value="${nightlyTag} (Nightly Preview)">⚡ ${nightlyTag} (Nightly Preview)</option>
+        <option value="${stableTag} (Stable Release)" selected>🎯 ${stableTag} (Stable Release)</option>
+        <option value="v2.7.0 (Stable Release)">v2.7.0 (Stable Release)</option>
+        <option value="v2.6.x (Legacy)">v2.6.x (Legacy)</option>
+        <option value="Dev / Source Build">🛠️ Dev / Source Build</option>
+      `;
+    }
+
     applyChannelAssets('stable');
 
   } catch (err) {
@@ -171,6 +185,12 @@ async function initReleaseData() {
       if (nightlyBanner) nightlyBanner.style.display = 'none';
       globalReleases.activeChannel = 'stable';
       applyChannelAssets('stable');
+
+      const feedbackVersion = document.getElementById('feedback-version');
+      if (feedbackVersion) {
+        feedbackVersion.value = `${globalReleases.stable.tag_name || fallbackStableTag} (Stable Release)`;
+        feedbackVersion.dispatchEvent(new Event('change'));
+      }
     });
 
     nightlyBtn.addEventListener('click', () => {
@@ -179,6 +199,12 @@ async function initReleaseData() {
       if (nightlyBanner) nightlyBanner.style.display = 'block';
       globalReleases.activeChannel = 'nightly';
       applyChannelAssets('nightly');
+
+      const feedbackVersion = document.getElementById('feedback-version');
+      if (feedbackVersion) {
+        feedbackVersion.value = `${globalReleases.nightly.tag_name || fallbackNightlyTag} (Nightly Preview)`;
+        feedbackVersion.dispatchEvent(new Event('change'));
+      }
     });
   }
 }
@@ -363,6 +389,7 @@ function initFeedbackHub() {
   const titleInput = document.getElementById('feedback-title');
   const categorySelect = document.getElementById('feedback-category');
   const osSelect = document.getElementById('feedback-os');
+  const versionSelect = document.getElementById('feedback-version');
   const descInput = document.getElementById('feedback-desc');
   const previewBox = document.getElementById('feedback-preview');
   const btnSubmit = document.getElementById('btn-submit-issue');
@@ -400,7 +427,7 @@ function initFeedbackHub() {
     const category = categorySelect?.value || 'General';
     const os = osSelect?.value || 'Not specified';
     const desc = descInput?.value.trim() || 'No description provided.';
-    const appVersion = document.querySelector('.release-version-tag')?.textContent || 'v2.7.1';
+    const appVersion = versionSelect?.value || document.querySelector('.release-version-tag')?.textContent || 'v2.7.1';
 
     if (currentType === 'feature') {
       return `### 💡 Feature Suggestion: ${title}
@@ -435,8 +462,11 @@ ${desc}
     }
   }
 
-  [titleInput, categorySelect, osSelect, descInput].forEach(el => {
-    if (el) el.addEventListener('input', updateMarkdownPreview);
+  [titleInput, categorySelect, osSelect, versionSelect, descInput].forEach(el => {
+    if (el) {
+      el.addEventListener('input', updateMarkdownPreview);
+      el.addEventListener('change', updateMarkdownPreview);
+    }
   });
 
   if (btnSubmit) {
