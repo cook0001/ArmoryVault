@@ -117,29 +117,50 @@ function highlightDownloadCard(cardId) {
 let globalReleases = {
   stable: null,
   nightly: null,
+  mobileStable: null,
+  mobileNightly: null,
   activeChannel: 'stable'
 };
 
 async function initReleaseData() {
   const repoOwner = 'cook0001';
   const repoName = 'ArmoryVault';
-  const apiUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/releases`;
+  const companionRepo = 'ArmoryVault-Companion-App';
+  
+  const desktopApiUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/releases`;
+  const mobileApiUrl = `https://api.github.com/repos/${repoOwner}/${companionRepo}/releases`;
 
   const fallbackStableTag = 'v2.7.1';
   const fallbackNightlyTag = 'v2.8.0-nightly.1';
+  const fallbackMobileStable = 'v2.5.0';
+  const fallbackMobileNightly = 'v2.6.0-nightly.1';
 
   try {
-    const response = await fetch(apiUrl, { cache: 'no-cache' });
-    if (!response.ok) throw new Error(`GitHub API returned status ${response.status}`);
-    
-    const releases = await response.json();
-    
-    // Find latest stable and latest prerelease
-    const stable = releases.find(r => !r.prerelease && !r.draft) || releases[0];
-    const nightly = releases.find(r => r.prerelease || r.tag_name?.includes('nightly') || r.tag_name?.includes('beta'));
+    // 1. Fetch Desktop Releases
+    const desktopRes = await fetch(desktopApiUrl, { cache: 'no-cache' }).catch(() => null);
+    if (desktopRes && desktopRes.ok) {
+      const releases = await desktopRes.json();
+      const stable = releases.find(r => !r.prerelease && !r.draft) || releases[0];
+      const nightly = releases.find(r => r.prerelease || r.tag_name?.includes('nightly') || r.tag_name?.includes('beta'));
+      globalReleases.stable = stable || { tag_name: fallbackStableTag, assets: [] };
+      globalReleases.nightly = nightly || { tag_name: fallbackNightlyTag, assets: [] };
+    } else {
+      globalReleases.stable = { tag_name: fallbackStableTag, assets: [] };
+      globalReleases.nightly = { tag_name: fallbackNightlyTag, assets: [] };
+    }
 
-    globalReleases.stable = stable || { tag_name: fallbackStableTag, assets: [] };
-    globalReleases.nightly = nightly || { tag_name: fallbackNightlyTag, assets: [] };
+    // 2. Fetch Mobile Companion Releases
+    const mobileRes = await fetch(mobileApiUrl, { cache: 'no-cache' }).catch(() => null);
+    if (mobileRes && mobileRes.ok) {
+      const mobReleases = await mobileRes.json();
+      const mobStable = mobReleases.find(r => !r.prerelease && !r.draft) || mobReleases[0];
+      const mobNightly = mobReleases.find(r => r.prerelease || r.tag_name?.includes('nightly') || r.tag_name?.includes('beta'));
+      globalReleases.mobileStable = mobStable || { tag_name: fallbackMobileStable, assets: [] };
+      globalReleases.mobileNightly = mobNightly || { tag_name: fallbackMobileNightly, assets: [] };
+    } else {
+      globalReleases.mobileStable = { tag_name: fallbackMobileStable, assets: [] };
+      globalReleases.mobileNightly = { tag_name: fallbackMobileNightly, assets: [] };
+    }
 
     // Update tag text in headers
     document.querySelectorAll('.release-version-tag').forEach(el => {
@@ -160,6 +181,8 @@ async function initReleaseData() {
         <option value="${stableTag} (Stable Release)" selected>🎯 ${stableTag} (Stable Release)</option>
         <option value="v2.7.0 (Stable Release)">v2.7.0 (Stable Release)</option>
         <option value="v2.6.x (Legacy)">v2.6.x (Legacy)</option>
+        <option value="Mobile Companion (v${globalReleases.mobileNightly?.tag_name || fallbackMobileNightly})">📱 Mobile Companion (Nightly)</option>
+        <option value="Mobile Companion (v${globalReleases.mobileStable?.tag_name || fallbackMobileStable})">📱 Mobile Companion (Stable)</option>
         <option value="Dev / Source Build">🛠️ Dev / Source Build</option>
       `;
     }
@@ -170,6 +193,8 @@ async function initReleaseData() {
     console.log('Using default release fallback urls:', err.message);
     globalReleases.stable = { tag_name: fallbackStableTag, assets: [] };
     globalReleases.nightly = { tag_name: fallbackNightlyTag, assets: [] };
+    globalReleases.mobileStable = { tag_name: fallbackMobileStable, assets: [] };
+    globalReleases.mobileNightly = { tag_name: fallbackMobileNightly, assets: [] };
     applyChannelAssets('stable');
   }
 
@@ -211,19 +236,29 @@ async function initReleaseData() {
 
 function applyChannelAssets(channel) {
   const rel = channel === 'nightly' ? globalReleases.nightly : globalReleases.stable;
-  const tagName = rel?.tag_name || (channel === 'nightly' ? 'v2.8.0-nightly.1' : 'v2.7.1');
-  const assets = rel?.assets || [];
-  const repoBase = 'https://github.com/cook0001/ArmoryVault/releases';
+  const mobRel = channel === 'nightly' ? globalReleases.mobileNightly : globalReleases.mobileStable;
 
-  // Match assets
+  const tagName = rel?.tag_name || (channel === 'nightly' ? 'v2.8.0-nightly.1' : 'v2.7.1');
+  const mobTagName = mobRel?.tag_name || (channel === 'nightly' ? 'v2.6.0-nightly.1' : 'v2.5.0');
+
+  const assets = rel?.assets || [];
+  const mobAssets = mobRel?.assets || [];
+
+  const repoBase = 'https://github.com/cook0001/ArmoryVault/releases';
+  const mobRepoBase = 'https://github.com/cook0001/ArmoryVault-Companion-App/releases';
+
+  // Match desktop assets
   const macArmAsset = assets.find(a => a.name.endsWith('.dmg') && (a.name.includes('arm64') || a.name.includes('aarch64')));
   const macIntelAsset = assets.find(a => a.name.endsWith('.dmg') && (a.name.includes('x64') || a.name.includes('x86_64') || (!a.name.includes('arm64') && !a.name.includes('aarch64'))));
   const winAsset = assets.find(a => a.name.endsWith('.exe'));
   const linuxAsset = assets.find(a => a.name.endsWith('.AppImage'));
-  const apkAsset = assets.find(a => a.name.endsWith('.apk'));
+
+  // Match mobile companion APK asset
+  const apkAsset = mobAssets.find(a => a.name?.endsWith('.apk')) || assets.find(a => a.name?.endsWith('.apk'));
 
   const isNightly = channel === 'nightly';
   const tagShort = isNightly ? (tagName.replace('v', '').split('-')[0] + '-nightly') : tagName;
+  const mobTagShort = isNightly ? (mobTagName.replace('v', '').split('-')[0] + '-nightly') : mobTagName;
 
   updateDownloadBtn(
     'btn-download-mac-arm', 
@@ -249,13 +284,11 @@ function applyChannelAssets(channel) {
     isNightly ? `${tagShort} (Linux .AppImage)` : `${tagName} (Linux .AppImage)`
   );
 
-  if (apkAsset) {
-    updateDownloadBtn(
-      'btn-download-mobile', 
-      apkAsset.browser_download_url, 
-      isNightly ? `${tagShort} (.apk)` : `${tagName} (.apk)`
-    );
-  }
+  updateDownloadBtn(
+    'btn-download-mobile', 
+    apkAsset ? apkAsset.browser_download_url : `${mobRepoBase}/tag/${mobTagName}`, 
+    isNightly ? `${mobTagShort} (.apk)` : `${mobTagName} (.apk)`
+  );
 }
 
 function updateDownloadBtn(btnId, url, labelSuffix) {

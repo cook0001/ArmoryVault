@@ -311,7 +311,7 @@ declare global {
 
 export interface SyncItem {
   id?: number;
-  type: 'ammo_adjustment' | 'component_adjustment' | 'accessory_adjustment' | 'firearm_log' | 'firearm_photo' | 'universal_scan' | 'range_session';
+  type: 'ammo_adjustment' | 'component_adjustment' | 'accessory_adjustment' | 'firearm_log' | 'firearm_photo' | 'universal_scan' | 'range_session' | 'firearm_maintenance' | 'bill_of_sale_transfer';
   upcOrId?: string;
   action?: 'add' | 'remove';
   count?: number;
@@ -324,5 +324,17 @@ export interface SyncItem {
   notes?: string;
   cost?: number;
   photo_data?: string;
+  photoBase64?: string;
   log_type?: string;
+  group_metrics?: any;
+  malfunctions?: any[];
+  ammo_compatibility_flag?: any;
+  voice_transcript?: string;
+  audio_base64?: string;
+  bill_of_sale?: any;
+  transfer_id?: string;
+  buyer_name?: string;
+  buyer_dl?: string;
+  sale_price?: number;
+  pdf_base64?: string;
 }

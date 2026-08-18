@@ -390,6 +390,31 @@ export const SyncInbox = () => {
         await window.api.removeSyncItem(item.id!);
         loadData();
       }
+    } else if (item.type === 'firearm_maintenance') {
+      const fId = Number(item.firearm_id);
+      const firearm = firearms.find(f => f.id === fId);
+      if (firearm && window.api && window.api.updateFirearm) {
+        const logNote = `[Maintenance] ${item.notes || (item as any).service_type || 'Service performed'} on ${item.date || new Date().toLocaleDateString()}`;
+        const updatedNotes = firearm.notes ? `${firearm.notes}\n${logNote}` : logNote;
+        await window.api.updateFirearm(fId, { ...firearm, notes: updatedNotes });
+      }
+      await window.api.removeSyncItem(item.id!);
+      loadData();
+    } else if (item.type === 'bill_of_sale_transfer') {
+      const fId = Number(item.firearm_id);
+      const firearm = firearms.find(f => f.id === fId);
+      if (firearm && window.api && window.api.updateFirearm) {
+        const transferNote = `[SOLD / TRANSFERRED] Transferred to ${item.buyer_name || 'Buyer'} (DL: ${item.buyer_dl || 'On File'}) for $${item.sale_price || 0} on ${item.date || new Date().toLocaleDateString()}. Bill of Sale ID: ${item.transfer_id || 'N/A'}`;
+        const updatedNotes = firearm.notes ? `${firearm.notes}\n${transferNote}` : transferNote;
+        
+        await window.api.updateFirearm(fId, {
+          ...firearm,
+          condition: 'Sold / Transferred',
+          notes: updatedNotes
+        });
+      }
+      await window.api.removeSyncItem(item.id!);
+      loadData();
     }
   };
 
@@ -854,9 +879,38 @@ export const SyncInbox = () => {
                                 </span>
                               )}
                             </div>
+                            {item.group_metrics && (
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem', padding: '0.4rem 0.75rem', background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.4)', borderRadius: '6px' }}>
+                                <span style={{ color: '#34d399', fontWeight: 'bold', fontSize: '0.85rem' }}>
+                                  🎯 {item.group_metrics.moa} MOA Group ({item.group_metrics.extremeSpreadInches || item.group_metrics.extreme_spread_in}")
+                                </span>
+                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                                  {item.group_metrics.shotCount || item.group_metrics.shot_count} Shots &bull; Mean Radius: {item.group_metrics.meanRadiusInches || item.group_metrics.mean_radius_in}"
+                                </span>
+                              </div>
+                            )}
+
+                            {item.group_metrics?.turretAdjustment && (
+                              <div style={{ color: '#38bdf8', fontSize: '0.8rem', marginTop: '0.35rem', fontWeight: '600' }}>
+                                🔭 Scope Zero: Dial {item.group_metrics.turretAdjustment.elevationDirection} {item.group_metrics.turretAdjustment.elevationClicks} clicks, {item.group_metrics.turretAdjustment.windageDirection} {item.group_metrics.turretAdjustment.windageClicks} clicks ({item.group_metrics.turretAdjustment.clickUnitLabel})
+                              </div>
+                            )}
+
                             {item.notes && (
-                              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem', fontStyle: 'italic' }}>
+                              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.35rem', fontStyle: 'italic' }}>
                                 Notes: {item.notes}
+                              </div>
+                            )}
+
+                            {item.photoBase64 && (
+                              <div style={{ marginTop: '0.75rem' }}>
+                                <img 
+                                  src={item.photoBase64} 
+                                  alt="Target Grouping" 
+                                  style={{ height: '80px', borderRadius: '6px', border: '1px solid var(--border-color)', cursor: 'pointer', objectFit: 'cover' }}
+                                  onClick={() => window.open(item.photoBase64)}
+                                  title="Click to view full target"
+                                />
                               </div>
                             )}
                           </div>
@@ -865,6 +919,88 @@ export const SyncInbox = () => {
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                           <button className="btn-primary" onClick={() => handleApprove(item)} style={{ background: 'var(--success)' }}>
                             Approve
+                          </button>
+                          <button className="btn-icon" onClick={() => handleDelete(item.id!)} style={{ color: 'var(--danger)' }} title="Decline / Delete">
+                            <Trash2 size={20} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  } else if (item.type === 'firearm_maintenance') {
+                    const fId = Number(item.firearm_id);
+                    const firearm = firearms.find(f => f.id === fId);
+
+                    return (
+                      <div key={item.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.5rem', background: 'rgba(56, 189, 248, 0.03)', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                            <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 'bold' }}>Firearm Maintenance</span>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{item.date || new Date(item.timestamp).toLocaleDateString()}</span>
+                          </div>
+
+                          <div>
+                            <h3 style={{ fontSize: '1.15rem', margin: '0 0 0.25rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <CheckCircle size={18} color="#38bdf8" />
+                              {firearm ? `${firearm.make} ${firearm.model}` : `Firearm #${fId}`}
+                            </h3>
+                            <div style={{ fontSize: '0.9rem', color: 'var(--text-primary)', marginTop: '0.25rem' }}>
+                              Service: <strong style={{ color: '#38bdf8' }}>{item.notes || (item as any).service_type || 'Service Performed'}</strong>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button className="btn-primary" onClick={() => handleApprove(item)} style={{ background: 'var(--success)' }}>
+                            Approve
+                          </button>
+                          <button className="btn-icon" onClick={() => handleDelete(item.id!)} style={{ color: 'var(--danger)' }} title="Decline / Delete">
+                            <Trash2 size={20} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  } else if (item.type === 'bill_of_sale_transfer') {
+                    const fId = Number(item.firearm_id);
+                    const firearm = firearms.find(f => f.id === fId);
+
+                    return (
+                      <div key={item.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.5rem', background: 'rgba(16, 185, 129, 0.03)', border: '1px solid rgba(16, 185, 129, 0.4)' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                            <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 'bold' }}>Private Bill of Sale</span>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{item.date || new Date(item.timestamp).toLocaleDateString()}</span>
+                            {item.transfer_id && (
+                              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>ID: {item.transfer_id}</span>
+                            )}
+                          </div>
+
+                          <div>
+                            <h3 style={{ fontSize: '1.15rem', margin: '0 0 0.25rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <CheckCircle size={18} color="#10b981" />
+                              {firearm ? `${firearm.make} ${firearm.model}` : `Firearm #${fId}`}
+                              <span style={{ fontSize: '0.9rem', color: '#10b981', fontWeight: 'normal' }}>— Sold for ${item.sale_price || 0}</span>
+                            </h3>
+                            <div style={{ fontSize: '0.9rem', color: 'var(--text-primary)', marginTop: '0.25rem' }}>
+                              Buyer: <strong>{item.buyer_name || 'Buyer'}</strong> (DL: {item.buyer_dl || 'Verified'})
+                            </div>
+                            {item.pdf_base64 && (
+                              <div style={{ marginTop: '0.5rem' }}>
+                                <a 
+                                  href={item.pdf_base64} 
+                                  download={`BillOfSale_${item.transfer_id || 'transfer'}.pdf`}
+                                  className="btn-secondary" 
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.3rem 0.7rem', fontSize: '0.8rem', textDecoration: 'none' }}
+                                >
+                                  📄 Download Signed PDF
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button className="btn-primary" onClick={() => handleApprove(item)} style={{ background: 'var(--success)' }}>
+                            Approve & Update Bound Book
                           </button>
                           <button className="btn-icon" onClick={() => handleDelete(item.id!)} style={{ color: 'var(--danger)' }} title="Decline / Delete">
                             <Trash2 size={20} />

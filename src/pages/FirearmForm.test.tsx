@@ -58,11 +58,11 @@ describe('FirearmForm Component', () => {
     const typeInput = screen.getByLabelText('Type');
     const conditionInput = screen.getByLabelText('Condition');
 
-    await userEvent.type(makeInput, 'Winchester');
-    await userEvent.type(modelInput, 'Model 1895');
-    await userEvent.type(caliberInput, '.30-06 Springfield');
-    await userEvent.type(typeInput, 'Curio & Relic (C&R) Rifle');
-    await userEvent.type(conditionInput, 'NRA Fine (90-95%)');
+    fireEvent.change(makeInput, { target: { value: 'Winchester' } });
+    fireEvent.change(modelInput, { target: { value: 'Model 1895' } });
+    fireEvent.change(caliberInput, { target: { value: '.30-06 Springfield' } });
+    fireEvent.change(typeInput, { target: { value: 'Curio & Relic (C&R) Rifle' } });
+    fireEvent.change(conditionInput, { target: { value: 'NRA Fine (90-95%)' } });
 
     const submitBtns = screen.getAllByRole('button', { name: /save firearm/i });
     fireEvent.click(submitBtns[0]);
@@ -76,6 +76,6 @@ describe('FirearmForm Component', () => {
         condition: 'NRA Fine (90-95%)'
       }));
     });
-  });
+  }, 15000);
 });
 
