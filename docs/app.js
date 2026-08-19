@@ -284,11 +284,19 @@ function applyChannelAssets(channel) {
     isNightly ? `${tagShort} (Linux .AppImage)` : `${tagName} (Linux .AppImage)`
   );
 
+  const mobileApkUrl = apkAsset ? apkAsset.browser_download_url : `${mobRepoBase}/tag/${mobTagName}`;
+
   updateDownloadBtn(
     'btn-download-mobile', 
-    apkAsset ? apkAsset.browser_download_url : `${mobRepoBase}/tag/${mobTagName}`, 
+    mobileApkUrl, 
     isNightly ? `${mobTagShort} (.apk)` : `${mobTagName} (.apk)`
   );
+
+  // Update dynamic APK QR code image
+  const qrImg = document.getElementById('mobile-apk-qr-img');
+  if (qrImg) {
+    qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(mobileApkUrl)}&bgcolor=ffffff&color=090d16&margin=0`;
+  }
 }
 
 function updateDownloadBtn(btnId, url, labelSuffix) {
@@ -301,12 +309,13 @@ function updateDownloadBtn(btnId, url, labelSuffix) {
 }
 
 /* ==========================================================================
-   4. Interactive Showcase & Platform Tabs
+   4. Interactive Showcase & Platform Tabs (Nightly, Stable, Mobile)
    ========================================================================== */
 function initShowcaseTabs() {
-  // Hero Platform Switcher (Desktop vs Mobile)
+  // Hero Platform / Channel Switcher (Nightly vs Stable vs Mobile)
   const heroTabs = document.querySelectorAll('.hero-tab-btn');
-  const desktopShowcase = document.getElementById('showcase-desktop');
+  const nightlyShowcase = document.getElementById('showcase-nightly');
+  const stableShowcase = document.getElementById('showcase-stable');
   const mobileShowcase = document.getElementById('showcase-mobile');
 
   heroTabs.forEach(btn => {
@@ -315,34 +324,188 @@ function initShowcaseTabs() {
       btn.classList.add('active');
 
       const target = btn.dataset.target;
-      if (target === 'desktop') {
-        if (desktopShowcase) desktopShowcase.style.display = 'block';
+      if (target === 'nightly') {
+        if (nightlyShowcase) nightlyShowcase.style.display = 'block';
+        if (stableShowcase) stableShowcase.style.display = 'none';
+        if (mobileShowcase) mobileShowcase.style.display = 'none';
+      } else if (target === 'stable') {
+        if (nightlyShowcase) nightlyShowcase.style.display = 'none';
+        if (stableShowcase) stableShowcase.style.display = 'block';
         if (mobileShowcase) mobileShowcase.style.display = 'none';
       } else if (target === 'mobile') {
-        if (desktopShowcase) desktopShowcase.style.display = 'none';
+        if (nightlyShowcase) nightlyShowcase.style.display = 'none';
+        if (stableShowcase) stableShowcase.style.display = 'none';
         if (mobileShowcase) mobileShowcase.style.display = 'block';
       }
     });
   });
 
-  // Device window screen tabs (Dashboard, Ammo, Bound Book, Sync)
-  const deviceTabs = document.querySelectorAll('.device-tab');
-  const screenPanels = document.querySelectorAll('.screen-panel');
+  // Nightly Top Navigation Bar Tabs
+  const nightlyNavBtns = document.querySelectorAll('.nightly-nav-btn');
+  const nightlyPanels = document.querySelectorAll('.nightly-screen-panel');
 
-  deviceTabs.forEach(tab => {
+  nightlyNavBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      nightlyNavBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const screenId = btn.dataset.screen;
+      nightlyPanels.forEach(panel => {
+        if (panel.id === screenId) {
+          panel.style.display = 'block';
+          panel.classList.add('active');
+        } else {
+          panel.style.display = 'none';
+          panel.classList.remove('active');
+        }
+      });
+    });
+  });
+
+  // Nightly Tactical Filter Chips
+  const filterChips = document.querySelectorAll('#nightly-filter-chips .filter-chip');
+  const cardItems = document.querySelectorAll('#nightly-card-grid .inventory-item');
+  const tableRows = document.querySelectorAll('#nightly-table-rows tr');
+
+  filterChips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      filterChips.forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+
+      const cat = chip.dataset.category;
+
+      // Filter Cards
+      cardItems.forEach(item => {
+        if (cat === 'all') {
+          item.style.display = 'flex';
+        } else if (cat === 'servicedue') {
+          item.style.display = item.dataset.servicedue === 'true' ? 'flex' : 'none';
+        } else {
+          item.style.display = item.dataset.category === cat ? 'flex' : 'none';
+        }
+      });
+
+      // Filter Table Rows
+      tableRows.forEach(row => {
+        if (cat === 'all') {
+          row.style.display = '';
+        } else if (cat === 'servicedue') {
+          row.style.display = row.dataset.servicedue === 'true' ? '' : 'none';
+        } else {
+          row.style.display = row.dataset.category === cat ? '' : 'none';
+        }
+      });
+    });
+  });
+
+  // View Mode Switcher (Cards vs Table)
+  const btnViewCards = document.getElementById('btn-view-cards');
+  const btnViewTable = document.getElementById('btn-view-table');
+  const cardGrid = document.getElementById('nightly-card-grid');
+  const tableGrid = document.getElementById('nightly-table-grid');
+
+  if (btnViewCards && btnViewTable) {
+    btnViewCards.addEventListener('click', () => {
+      btnViewCards.classList.add('active');
+      btnViewTable.classList.remove('active');
+      if (cardGrid) cardGrid.style.display = 'grid';
+      if (tableGrid) tableGrid.style.display = 'none';
+    });
+
+    btnViewTable.addEventListener('click', () => {
+      btnViewTable.classList.add('active');
+      btnViewCards.classList.remove('active');
+      if (cardGrid) cardGrid.style.display = 'none';
+      if (tableGrid) tableGrid.style.display = 'block';
+    });
+  }
+
+  // Depot Sub-Tabs (Live vs Reloading vs Overview)
+  const depotTabs = document.querySelectorAll('.depot-tab');
+  depotTabs.forEach(tab => {
     tab.addEventListener('click', () => {
-      deviceTabs.forEach(t => t.classList.remove('active'));
-      screenPanels.forEach(p => p.classList.remove('active'));
-
+      depotTabs.forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
-      const screenId = tab.dataset.screen;
-      const targetPanel = document.getElementById(`screen-${screenId}`);
-      if (targetPanel) {
-        targetPanel.classList.add('active');
-      }
     });
   });
 }
+
+// Global helper for quick range sim switch
+window.triggerRangeSimQuick = function() {
+  const rangeNavBtn = document.querySelector('.nightly-nav-btn[data-screen="nightly-range"]');
+  if (rangeNavBtn) rangeNavBtn.click();
+};
+
+// Global helper for interactive batch manufacture simulation
+window.executeBatchManufactureSim = function() {
+  const powderEl = document.getElementById('sim-powder-val');
+  const primerEl = document.getElementById('sim-primer-val');
+  const bulletEl = document.getElementById('sim-bullet-val');
+  const ammo9mmEl = document.getElementById('depot-9mm-count');
+  const totalAmmoEl = document.getElementById('nightly-val-ammo');
+  const btn = document.getElementById('btn-run-batch-sim');
+
+  let currentPowder = parseFloat(powderEl?.textContent || '3.00');
+  let currentPrimers = parseInt((primerEl?.textContent || '2,500').replace(/,/g, ''), 10);
+  let currentBullets = parseInt((bulletEl?.textContent || '1,200').replace(/,/g, ''), 10);
+  let current9mm = parseInt((ammo9mmEl?.textContent || '2,450').replace(/[^0-9]/g, ''), 10);
+  let currentTotal = parseInt((totalAmmoEl?.textContent || '9,420').replace(/[^0-9]/g, ''), 10);
+
+  if (currentPrimers < 50 || currentBullets < 50) {
+    alert('Insufficient components remaining on bench for another 50-round batch.');
+    return;
+  }
+
+  // Deduct components & add ammo
+  currentPowder = Math.max(0, currentPowder - 0.03);
+  currentPrimers -= 50;
+  currentBullets -= 50;
+  current9mm += 50;
+  currentTotal += 50;
+
+  if (powderEl) powderEl.textContent = currentPowder.toFixed(2);
+  if (primerEl) primerEl.textContent = currentPrimers.toLocaleString();
+  if (bulletEl) bulletEl.textContent = currentBullets.toLocaleString();
+  if (ammo9mmEl) ammo9mmEl.textContent = `${current9mm.toLocaleString()} rds`;
+  if (totalAmmoEl) totalAmmoEl.innerHTML = `${currentTotal.toLocaleString()} <span style="font-size: 0.75rem; font-weight: 500;">rds</span>`;
+
+  if (btn) {
+    const orig = btn.innerHTML;
+    btn.innerHTML = `<span>✓ Manufactured +50 rds 9mm!</span>`;
+    btn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+    setTimeout(() => {
+      btn.innerHTML = orig;
+      btn.style.background = '';
+    }, 2200);
+  }
+};
+
+// Global helper for simulated vault locking animation
+window.simulateVaultLockAnimation = function() {
+  const container = document.getElementById('showcase-nightly');
+  if (!container) return;
+
+  const originalBody = container.querySelector('.device-body');
+  if (!originalBody) return;
+
+  const lockOverlay = document.createElement('div');
+  lockOverlay.id = 'sim-lock-overlay';
+  lockOverlay.style.cssText = 'position: absolute; top: 48px; left: 0; right: 0; bottom: 0; background: rgba(11, 15, 25, 0.95); backdrop-filter: blur(20px); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 50; padding: 2rem; text-align: center; animation: fadeIn 0.25s ease-out;';
+  lockOverlay.innerHTML = `
+    <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+    </div>
+    <h3 style="color: #fff; font-size: 1.3rem; margin-bottom: 0.5rem;">Vault Locked &amp; Encrypted</h3>
+    <p style="color: #94a3b8; max-width: 420px; font-size: 0.85rem; margin-bottom: 1.25rem;">
+      Decryption keys purged from PC memory. The paired Mobile Companion app maintains its offline cache for range sessions.
+    </p>
+    <button class="btn btn-primary btn-sm" onclick="document.getElementById('sim-lock-overlay')?.remove()">
+      <span>Unlock Simulated Vault</span>
+    </button>
+  `;
+
+  container.appendChild(lockOverlay);
+};
 
 /* ==========================================================================
    5. Interactive Range Session Simulator Demo
@@ -357,25 +520,25 @@ function initRangeSimulator() {
 
   // Interactive state
   const state = {
-    'glock19': { name: 'Glock 19 Gen 5', caliber: '9mm Luger', roundsFired: 1250, ammoStock: 2450, serviceInterval: 2500 },
-    'ddm4': { name: 'Daniel Defense DDM4 V7', caliber: '5.56x45mm NATO', roundsFired: 3100, ammoStock: 1800, serviceInterval: 5000 },
-    'm1garand': { name: 'M1 Garand (Springfield)', caliber: '.30-06 Springfield', roundsFired: 640, ammoStock: 820, serviceInterval: 1000 }
+    'glock19': { name: 'Glock 19 Gen 5', caliber: '9mm Luger', roundsFired: 1250, ammoStock: 2450, serviceInterval: 2500, countElId: 'nightly-gun-glock-rounds', ammoElId: 'depot-9mm-count' },
+    'ddm4': { name: 'Daniel Defense DDM4 V7', caliber: '5.56 NATO', roundsFired: 3100, ammoStock: 1800, serviceInterval: 5000, countElId: 'nightly-gun-ddm4-rounds', ammoElId: 'depot-556-count' },
+    'm1garand': { name: 'M1 Garand (Springfield)', caliber: '.30-06 Springfield', roundsFired: 640, ammoStock: 820, serviceInterval: 1000, countElId: 'nightly-gun-m1-rounds' }
   };
 
   function updateDisplay() {
     const selectedKey = firearmSelect.value;
     const item = state[selectedKey];
 
-    const roundsCountEl = document.getElementById(`val-rounds-${selectedKey}`);
-    const ammoStockEl = document.getElementById(`val-ammo-${selectedKey}`);
-    const progressEl = document.getElementById(`val-progress-${selectedKey}`);
+    const roundsCountEl = document.getElementById(item.countElId);
+    const ammoStockEl = item.ammoElId ? document.getElementById(item.ammoElId) : null;
+    const totalRoundsEl = document.getElementById('nightly-val-rounds');
 
     if (roundsCountEl) roundsCountEl.textContent = item.roundsFired.toLocaleString();
-    if (ammoStockEl) ammoStockEl.textContent = item.ammoStock.toLocaleString();
+    if (ammoStockEl) ammoStockEl.textContent = `${item.ammoStock.toLocaleString()} rds`;
     
-    if (progressEl) {
-      const pct = Math.min(100, Math.round((item.roundsFired / item.serviceInterval) * 100));
-      progressEl.style.width = `${pct}%`;
+    if (totalRoundsEl) {
+      const totalAll = Object.values(state).reduce((sum, g) => sum + g.roundsFired, 13660);
+      totalRoundsEl.textContent = totalAll.toLocaleString();
     }
   }
 
@@ -401,11 +564,13 @@ function initRangeSimulator() {
     updateDisplay();
 
     // Show visual confirmation
-    feedbackBox.style.display = 'flex';
-    feedbackBox.innerHTML = `
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-      <span><strong>Logged ${rounds} rounds</strong> to ${item.name}! Ammo stock decremented by ${rounds} rds. Telemetry wear counter updated.</span>
-    `;
+    if (feedbackBox) {
+      feedbackBox.style.display = 'flex';
+      feedbackBox.innerHTML = `
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        <span><strong>Logged ${rounds} rounds</strong> to ${item.name}! Stock decremented by ${rounds} rds. Telemetry wear counter updated.</span>
+      `;
+    }
 
     // Button pulse animation
     fireLogBtn.style.transform = 'scale(0.96)';

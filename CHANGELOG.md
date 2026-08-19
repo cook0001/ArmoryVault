@@ -3,6 +3,11 @@
 ## [2.8.0-nightly.2]
 ### Preview & Community Bug Testing Release
 - **Mobile Companion Remote Vault Lock & Sync Hardening**: Added `/api/vault/lock` and `/api/lock` HTTP endpoints and IPC broadcast listener allowing paired mobile companion apps to remotely lock the desktop vault over local Wi-Fi, immediately clearing decryption keys from PC memory and navigating the desktop UI to the secure `VaultLogin` screen.
+- **Official Web Portal Enhancements**:
+  - Added PayPal donation button (`paypal.me/ArmoryVault`) across top navbar, mobile navigation drawer, support cards, and footer.
+  - Added Dual Interactive Showcase Models with toggle switcher for Nightly Command Center (`v2.8.0`), Stable Release (`v2.7.1`), and Mobile Companion (`v2.6.0`).
+  - Added direct scannable APK QR code for smartphone camera downloads with dynamic release channel synchronization.
+  - Updated mobile companion download spotlight with new high-definition tactical cyber shield branding.
 
 ## [2.8.0-nightly.1]
 ### Preview & Community Bug Testing Release

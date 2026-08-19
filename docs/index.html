@@ -73,29 +73,28 @@
 
       <ul class="nav-links">
         <li><a href="#features" class="nav-link">Features</a></li>
-        <li><a href="#privacy" class="nav-link">Zero-Cloud Security</a></li>
-        <li><a href="#download" class="nav-link">Download</a></li>
-        <li><a href="#donate" class="nav-link">Donate</a></li>
-        <li><a href="#feedback" class="nav-link">Suggest &amp; Report</a></li>
+        <li><a href="#privacy" class="nav-link">Security</a></li>
+        <li><a href="#download" class="nav-link">Downloads</a></li>
+        <li><a href="#feedback" class="nav-link">Feedback</a></li>
         <li><a href="#faq" class="nav-link">FAQ</a></li>
       </ul>
 
       <div class="nav-actions">
-        <a href="https://paypal.me/ArmoryVault" target="_blank" rel="noopener" class="btn btn-paypal btn-sm" title="Support ArmoryVault on PayPal">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+        <a href="https://paypal.me/ArmoryVault" target="_blank" rel="noopener" class="btn btn-paypal btn-nav-donate" title="Support ArmoryVault on PayPal">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
             <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.004.524 5.33.24 5.713.24h8.283c3.08 0 5.438.747 6.456 2.062.915 1.18.995 2.76.24 4.697-.107.275-.236.544-.383.805-.72 1.282-1.874 2.228-3.431 2.813 1.956.49 3.09 1.785 2.664 3.868-.504 2.457-2.456 3.86-5.803 3.86H9.72c-.442 0-.816.326-.886.763l-.758 4.795a.641.641 0 0 1-.633.541l-.367-.307z"/>
           </svg>
           <span>Donate</span>
         </a>
-        <a href="https://github.com/cook0001/ArmoryVault" target="_blank" rel="noopener" class="btn-github">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+        <a href="https://github.com/cook0001/ArmoryVault" target="_blank" rel="noopener" class="btn-github btn-nav-github" title="View Source on GitHub">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
           </svg>
-          <span>GitHub</span>
+          <span class="github-text">GitHub</span>
         </a>
-        <a href="#download" class="btn btn-primary btn-sm">
-          <span>Get ArmoryVault</span>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        <a href="#download" class="btn btn-primary btn-sm btn-nav-cta">
+          <span>Get App</span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </a>
       </div>
 
@@ -167,15 +166,19 @@
           </div>
         </div>
 
-        <!-- Platform Switcher -->
+        <!-- Platform & Release Switcher -->
         <div class="hero-switcher">
-          <button class="hero-tab-btn active" data-target="desktop">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
-            <span>Desktop Application</span>
+          <button class="hero-tab-btn active" data-target="nightly">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+            <span>⚡ Nightly Command Center (v2.8.0)</span>
+          </button>
+          <button class="hero-tab-btn" data-target="stable">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
+            <span>🎯 Stable Release (v2.7.1)</span>
           </button>
           <button class="hero-tab-btn" data-target="mobile">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
-            <span>Mobile Companion App</span>
+            <span>📱 Mobile Companion (v2.6.0)</span>
           </button>
         </div>
       </div>
@@ -184,217 +187,438 @@
       <div class="container showcase-wrapper" id="showcase">
         <div class="showcase-glow" aria-hidden="true"></div>
 
-        <!-- Desktop Showcase View -->
-        <div class="device-frame" id="showcase-desktop">
-          <div class="device-header">
-            <div class="window-dots">
-              <span class="window-dot red"></span>
-              <span class="window-dot yellow"></span>
-              <span class="window-dot green"></span>
+        <!-- 1. NIGHTLY COMMAND CENTER MODEL (v2.8.0 Live App Replica) -->
+        <div class="device-frame" id="showcase-nightly">
+          <!-- Live Top Navigation Bar -->
+          <div class="nightly-topbar">
+            <div class="nightly-topbar-brand">
+              <div class="brand-icon" style="width: 28px; height: 28px; border-radius: 6px;">
+                <img src="assets/icon.png" alt="ArmoryVault" />
+              </div>
+              <span>ArmoryVault</span>
+              <span class="brand-tag" style="background: rgba(59, 130, 246, 0.2); color: #93c5fd; border-color: rgba(59, 130, 246, 0.4);">
+                v2.8.0-nightly
+              </span>
             </div>
-            <div class="device-title">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-              <span>ArmoryVault Pro &mdash; Encrypted Local Vault</span>
+
+            <!-- Topbar Center Navigation -->
+            <div class="nightly-nav-links">
+              <button class="nightly-nav-btn active" data-screen="nightly-dashboard">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                <span>Command Center</span>
+              </button>
+              <button class="nightly-nav-btn" data-screen="nightly-depot">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                <span>Ammo &amp; Depot</span>
+              </button>
+              <button class="nightly-nav-btn" data-screen="nightly-boundbook">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                <span>ATF Bound Book</span>
+              </button>
+              <button class="nightly-nav-btn" data-screen="nightly-range">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line></svg>
+                <span>Range Sim</span>
+              </button>
             </div>
-            <div class="device-nav-tabs">
-              <button class="device-tab active" data-screen="dashboard">Dashboard</button>
-              <button class="device-tab" data-screen="ammo">Ammo & Reloading</button>
-              <button class="device-tab" data-screen="boundbook">A&D Bound Book</button>
-              <button class="device-tab" data-screen="simulator">Range Logger Sim</button>
+
+            <!-- Topbar Action Tools -->
+            <div class="nightly-topbar-actions">
+              <button class="btn btn-secondary btn-sm" onclick="triggerRangeSimQuick()" style="padding: 0.35rem 0.65rem; font-size: 0.75rem;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                <span>Log Trip</span>
+              </button>
+              <button class="btn btn-primary btn-sm" onclick="alert('In ArmoryVault Desktop, Add Firearm includes rich historic C&R datalists, military arsenals, optical mounts, and maintenance wear schedules.')" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <span>+ Firearm</span>
+              </button>
+              <button class="btn btn-secondary btn-sm" title="Mobile Sync Inbox (3 pending)" style="padding: 0.35rem 0.5rem; position: relative;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+                <span style="position: absolute; top: -3px; right: -3px; background: #ef4444; color: #fff; font-size: 0.6rem; font-weight: 700; padding: 0 4px; border-radius: 8px;">3</span>
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="simulateVaultLockAnimation()" title="Lock Vault" style="padding: 0.35rem 0.5rem; color: #f87171;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+              </button>
             </div>
           </div>
 
           <div class="device-body">
-            <!-- Screen 1: Dashboard -->
-            <div class="screen-panel active" id="screen-dashboard">
-              <div class="mockup-grid">
-                <div class="mockup-sidebar">
-                  <div class="mockup-nav-item active">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
-                    <span>Dashboard</span>
-                  </div>
-                  <div class="mockup-nav-item">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line></svg>
-                    <span>Firearms</span>
-                    <span class="badge-count">14</span>
-                  </div>
-                  <div class="mockup-nav-item">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                    <span>Ammunition</span>
-                    <span class="badge-count">9,420</span>
-                  </div>
-                  <div class="mockup-nav-item">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
-                    <span>Maintenance</span>
-                  </div>
-                  <div class="mockup-nav-item">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
-                    <span>Bound Book</span>
-                  </div>
+            <!-- NIGHTLY SCREEN 1: Command Center Dashboard -->
+            <div class="nightly-screen-panel active" id="nightly-screen-dashboard">
+              <!-- Metric Overview Cards -->
+              <div class="stats-row">
+                <div class="stat-card">
+                  <div class="stat-label">Total Firearms</div>
+                  <div class="stat-val">14</div>
+                  <div class="stat-sub">100% In Active Safe</div>
                 </div>
-
-                <div class="mockup-content">
-                  <div class="stats-row">
-                    <div class="stat-card">
-                      <div class="stat-label">Total Weapons</div>
-                      <div class="stat-val">14</div>
-                      <div class="stat-sub">100% Accounted For</div>
-                    </div>
-                    <div class="stat-card">
-                      <div class="stat-label">Total Ammo Count</div>
-                      <div class="stat-val">9,420 <span style="font-size: 0.8rem; font-weight: 500;">rds</span></div>
-                      <div class="stat-sub">+350 Scanned via QR</div>
-                    </div>
-                    <div class="stat-card">
-                      <div class="stat-label">Rounds Fired (All-Time)</div>
-                      <div class="stat-val">18,650</div>
-                      <div class="stat-sub">Telemetry Active</div>
-                    </div>
-                    <div class="stat-card">
-                      <div class="stat-label">Estimated Valuation</div>
-                      <div class="stat-val">$18,420</div>
-                      <div class="stat-sub">Insurance Ready</div>
-                    </div>
-                  </div>
-
-                  <div class="firearm-card-preview">
-                    <div class="inventory-item">
-                      <div class="inventory-item-header">
-                        <span class="inventory-make">Glock</span>
-                        <span class="inventory-caliber-badge">9x19mm</span>
-                      </div>
-                      <div class="inventory-model">Glock 19 Gen 5 MOS</div>
-                      <div class="inventory-telemetry">
-                        <span>Rounds: <strong id="val-rounds-glock19">1,250</strong></span>
-                        <span style="color: var(--accent-emerald);">Wear: 50%</span>
-                      </div>
-                    </div>
-
-                    <div class="inventory-item">
-                      <div class="inventory-item-header">
-                        <span class="inventory-make">Daniel Defense</span>
-                        <span class="inventory-caliber-badge">5.56 NATO</span>
-                      </div>
-                      <div class="inventory-model">DDM4 V7 (Optic Mounted)</div>
-                      <div class="inventory-telemetry">
-                        <span>Rounds: <strong id="val-rounds-ddm4">3,100</strong></span>
-                        <span style="color: var(--accent-amber);">Recoil Spring Due</span>
-                      </div>
-                    </div>
-
-                    <div class="inventory-item">
-                      <div class="inventory-item-header">
-                        <span class="inventory-make">Springfield</span>
-                        <span class="inventory-caliber-badge">.30-06 Sprg</span>
-                      </div>
-                      <div class="inventory-model">M1 Garand (C&R)</div>
-                      <div class="inventory-telemetry">
-                        <span>Rounds: <strong id="val-rounds-m1garand">640</strong></span>
-                        <span style="color: var(--accent-emerald);">Op Rod Greased</span>
-                      </div>
-                    </div>
-                  </div>
+                <div class="stat-card">
+                  <div class="stat-label">Live Ammunition Stock</div>
+                  <div class="stat-val" id="nightly-val-ammo">9,420 <span style="font-size: 0.75rem; font-weight: 500;">rds</span></div>
+                  <div class="stat-sub">+350 Scanned via QR</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Rounds Fired (Lifetime)</div>
+                  <div class="stat-val" id="nightly-val-rounds">18,650</div>
+                  <div class="stat-sub">Telemetry Active</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Collection Valuation</div>
+                  <div class="stat-val">$18,420</div>
+                  <div class="stat-sub">Insurance Certified</div>
                 </div>
               </div>
-            </div>
 
-            <!-- Screen 2: Ammo & Reloading -->
-            <div class="screen-panel" id="screen-ammo">
-              <div style="text-align: left;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                  <h3 style="font-size: 1.1rem;">Ammunition & Handload Depot</h3>
-                  <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.3);">
-                    Low Stock Threshold Alerts Active
-                  </span>
+              <!-- Tactical Control Deck: Category Filters & View Toggle -->
+              <div class="tactical-control-deck">
+                <div class="filter-chips-bar" id="nightly-filter-chips">
+                  <button class="filter-chip active" data-category="all">All (14)</button>
+                  <button class="filter-chip" data-category="handgun">Handguns (6)</button>
+                  <button class="filter-chip" data-category="rifle">Rifles (5)</button>
+                  <button class="filter-chip" data-category="shotgun">Shotguns (2)</button>
+                  <button class="filter-chip" data-category="cr">C&amp;R / Vintage (3)</button>
+                  <button class="filter-chip" data-category="nfa">NFA / Suppressed (1)</button>
+                  <button class="filter-chip warning" data-category="servicedue">⚠️ Service Due (2)</button>
                 </div>
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
-                  <div class="stat-card" style="border-left: 4px solid var(--accent-primary);">
-                    <div style="font-size: 0.75rem; color: var(--text-muted);">9MM LUGER (DEFENSIVE & TARGET)</div>
-                    <div style="font-size: 1.3rem; font-weight: 700; margin: 0.3rem 0;" id="val-ammo-glock19">2,450 rds</div>
-                    <div style="font-size: 0.75rem; color: var(--text-secondary);">Federal HST 124gr + Blazer Brass 115gr</div>
-                  </div>
-                  <div class="stat-card" style="border-left: 4px solid var(--accent-emerald);">
-                    <div style="font-size: 0.75rem; color: var(--text-muted);">5.56X45MM NATO / .223 REM</div>
-                    <div style="font-size: 1.3rem; font-weight: 700; margin: 0.3rem 0;" id="val-ammo-ddm4">1,800 rds</div>
-                    <div style="font-size: 0.75rem; color: var(--text-secondary);">PMC X-TAC M855 62gr Green Tip</div>
-                  </div>
-                  <div class="stat-card" style="border-left: 4px solid var(--accent-amber);">
-                    <div style="font-size: 0.75rem; color: var(--text-muted);">.30-06 SPRINGFIELD (M2 BALL)</div>
-                    <div style="font-size: 1.3rem; font-weight: 700; margin: 0.3rem 0;" id="val-ammo-m1garand">820 rds</div>
-                    <div style="font-size: 0.75rem; color: var(--text-secondary);">HXP Surplus 150gr En Bloc Clips</div>
-                  </div>
-                </div>
-                <div style="margin-top: 1.5rem; padding: 1rem; background: rgba(11, 15, 25, 0.6); border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
-                  <div style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-primary);">Reloading Components Inventory:</div>
-                  <div style="display: flex; gap: 1rem; font-size: 0.8rem; color: var(--text-secondary); flex-wrap: wrap;">
-                    <span>⚡ <strong>Powder:</strong> Varget (4 lbs), CFE 223 (2 lbs), Titegroup (3 lbs)</span>
-                    <span>⚡ <strong>Primers:</strong> CCI #400 Small Rifle (3,000 ct), Federal #205M (1,000 ct)</span>
-                    <span>⚡ <strong>Projectiles:</strong> Sierra 77gr TMK (500 ct), Hornady 124gr XTP (800 ct)</span>
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            <!-- Screen 3: Bound Book -->
-            <div class="screen-panel" id="screen-boundbook">
-              <div style="text-align: left;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                  <h3 style="font-size: 1.1rem;">ATF Acquisition & Disposition (A&D) Bound Book</h3>
-                  <button class="btn btn-secondary btn-sm" onclick="alert('In ArmoryVault, clicking Print generates a stark 8.5x11 printable PDF ledger with zero printer distortion.')">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-                    <span>Print Standard 8.5x11 Ledger</span>
+                <div class="view-mode-toggle">
+                  <button class="view-btn active" id="btn-view-cards" title="Tactical Card View">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    <span>Cards</span>
+                  </button>
+                  <button class="view-btn" id="btn-view-table" title="Compact Table View">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                    <span>Table</span>
                   </button>
                 </div>
-                <div style="overflow-x: auto; background: rgba(11, 15, 25, 0.8); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
-                  <table style="width: 100%; border-collapse: collapse; font-size: 0.775rem; text-align: left;">
-                    <thead>
-                      <tr style="border-bottom: 1px solid var(--border-light); background: rgba(30, 41, 59, 0.5);">
-                        <th style="padding: 0.6rem;">Serial #</th>
-                        <th style="padding: 0.6rem;">Manufacturer</th>
-                        <th style="padding: 0.6rem;">Model</th>
-                        <th style="padding: 0.6rem;">Type / Caliber</th>
-                        <th style="padding: 0.6rem;">Acquisition Date & From</th>
-                        <th style="padding: 0.6rem;">Disposition Date & To</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr style="border-bottom: 1px solid var(--border-subtle);">
-                        <td style="padding: 0.6rem; font-family: var(--font-mono); color: #93c5fd;">BKWW492</td>
-                        <td style="padding: 0.6rem;">Glock Inc.</td>
-                        <td style="padding: 0.6rem;">19 Gen 5 MOS</td>
-                        <td style="padding: 0.6rem;">Pistol / 9x19mm</td>
-                        <td style="padding: 0.6rem;">2024-03-12 (Palmetto State Armory)</td>
-                        <td style="padding: 0.6rem; color: var(--text-muted);">[ In Active Vault ]</td>
-                      </tr>
-                      <tr style="border-bottom: 1px solid var(--border-subtle);">
-                        <td style="padding: 0.6rem; font-family: var(--font-mono); color: #93c5fd;">DD089312</td>
-                        <td style="padding: 0.6rem;">Daniel Defense</td>
-                        <td style="padding: 0.6rem;">DDM4 V7</td>
-                        <td style="padding: 0.6rem;">Rifle / 5.56x45mm NATO</td>
-                        <td style="padding: 0.6rem;">2023-08-19 (Brownells FFL)</td>
-                        <td style="padding: 0.6rem; color: var(--text-muted);">[ In Active Vault ]</td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 0.6rem; font-family: var(--font-mono); color: #93c5fd;">3491024</td>
-                        <td style="padding: 0.6rem;">Springfield Armory</td>
-                        <td style="padding: 0.6rem;">M1 Garand</td>
-                        <td style="padding: 0.6rem;">C&R Rifle / .30-06 Sprg</td>
-                        <td style="padding: 0.6rem;">2022-11-05 (CMP - Service Grade)</td>
-                        <td style="padding: 0.6rem; color: var(--text-muted);">[ In Active Vault ]</td>
-                      </tr>
-                    </tbody>
-                  </table>
+              </div>
+
+              <!-- View 1: Tactical Card Grid View -->
+              <div class="firearm-card-preview" id="nightly-card-grid">
+                <!-- Firearm 1: Glock 19 -->
+                <div class="inventory-item" data-category="handgun" data-servicedue="false">
+                  <div class="inventory-item-header">
+                    <span class="inventory-make">Glock Inc.</span>
+                    <span class="inventory-caliber-badge">9x19mm</span>
+                  </div>
+                  <div class="inventory-model">Glock 19 Gen 5 MOS</div>
+                  <div class="accessory-pill-cloud">
+                    <span class="accessory-pill">Trijicon RMR Type 2</span>
+                    <span class="accessory-pill">Streamlight TLR-7A</span>
+                  </div>
+                  <div class="wear-meter-box">
+                    <div class="wear-meter-header">
+                      <span>Rounds: <strong id="nightly-gun-glock-rounds">1,250</strong></span>
+                      <span style="color: var(--accent-emerald);">Wear: 25%</span>
+                    </div>
+                    <div class="wear-progress-bar">
+                      <div class="wear-progress-fill" style="width: 25%; background: var(--accent-emerald);"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Firearm 2: DDM4 V7 -->
+                <div class="inventory-item" data-category="rifle" data-servicedue="true">
+                  <div class="inventory-item-header">
+                    <span class="inventory-make">Daniel Defense</span>
+                    <span class="inventory-caliber-badge">5.56 NATO</span>
+                  </div>
+                  <div class="inventory-model">DDM4 V7 (Duty Rifle)</div>
+                  <div class="accessory-pill-cloud">
+                    <span class="accessory-pill">Vortex Razor HD 1-6x</span>
+                    <span class="accessory-pill">Cloud Defensive REIN</span>
+                  </div>
+                  <div class="wear-meter-box">
+                    <div class="wear-meter-header">
+                      <span>Rounds: <strong id="nightly-gun-ddm4-rounds">3,100</strong></span>
+                      <span style="color: var(--accent-amber);">⚠️ Recoil Spring (62%)</span>
+                    </div>
+                    <div class="wear-progress-bar">
+                      <div class="wear-progress-fill" style="width: 62%; background: var(--accent-amber);"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Firearm 3: M1 Garand -->
+                <div class="inventory-item" data-category="cr" data-servicedue="false">
+                  <div class="inventory-item-header">
+                    <span class="inventory-make">Springfield Armory</span>
+                    <span class="inventory-caliber-badge">.30-06 Sprg</span>
+                  </div>
+                  <div class="inventory-model">M1 Garand (C&amp;R Collector)</div>
+                  <div class="accessory-pill-cloud">
+                    <span class="accessory-pill">CMP Service Grade</span>
+                    <span class="accessory-pill">1943 Springfield Receiver</span>
+                  </div>
+                  <div class="wear-meter-box">
+                    <div class="wear-meter-header">
+                      <span>Rounds: <strong id="nightly-gun-m1-rounds">640</strong></span>
+                      <span style="color: var(--accent-emerald);">Op Rod Greased</span>
+                    </div>
+                    <div class="wear-progress-bar">
+                      <div class="wear-progress-fill" style="width: 12%; background: var(--accent-emerald);"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Firearm 4: Benelli M4 -->
+                <div class="inventory-item" data-category="shotgun" data-servicedue="false">
+                  <div class="inventory-item-header">
+                    <span class="inventory-make">Benelli Armi</span>
+                    <span class="inventory-caliber-badge">12 Gauge</span>
+                  </div>
+                  <div class="inventory-model">Benelli M4 Tactical (H2O)</div>
+                  <div class="accessory-pill-cloud">
+                    <span class="accessory-pill">Scalarworks Sync Mount</span>
+                    <span class="accessory-pill">Aimpoint Micro T2</span>
+                  </div>
+                  <div class="wear-meter-box">
+                    <div class="wear-meter-header">
+                      <span>Rounds: <strong>450</strong></span>
+                      <span style="color: var(--accent-emerald);">Wear: 9%</span>
+                    </div>
+                    <div class="wear-progress-bar">
+                      <div class="wear-progress-fill" style="width: 9%; background: var(--accent-emerald);"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Firearm 5: SIG Sauer P365X -->
+                <div class="inventory-item" data-category="handgun" data-servicedue="false">
+                  <div class="inventory-item-header">
+                    <span class="inventory-make">SIG Sauer</span>
+                    <span class="inventory-caliber-badge">9x19mm</span>
+                  </div>
+                  <div class="inventory-model">P365X Macro (CCW)</div>
+                  <div class="accessory-pill-cloud">
+                    <span class="accessory-pill">Holosun 507K X2</span>
+                    <span class="accessory-pill">Streamlight TLR-7 Sub</span>
+                  </div>
+                  <div class="wear-meter-box">
+                    <div class="wear-meter-header">
+                      <span>Rounds: <strong>890</strong></span>
+                      <span style="color: var(--accent-emerald);">Wear: 18%</span>
+                    </div>
+                    <div class="wear-progress-bar">
+                      <div class="wear-progress-fill" style="width: 18%; background: var(--accent-emerald);"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Firearm 6: Dead Air Sandman S (NFA) -->
+                <div class="inventory-item" data-category="nfa" data-servicedue="true">
+                  <div class="inventory-item-header">
+                    <span class="inventory-make">Dead Air Armament</span>
+                    <span class="inventory-caliber-badge">7.62 / .30 Cal</span>
+                  </div>
+                  <div class="inventory-model">Sandman-S (Form 4 Suppressor)</div>
+                  <div class="accessory-pill-cloud">
+                    <span class="accessory-pill">KeyMo QD Muzzle Brake</span>
+                    <span class="accessory-pill">NFA Tax Stamp Registered</span>
+                  </div>
+                  <div class="wear-meter-box">
+                    <div class="wear-meter-header">
+                      <span>Rounds: <strong>4,200</strong></span>
+                      <span style="color: var(--accent-amber);">⚠️ Baffle Carbon Clean Due</span>
+                    </div>
+                    <div class="wear-progress-bar">
+                      <div class="wear-progress-fill" style="width: 84%; background: var(--accent-amber);"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- View 2: Compact Table View -->
+              <div class="firearm-table-mockup" id="nightly-table-grid">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Serial #</th>
+                      <th>Make &amp; Model</th>
+                      <th>Caliber</th>
+                      <th>Type</th>
+                      <th>Rounds Fired</th>
+                      <th>Maintenance Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="nightly-table-rows">
+                    <tr data-category="handgun" data-servicedue="false">
+                      <td style="font-family: var(--font-mono); color: #93c5fd;">BKWW492</td>
+                      <td><strong>Glock 19 Gen 5 MOS</strong></td>
+                      <td><span class="inventory-caliber-badge">9x19mm</span></td>
+                      <td>Handgun</td>
+                      <td>1,250 rds</td>
+                      <td><span style="color: var(--accent-emerald);">✓ Good (25%)</span></td>
+                    </tr>
+                    <tr data-category="rifle" data-servicedue="true">
+                      <td style="font-family: var(--font-mono); color: #93c5fd;">DD089312</td>
+                      <td><strong>Daniel Defense DDM4 V7</strong></td>
+                      <td><span class="inventory-caliber-badge">5.56 NATO</span></td>
+                      <td>Rifle</td>
+                      <td>3,100 rds</td>
+                      <td><span style="color: var(--accent-amber);">⚠️ Recoil Spring Due</span></td>
+                    </tr>
+                    <tr data-category="cr" data-servicedue="false">
+                      <td style="font-family: var(--font-mono); color: #93c5fd;">3491024</td>
+                      <td><strong>Springfield M1 Garand</strong></td>
+                      <td><span class="inventory-caliber-badge">.30-06 Sprg</span></td>
+                      <td>C&amp;R Rifle</td>
+                      <td>640 rds</td>
+                      <td><span style="color: var(--accent-emerald);">✓ CMP Service Grade</span></td>
+                    </tr>
+                    <tr data-category="shotgun" data-servicedue="false">
+                      <td style="font-family: var(--font-mono); color: #93c5fd;">M4B0912</td>
+                      <td><strong>Benelli M4 Tactical</strong></td>
+                      <td><span class="inventory-caliber-badge">12 Gauge</span></td>
+                      <td>Shotgun</td>
+                      <td>450 rds</td>
+                      <td><span style="color: var(--accent-emerald);">✓ Good (9%)</span></td>
+                    </tr>
+                    <tr data-category="handgun" data-servicedue="false">
+                      <td style="font-family: var(--font-mono); color: #93c5fd;">SIG36599</td>
+                      <td><strong>SIG Sauer P365X Macro</strong></td>
+                      <td><span class="inventory-caliber-badge">9x19mm</span></td>
+                      <td>Handgun</td>
+                      <td>890 rds</td>
+                      <td><span style="color: var(--accent-emerald);">✓ Good (18%)</span></td>
+                    </tr>
+                    <tr data-category="nfa" data-servicedue="true">
+                      <td style="font-family: var(--font-mono); color: #93c5fd;">NFA-DA-849</td>
+                      <td><strong>Dead Air Sandman-S</strong></td>
+                      <td><span class="inventory-caliber-badge">7.62mm</span></td>
+                      <td>NFA Suppressor</td>
+                      <td>4,200 rds</td>
+                      <td><span style="color: var(--accent-amber);">⚠️ Baffle Cleaning Due</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- NIGHTLY SCREEN 2: Unified Depot & Batch Manufacture -->
+            <div class="nightly-screen-panel" id="nightly-screen-depot" style="display: none;">
+              <div class="depot-nav-bar">
+                <div class="depot-sub-tabs">
+                  <button class="depot-tab active" data-depot="live">🎯 Live Ammunition</button>
+                  <button class="depot-tab" data-depot="reloading">🧪 Reloading Supplies</button>
+                  <button class="depot-tab" data-depot="overview">📊 Combined Overview</button>
+                </div>
+                <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.3);">
+                  Caliber Quick-Stock Telemetry
+                </span>
+              </div>
+
+              <!-- Top Caliber Quick-Stock Cards -->
+              <div class="depot-caliber-grid">
+                <div class="caliber-stock-card" style="border-left-color: var(--accent-primary);">
+                  <div style="font-size: 0.75rem; color: var(--text-muted);">9MM LUGER / 9X19MM</div>
+                  <div style="font-size: 1.4rem; font-weight: 700; margin: 0.25rem 0;" id="depot-9mm-count">2,450 rds</div>
+                  <div style="font-size: 0.725rem; color: var(--text-secondary);">Federal HST 124gr + Handloads</div>
+                </div>
+                <div class="caliber-stock-card" style="border-left-color: var(--accent-emerald);">
+                  <div style="font-size: 0.75rem; color: var(--text-muted);">5.56X45MM / .223 REM</div>
+                  <div style="font-size: 1.4rem; font-weight: 700; margin: 0.25rem 0;" id="depot-556-count">1,800 rds</div>
+                  <div style="font-size: 0.725rem; color: var(--text-secondary);">PMC X-TAC M855 62gr Green Tip</div>
+                </div>
+                <div class="caliber-stock-card" style="border-left-color: var(--accent-amber);">
+                  <div style="font-size: 0.75rem; color: var(--text-muted);">.30-06 SPRINGFIELD</div>
+                  <div style="font-size: 1.4rem; font-weight: 700; margin: 0.25rem 0;">820 rds</div>
+                  <div style="font-size: 0.725rem; color: var(--text-secondary);">HXP Surplus M2 Ball (En Bloc)</div>
+                </div>
+                <div class="caliber-stock-card" style="border-left-color: #a855f7;">
+                  <div style="font-size: 0.75rem; color: var(--text-muted);">.45 ACP / AUTO</div>
+                  <div style="font-size: 1.4rem; font-weight: 700; margin: 0.25rem 0;">1,150 rds</div>
+                  <div style="font-size: 0.725rem; color: var(--text-secondary);">Speer Gold Dot 230gr JHP</div>
+                </div>
+              </div>
+
+              <!-- Interactive Batch Manufacture Simulator Banner -->
+              <div class="batch-sim-banner">
+                <div>
+                  <strong style="font-size: 0.95rem; color: #fff; display: block; margin-bottom: 0.2rem;">
+                    🧪 Test Integrated Batch Manufacture
+                  </strong>
+                  <span style="font-size: 0.825rem; color: var(--text-secondary);">
+                    Press to simulate manufacturing a 50-round batch of 9mm handloads. Watch powders and primers decrement while live stock increases.
+                  </span>
+                </div>
+                <button class="btn btn-emerald btn-sm" id="btn-run-batch-sim" onclick="executeBatchManufactureSim()">
+                  <span>⚡ Manufacture 50 rds 9mm</span>
+                </button>
+              </div>
+
+              <!-- Current Reloading Bench Stock Display -->
+              <div style="margin-top: 1rem; padding: 1rem; background: rgba(11, 15, 25, 0.6); border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+                <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.5rem; text-transform: uppercase;">
+                  Active Reloading Inventory:
+                </div>
+                <div style="display: flex; gap: 1.25rem; font-size: 0.825rem; color: var(--text-primary); flex-wrap: wrap;">
+                  <span>⚡ <strong>Titegroup Powder:</strong> <span id="sim-powder-val">3.00</span> lbs</span>
+                  <span>⚡ <strong>CCI #500 Small Pistol:</strong> <span id="sim-primer-val">2,500</span> ct</span>
+                  <span>⚡ <strong>124gr FMJ Bullets:</strong> <span id="sim-bullet-val">1,200</span> ct</span>
+                  <span>⚡ <strong>Starline 9mm Brass:</strong> 3,400 ct</span>
                 </div>
               </div>
             </div>
 
-            <!-- Screen 4: Simulator -->
-            <div class="screen-panel" id="screen-simulator">
+            <!-- NIGHTLY SCREEN 3: ATF A&D Bound Book -->
+            <div class="nightly-screen-panel" id="nightly-screen-boundbook" style="display: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                <h3 style="font-size: 1.05rem; color: #fff;">ATF Acquisition &amp; Disposition (A&amp;D) Bound Book</h3>
+                <button class="btn btn-secondary btn-sm" onclick="alert('In ArmoryVault Desktop, clicking Print generates a clean 8.5x11 printable PDF ledger matching ATF standard formats.')">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                  <span>Print 8.5x11 ATF Ledger</span>
+                </button>
+              </div>
+
+              <div style="overflow-x: auto; background: rgba(11, 15, 25, 0.8); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.775rem; text-align: left;">
+                  <thead>
+                    <tr style="border-bottom: 1px solid var(--border-light); background: rgba(30, 41, 59, 0.5);">
+                      <th style="padding: 0.6rem;">Serial #</th>
+                      <th style="padding: 0.6rem;">Manufacturer</th>
+                      <th style="padding: 0.6rem;">Model</th>
+                      <th style="padding: 0.6rem;">Type / Caliber</th>
+                      <th style="padding: 0.6rem;">Acquisition Date &amp; From</th>
+                      <th style="padding: 0.6rem;">Disposition Date &amp; To</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr style="border-bottom: 1px solid var(--border-subtle);">
+                      <td style="padding: 0.6rem; font-family: var(--font-mono); color: #93c5fd;">BKWW492</td>
+                      <td style="padding: 0.6rem;">Glock Inc.</td>
+                      <td style="padding: 0.6rem;">19 Gen 5 MOS</td>
+                      <td style="padding: 0.6rem;">Pistol / 9x19mm</td>
+                      <td style="padding: 0.6rem;">2024-03-12 (PSA FFL)</td>
+                      <td style="padding: 0.6rem; color: var(--accent-emerald);">[ Active in Safe ]</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--border-subtle);">
+                      <td style="padding: 0.6rem; font-family: var(--font-mono); color: #93c5fd;">DD089312</td>
+                      <td style="padding: 0.6rem;">Daniel Defense</td>
+                      <td style="padding: 0.6rem;">DDM4 V7</td>
+                      <td style="padding: 0.6rem;">Rifle / 5.56 NATO</td>
+                      <td style="padding: 0.6rem;">2023-08-19 (Brownells FFL)</td>
+                      <td style="padding: 0.6rem; color: var(--accent-emerald);">[ Active in Safe ]</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--border-subtle);">
+                      <td style="padding: 0.6rem; font-family: var(--font-mono); color: #93c5fd;">3491024</td>
+                      <td style="padding: 0.6rem;">Springfield Armory</td>
+                      <td style="padding: 0.6rem;">M1 Garand</td>
+                      <td style="padding: 0.6rem;">C&amp;R Rifle / .30-06</td>
+                      <td style="padding: 0.6rem;">2022-11-05 (CMP)</td>
+                      <td style="padding: 0.6rem; color: var(--accent-emerald);">[ Active in Safe ]</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- NIGHTLY SCREEN 4: Range Session Simulator -->
+            <div class="nightly-screen-panel" id="nightly-screen-range" style="display: none;">
               <div class="range-simulator" style="text-align: left;">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
                   <h4 style="font-size: 1rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color: var(--accent-primary);"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                    <span>Test the Live Range Session Logger</span>
+                    <span>Live Range Session Transaction Logger</span>
                   </h4>
                   <span style="font-size: 0.75rem; color: var(--accent-emerald);">Zero-latency local transaction</span>
                 </div>
@@ -426,6 +650,114 @@
           </div>
         </div>
 
+        <!-- 2. STABLE RELEASE MODEL (v2.7.1 Classic Sidebar Layout) -->
+        <div class="device-frame" id="showcase-stable" style="display: none;">
+          <div class="device-header">
+            <div class="window-dots">
+              <span class="window-dot red"></span>
+              <span class="window-dot yellow"></span>
+              <span class="window-dot green"></span>
+            </div>
+            <div class="device-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+              <span>ArmoryVault v2.7.1 &mdash; Classic Sidebar Layout</span>
+            </div>
+            <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); font-size: 0.7rem;">
+              Stable Channel
+            </span>
+          </div>
+
+          <div class="device-body">
+            <div class="mockup-grid">
+              <div class="mockup-sidebar">
+                <div class="mockup-nav-item active">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+                  <span>Dashboard</span>
+                </div>
+                <div class="mockup-nav-item">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line></svg>
+                  <span>Firearms</span>
+                  <span class="badge-count">14</span>
+                </div>
+                <div class="mockup-nav-item">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                  <span>Ammunition</span>
+                  <span class="badge-count">9,420</span>
+                </div>
+                <div class="mockup-nav-item">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+                  <span>Maintenance</span>
+                </div>
+                <div class="mockup-nav-item">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                  <span>Bound Book</span>
+                </div>
+              </div>
+
+              <div class="mockup-content">
+                <div class="stats-row">
+                  <div class="stat-card">
+                    <div class="stat-label">Total Weapons</div>
+                    <div class="stat-val">14</div>
+                    <div class="stat-sub">Accounted For</div>
+                  </div>
+                  <div class="stat-card">
+                    <div class="stat-label">Total Ammo Count</div>
+                    <div class="stat-val">9,420 <span style="font-size: 0.8rem; font-weight: 500;">rds</span></div>
+                    <div class="stat-sub">In Safe</div>
+                  </div>
+                  <div class="stat-card">
+                    <div class="stat-label">Rounds Fired</div>
+                    <div class="stat-val">18,650</div>
+                    <div class="stat-sub">Telemetry Active</div>
+                  </div>
+                  <div class="stat-card">
+                    <div class="stat-label">Valuation</div>
+                    <div class="stat-val">$18,420</div>
+                    <div class="stat-sub">Insurance Ready</div>
+                  </div>
+                </div>
+
+                <div class="firearm-card-preview">
+                  <div class="inventory-item">
+                    <div class="inventory-item-header">
+                      <span class="inventory-make">Glock</span>
+                      <span class="inventory-caliber-badge">9x19mm</span>
+                    </div>
+                    <div class="inventory-model">Glock 19 Gen 5 MOS</div>
+                    <div class="inventory-telemetry">
+                      <span>Rounds: 1,250</span>
+                      <span style="color: var(--accent-emerald);">Wear: 25%</span>
+                    </div>
+                  </div>
+                  <div class="inventory-item">
+                    <div class="inventory-item-header">
+                      <span class="inventory-make">Daniel Defense</span>
+                      <span class="inventory-caliber-badge">5.56 NATO</span>
+                    </div>
+                    <div class="inventory-model">DDM4 V7 (Optic Mounted)</div>
+                    <div class="inventory-telemetry">
+                      <span>Rounds: 3,100</span>
+                      <span style="color: var(--accent-amber);">Recoil Spring Due</span>
+                    </div>
+                  </div>
+                  <div class="inventory-item">
+                    <div class="inventory-item-header">
+                      <span class="inventory-make">Springfield</span>
+                      <span class="inventory-caliber-badge">.30-06 Sprg</span>
+                    </div>
+                    <div class="inventory-model">M1 Garand (C&amp;R)</div>
+                    <div class="inventory-telemetry">
+                      <span>Rounds: 640</span>
+                      <span style="color: var(--accent-emerald);">Op Rod Greased</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Mobile Companion View -->
         <div class="device-frame" id="showcase-mobile" style="display: none;">
           <div class="device-header">
@@ -445,7 +777,10 @@
                 <div class="phone-notch"></div>
                 <div class="phone-screen">
                   <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-weight: 700; font-size: 0.9rem;">ArmoryVault Mobile</span>
+                    <div style="display: flex; align-items: center; gap: 0.4rem;">
+                      <img src="assets/mobile-icon.png" alt="ArmoryVault Mobile" style="width: 18px; height: 18px; border-radius: 4px;" />
+                      <span style="font-weight: 700; font-size: 0.9rem;">ArmoryVault Mobile</span>
+                    </div>
                     <span style="font-size: 0.7rem; color: var(--accent-emerald);">● Paired</span>
                   </div>
 
@@ -497,6 +832,18 @@
                     <div style="width: 24px; height: 24px; border-radius: 50%; background: rgba(59, 130, 246, 0.2); color: #93c5fd; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0;">3</div>
                     <span>Scan ammo boxes or log range trips anywhere (even in zero-reception outdoor ranges). Submissions wait in your desktop <strong>Sync Inbox</strong> for 1-click review.</span>
                   </div>
+                </div>
+
+                <!-- Direct QR CTA in Showcase -->
+                <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+                  <div>
+                    <span style="font-size: 0.85rem; font-weight: 600; color: #fff; display: block;">Ready to test the Companion app on your phone?</span>
+                    <span style="font-size: 0.75rem; color: var(--text-muted);">Download the APK directly or scan the QR code.</span>
+                  </div>
+                  <a href="#download-mobile-spotlight" class="btn btn-emerald btn-sm">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"></path></svg>
+                    <span>Get Mobile APK &amp; QR</span>
+                  </a>
                 </div>
               </div>
             </div>
@@ -781,22 +1128,48 @@
               </a>
             </div>
           </div>
+        </div>
 
-          <!-- Android Mobile Companion Card -->
-          <div class="download-card" id="download-android">
-            <div class="os-icon">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9993.4482.9993.9993.0001.5511-.4483.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.996-3.4572c.1568-.2716.064-.6196-.2076-.7764-.2716-.1569-.6196-.0641-.7764.2075l-2.0236 3.505c-1.3995-.6388-2.9555-.9966-4.6062-.9966s-3.2067.3578-4.6062.9966L5.6335 5.2953c-.1568-.2716-.5048-.3644-.7764-.2075-.2716.1568-.3644.5048-.2076.7764l1.996 3.4572C3.1554 11.2335 1 14.5427 1 18.3636h22c0-3.8209-2.1554-7.1301-5.6185-9.0422"/>
-              </svg>
+        <!-- Android Mobile Companion Spotlight Banner with Direct QR Code -->
+        <div class="mobile-download-spotlight" id="download-mobile-spotlight">
+          <div class="mobile-spotlight-info">
+            <div class="badge badge-pill" style="align-self: flex-start;">
+              <span>Android Mobile Companion</span>
             </div>
-            <div class="download-os">Android Companion</div>
-            <div class="download-specs">Wi-Fi Scanner & Range Companion (.apk)</div>
-            <div class="download-btn-group">
-              <a href="https://github.com/cook0001/ArmoryVault-Companion-App/releases/latest" id="btn-download-mobile" class="btn btn-secondary btn-sm">
+            <h3 class="mobile-spotlight-title">
+              <img src="assets/mobile-icon.png" alt="ArmoryVault Companion Mobile Icon" style="width: 38px; height: 38px; border-radius: 9px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); flex-shrink: 0;" />
+              <span>Install ArmoryVault on Your Phone</span>
+            </h3>
+            <p class="mobile-spotlight-desc">
+              Scan the QR code with your smartphone camera to download the Android APK directly. Enjoy offline encrypted vault inspection, barcode scanning, DOPE trajectory tables, and instant local Wi-Fi sync.
+            </p>
+            <div class="mobile-spotlight-features">
+              <span class="mobile-spotlight-tag">📱 100% Zero-Cloud P2P</span>
+              <span class="mobile-spotlight-tag">📷 Universal Barcode &amp; FL DL Scanner</span>
+              <span class="mobile-spotlight-tag">🔒 Remote Desktop Lock</span>
+              <span class="mobile-spotlight-tag">🎯 DOPE Ballistics</span>
+            </div>
+            <div style="margin-top: 0.5rem; display: flex; gap: 0.75rem; flex-wrap: wrap;">
+              <a href="https://github.com/cook0001/ArmoryVault-Companion-App/releases/latest" id="btn-download-mobile" class="btn btn-emerald btn-sm">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                <span class="btn-subtext">Download .apk</span>
+                <span class="btn-subtext">Download .apk Directly</span>
+              </a>
+              <a href="https://github.com/cook0001/ArmoryVault-Companion-App/releases" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">
+                <span>Release Notes &amp; Hashes</span>
               </a>
             </div>
+          </div>
+
+          <!-- Scannable QR Code Card -->
+          <div class="apk-qr-card">
+            <div class="qr-scan-box">
+              <img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=https%3A%2F%2Fgithub.com%2Fcook0001%2FArmoryVault-Companion-App%2Freleases%2Flatest&bgcolor=ffffff&color=090d16&margin=0" alt="Scan QR Code to Download ArmoryVault APK" class="apk-qr-image" id="mobile-apk-qr-img" />
+            </div>
+            <div class="qr-scan-caption">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"></path></svg>
+              <span>Scan with Phone Camera</span>
+            </div>
+            <span class="qr-scan-subtext">Direct .APK Download Link</span>
           </div>
         </div>
 
