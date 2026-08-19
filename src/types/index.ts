@@ -302,6 +302,7 @@ declare global {
       getPlatform: () => string;
       getLocalIp: () => Promise<string>;
       onSyncReceived: (callback: () => void) => () => void;
+      onVaultLocked: (callback: () => void) => () => void;
       getSyncQueue: () => Promise<SyncItem[]>;
       removeSyncItem: (id: number) => Promise<number>;
       clearSyncQueue: () => Promise<boolean>;

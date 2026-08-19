@@ -80,6 +80,11 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('sync-received', subscription);
     return () => ipcRenderer.removeListener('sync-received', subscription);
   },
+  onVaultLocked: (callback) => {
+    const subscription = () => callback();
+    ipcRenderer.on('vault-locked', subscription);
+    return () => ipcRenderer.removeListener('vault-locked', subscription);
+  },
   getSyncQueue: () => ipcRenderer.invoke('get-sync-queue'),
   removeSyncItem: (id) => ipcRenderer.invoke('remove-sync-item', id),
   clearSyncQueue: () => ipcRenderer.invoke('clear-sync-queue')

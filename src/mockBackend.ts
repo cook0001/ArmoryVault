@@ -296,6 +296,7 @@ export function setupMockBackend() {
       saveBase64Photo: async (base64Data: string, filename: string) => null,
       getLocalIp: async () => '192.168.1.100',
       onSyncReceived: (callback: () => void) => () => {},
+      onVaultLocked: (callback: () => void) => () => {},
       getSyncQueue: async () => [],
       removeSyncItem: async (id: number) => 1,
       clearSyncQueue: async () => true

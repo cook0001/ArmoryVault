@@ -715,16 +715,58 @@ app.whenReady().then(() => {
     expressApp.use(express.json({ limit: '50mb' }));
 
     expressApp.get('/api/ping', (req, res) => {
-      res.json({ status: 'ok', device: os.hostname() });
+      res.json({ 
+        status: 'ok', 
+        device: os.hostname(),
+        isLocked: db.isLocked() 
+      });
+    });
+
+    expressApp.post('/api/vault/lock', (req, res) => {
+      console.log('Received remote vault lock request from mobile companion app');
+      try {
+        db.lockVault();
+        if (mainWindow) {
+          mainWindow.webContents.send('vault-locked');
+        }
+        res.json({ success: true, isLocked: true });
+      } catch (e) {
+        console.error('Remote vault lock error:', e);
+        res.status(500).json({ success: false, error: e.message });
+      }
+    });
+
+    expressApp.post('/api/lock', (req, res) => {
+      try {
+        db.lockVault();
+        if (mainWindow) {
+          mainWindow.webContents.send('vault-locked');
+        }
+        res.json({ success: true, isLocked: true });
+      } catch (e) {
+        console.error('Remote lock error:', e);
+        res.status(500).json({ success: false, error: e.message });
+      }
     });
 
     expressApp.get('/api/inventory/summary', (req, res) => {
       try {
+        if (db.isLocked()) {
+          return res.json({
+            success: false,
+            isLocked: true,
+            firearms: 0,
+            ammo: 0,
+            components: 0,
+            error: 'Vault is locked'
+          });
+        }
         const firearms = db.getFirearms() || [];
         const ammo = db.getAmmo() || [];
         const components = db.getComponents() || [];
         res.json({
           success: true,
+          isLocked: false,
           firearms: firearms.length,
           ammo: ammo.reduce((acc, a) => acc + (Number(a.count) || 0), 0),
           components: components.length
@@ -737,12 +779,24 @@ app.whenReady().then(() => {
 
     expressApp.get('/api/inventory/cache', (req, res) => {
       try {
+        if (db.isLocked()) {
+          return res.json({
+            success: false,
+            isLocked: true,
+            firearms: [],
+            ammo: [],
+            components: [],
+            skus: {},
+            error: 'Vault is locked'
+          });
+        }
         const firearms = db.getFirearms() || [];
         const ammo = db.getAmmo() || [];
         const components = db.getComponents() || [];
         const skus = db.getSkus() || {};
         res.json({
           success: true,
+          isLocked: false,
           firearms: firearms.map(f => ({
             id: f.id,
             make: f.make,

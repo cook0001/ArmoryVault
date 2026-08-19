@@ -36,6 +36,14 @@ function App() {
       setLoading(false);
     };
     checkVault();
+
+    // Listen for remote vault lock from mobile companion app
+    if (window.api && window.api.onVaultLocked) {
+      const unsub = window.api.onVaultLocked(() => {
+        setIsLocked(true);
+      });
+      return () => unsub();
+    }
   }, []);
 
   const lockVault = useCallback(async () => {
