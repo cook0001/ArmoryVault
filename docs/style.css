@@ -378,6 +378,34 @@ code, pre {
   transform: translateY(-2px);
 }
 
+.btn-paypal {
+  background: linear-gradient(135deg, #0070ba 0%, #003087 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(0, 112, 186, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-paypal:hover {
+  background: linear-gradient(135deg, #0079c1 0%, #00457c 100%);
+  box-shadow: 0 6px 22px rgba(0, 112, 186, 0.55), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+  color: #ffffff;
+}
+
+.btn-donate-gold {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 16px rgba(217, 119, 6, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-donate-gold:hover {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  box-shadow: 0 6px 24px rgba(245, 158, 11, 0.5);
+  transform: translateY(-2px);
+  color: #ffffff;
+}
+
 .btn-sm {
   padding: 0.45rem 0.9rem;
   font-size: 0.85rem;
@@ -1466,6 +1494,75 @@ code, pre {
 .faq-item.active .faq-answer {
   max-height: 300px;
   padding: 0 1.5rem 1.25rem;
+}
+
+/* ==========================================================================
+   Support & Donation Section
+   ========================================================================== */
+
+.support-section {
+  padding: 3rem 0;
+  position: relative;
+  z-index: 1;
+}
+
+.support-card {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(30, 41, 59, 0.6) 100%);
+  border: 1px solid rgba(0, 112, 186, 0.35);
+  border-radius: var(--radius-xl);
+  padding: 3rem 2.5rem;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4), 0 0 24px rgba(0, 112, 186, 0.15);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.support-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #0070ba, #f59e0b, transparent);
+}
+
+.support-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  padding: 0.35rem 0.9rem;
+  border-radius: var(--radius-full);
+  color: #fbbf24;
+  font-size: 0.825rem;
+  font-weight: 600;
+  margin-bottom: 1.2rem;
+}
+
+.support-title {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: #ffffff;
+}
+
+.support-desc {
+  max-width: 680px;
+  margin: 0 auto 2rem;
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: var(--text-secondary);
+}
+
+.support-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
 }
 
 /* ==========================================================================
