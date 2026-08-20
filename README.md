@@ -67,20 +67,28 @@ To run ArmoryVault locally on your machine for development:
    npm run electron:dev
    ```
 
-## 📦 Building for Production
+## 📦 Building for Production & Release Channels
 
-ArmoryVault uses `electron-builder` coupled with **GitHub Actions** to automatically compile native installers for Windows (`.exe`), macOS (`.dmg`), and Linux (`.AppImage`).
+ArmoryVault uses `electron-builder` with dedicated output separation between **Stable** and **Nightly / Preview** release channels:
+
+- **Stable Builds**: Generated into `dist-electron/stable/`
+- **Nightly Builds**: Generated into `dist-electron/nightly/`
+
+### Local Packaging Commands
+
+| Command | Channel | Output Target |
+| :--- | :--- | :--- |
+| `npm run package:stable:mac` / `win` / `linux` | Stable | `dist-electron/stable/` |
+| `npm run package:nightly:mac` / `win` / `linux` | Nightly Preview | `dist-electron/nightly/` |
+| `npm run release:stable` | Stable Release | `dist-electron/stable/` + GitHub |
+| `npm run release:nightly` | Nightly Release | `dist-electron/nightly/` + GitHub |
 
 ### Automated CI/CD Pipeline
-You do not need to manually compile the application on your local machine. The repository is configured with a GitHub Actions workflow that automatically handles the heavy cross-platform compilation process.
+You do not need to manually compile the application on your local machine. The repository is configured with GitHub Actions workflows:
+- **Desktop Releases (`.github/workflows/release.yml`)**: Compiles multi-platform installers (macOS Apple Silicon/Intel, Windows, Linux) and automatically detects whether the tag is a pre-release (`*nightly*`, `*beta*`, etc.) to publish to the proper release channel.
+- **Website Portal (`.github/workflows/website.yml`)**: The official website source lives in `website/` and automatically deploys to [GitHub Pages](https://cook0001.github.io/ArmoryVault/) upon push to `main`.
 
-To trigger a new production build and release:
-1. Update the `"version"` field in your `package.json` (e.g., `"version": "2.3.1"`).
-2. Commit your changes and create a git tag matching the version prefix with `v`:
-   ```bash
-   git tag v2.3.1
-   git push origin v2.3.1
-   ```
-3. GitHub Actions will automatically spin up Windows, macOS, and Linux runners, securely compile the application, and upload the finalized `.exe`, `.dmg`, and `.AppImage` files directly to your GitHub Releases page!
-
-This seamlessly powers the auto-updater for your users without requiring any local build dependencies (like Wine).
+To trigger a new production build:
+1. Run `npm run release:prep` to bump your version (`major`, `minor`, `patch`, or `nightly`).
+2. Commit your changes and push a git tag matching the version (e.g., `git tag v2.8.0` or `git tag v2.8.0-nightly.2` && `git push origin --tags`).
+3. GitHub Actions handles multi-platform compilation and uploads all installers automatically!

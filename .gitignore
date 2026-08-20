@@ -10,6 +10,8 @@ lerna-debug.log*
 node_modules
 dist
 dist-electron
+dist-electron/stable
+dist-electron/nightly
 dist-ssr
 release
 out

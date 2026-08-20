@@ -84,7 +84,15 @@ jobs:
       - name: Build & Package Artifacts
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run release
+        run: |
+          TAG_NAME="${{ inputs.tag_name || github.ref_name }}"
+          if [[ "$TAG_NAME" == *"nightly"* ]] || [[ "$TAG_NAME" == *"beta"* ]] || [[ "$TAG_NAME" == *"alpha"* ]] || [[ "$TAG_NAME" == *"rc"* ]] || [ "${{ inputs.is_prerelease }}" = "true" ]; then
+            echo "Building NIGHTLY PREVIEW release artifact..."
+            npm run release:nightly
+          else
+            echo "Building STABLE release artifact..."
+            npm run release:stable
+          fi
 
   # Step 3: Publish the release and verify all OS assets exist
   verify-and-publish:

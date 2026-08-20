@@ -10,15 +10,20 @@ console.log('--- ArmoryVault Release Preparation ---');
 console.log('Version Control Rules:');
 console.log('Major: Significant Changes, New Features');
 console.log('Minor: Small Changes, Bug Fixes');
-console.log('Patch: Very Small Changes, Hotfixes\n');
+console.log('Patch: Very Small Changes, Hotfixes');
+console.log('Nightly: Pre-release preview / community test build\n');
 
-rl.question('Is this a major, minor, or patch release? [major/minor/patch/cancel]: ', (answer) => {
+rl.question('Is this a major, minor, patch, or nightly release? [major/minor/patch/nightly/cancel]: ', (answer) => {
   const type = answer.trim().toLowerCase();
   
-  if (['major', 'minor', 'patch'].includes(type)) {
+  if (['major', 'minor', 'patch', 'nightly'].includes(type)) {
     console.log(`\nBumping ${type} version...`);
     try {
-      execSync(`npm version ${type} --no-git-tag-version`, { stdio: 'inherit' });
+      if (type === 'nightly') {
+        execSync('npm version prerelease --preid=nightly --no-git-tag-version', { stdio: 'inherit' });
+      } else {
+        execSync(`npm version ${type} --no-git-tag-version`, { stdio: 'inherit' });
+      }
       
       console.log('\nRunning TypeScript checks to ensure build stability...');
       execSync('npm run build', { stdio: 'inherit' });

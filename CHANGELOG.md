@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.8.0-nightly.3]
+### Preview & Community Bug Testing Release
+- **Dedicated Build Channels (Stable vs Nightly)**: Separated Electron packaging output into dedicated `dist-electron/stable` and `dist-electron/nightly` directories with standalone build runners (`scripts/build-stable.js`, `scripts/build-nightly.js`), expanded `package.json` channel commands (`package:stable:*`, `package:nightly:*`, `release:stable`, `release:nightly`), and updated interactive `scripts/prepare-release.js` with 1-click nightly prerelease bumping.
+- **Website Architecture Migration (`website/`)**: Moved the official ArmoryVault landing portal from `docs/` to its own top-level `website/` directory, supported with an automated GitHub Pages GitHub Actions deployment workflow (`.github/workflows/website.yml`).
+
 ## [2.8.0-nightly.2]
 ### Preview & Community Bug Testing Release
 - **Mobile Companion Remote Vault Lock & Sync Hardening**: Added `/api/vault/lock` and `/api/lock` HTTP endpoints and IPC broadcast listener allowing paired mobile companion apps to remotely lock the desktop vault over local Wi-Fi, immediately clearing decryption keys from PC memory and navigating the desktop UI to the secure `VaultLogin` screen.
