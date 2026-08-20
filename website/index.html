@@ -29,6 +29,11 @@
   <link rel="icon" type="image/png" href="assets/icon.png" />
   <link rel="apple-touch-icon" href="assets/icon.png" />
 
+  <!-- Preconnect Google Fonts for zero-render-blocking speed -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
   <!-- Styles -->
   <link rel="stylesheet" href="style.css" />
 
@@ -80,7 +85,7 @@
       </ul>
 
       <div class="nav-actions">
-        <a href="https://paypal.me/ArmoryVault" target="_blank" rel="noopener" class="btn btn-paypal btn-nav-donate" title="Support ArmoryVault on PayPal">
+        <a href="#donate" class="btn btn-paypal btn-nav-donate" title="Support ArmoryVault on PayPal">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
             <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.004.524 5.33.24 5.713.24h8.283c3.08 0 5.438.747 6.456 2.062.915 1.18.995 2.76.24 4.697-.107.275-.236.544-.383.805-.72 1.282-1.874 2.228-3.431 2.813 1.956.49 3.09 1.785 2.664 3.868-.504 2.457-2.456 3.86-5.803 3.86H9.72c-.442 0-.816.326-.886.763l-.758 4.795a.641.641 0 0 1-.633.541l-.367-.307z"/>
           </svg>
@@ -141,14 +146,21 @@
         </p>
 
         <div class="hero-actions">
-          <a href="#download" class="btn btn-primary btn-lg">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-            <span>Download Desktop Vault</span>
+          <a href="#download" id="hero-smart-download-btn" class="btn btn-primary btn-lg hero-smart-btn">
+            <span id="hero-smart-btn-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            </span>
+            <span id="hero-smart-btn-text">Download Desktop Vault</span>
           </a>
           <a href="#showcase" class="btn btn-secondary btn-lg">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
             <span>Explore App Live Demo</span>
           </a>
+        </div>
+
+        <div class="hero-os-hint" id="hero-os-hint">
+          <span class="hero-os-badge" id="hero-detected-badge">⚡ Auto-detected for your system</span>
+          <span class="hero-os-others">Other platforms: <a href="#download-mac-arm">macOS</a> &middot; <a href="#download-windows">Windows</a> &middot; <a href="#download-linux">Linux</a> &middot; <a href="#download-mobile-spotlight">Android APK</a></span>
         </div>
 
         <div class="hero-meta">
@@ -227,7 +239,7 @@
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                 <span>Log Trip</span>
               </button>
-              <button class="btn btn-primary btn-sm" onclick="alert('In ArmoryVault Desktop, Add Firearm includes rich historic C&R datalists, military arsenals, optical mounts, and maintenance wear schedules.')" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;">
+              <button class="btn btn-primary btn-sm" onclick="openShowcaseModal('add-firearm')" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                 <span>+ Firearm</span>
               </button>
@@ -564,7 +576,7 @@
             <div class="nightly-screen-panel" id="nightly-screen-boundbook" style="display: none;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
                 <h3 style="font-size: 1.05rem; color: #fff;">ATF Acquisition &amp; Disposition (A&amp;D) Bound Book</h3>
-                <button class="btn btn-secondary btn-sm" onclick="alert('In ArmoryVault Desktop, clicking Print generates a clean 8.5x11 printable PDF ledger matching ATF standard formats.')">
+                <button class="btn btn-secondary btn-sm" onclick="openShowcaseModal('print-boundbook')">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
                   <span>Print 8.5x11 ATF Ledger</span>
                 </button>
@@ -645,6 +657,127 @@
                 </div>
 
                 <div id="sim-feedback" class="sim-feedback" style="display: none;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- In-Frame Glassmorphic Modal Simulator Overlay -->
+          <div class="showcase-modal-overlay" id="showcase-modal-overlay" style="display: none;">
+            <!-- Modal 1: Add Firearm Simulated Dialog -->
+            <div class="showcase-modal" id="modal-sim-add-firearm" style="display: none;">
+              <div class="showcase-modal-header">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <div style="width: 28px; height: 28px; border-radius: 6px; background: rgba(59, 130, 246, 0.2); display: flex; align-items: center; justify-content: center; color: #60a5fa;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                  </div>
+                  <strong style="font-size: 0.95rem; color: #fff;">Add Firearm Record (Desktop Preview)</strong>
+                </div>
+                <button class="showcase-modal-close" onclick="closeShowcaseModal()" aria-label="Close modal">&times;</button>
+              </div>
+
+              <div class="showcase-modal-body">
+                <div style="font-size: 0.775rem; color: var(--text-secondary); margin-bottom: 0.8rem; line-height: 1.4;">
+                  Experience ArmoryVault's built-in Curio &amp; Relic (C&amp;R) master arsenals, historic military calibers, and dual-trigger wear profiles.
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                  <div>
+                    <label style="font-size: 0.7rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">MANUFACTURER / ARSENAL</label>
+                    <select class="sim-modal-input">
+                      <option>Springfield Armory (USGI)</option>
+                      <option>Mauser Oberndorf / DWM</option>
+                      <option>Enfield Royal Small Arms</option>
+                      <option>Waffenfabrik Bern (Swiss)</option>
+                      <option>Glock Inc.</option>
+                      <option>Daniel Defense</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style="font-size: 0.7rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">MODEL / VARIANT</label>
+                    <input type="text" class="sim-modal-input" value="M1 Garand (30-06)" />
+                  </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                  <div>
+                    <label style="font-size: 0.7rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">CALIBER / CHAMBERING</label>
+                    <input type="text" class="sim-modal-input" value=".30-06 Springfield" />
+                  </div>
+                  <div>
+                    <label style="font-size: 0.7rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">C&amp;R / NRA CONDITION</label>
+                    <select class="sim-modal-input">
+                      <option>CMP Service Grade (All-Matching)</option>
+                      <option>NRA Excellent (98-100%)</option>
+                      <option>NRA Fine</option>
+                      <option>Factory New in Box</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style="padding: 0.6rem; background: rgba(59, 130, 246, 0.1); border-radius: var(--radius-sm); border: 1px solid rgba(59, 130, 246, 0.25); font-size: 0.75rem; color: #93c5fd;">
+                  🛡️ <strong>Zero Cloud:</strong> This record will be encrypted locally using AES-256 and stored exclusively on your hard drive.
+                </div>
+              </div>
+
+              <div class="showcase-modal-footer">
+                <button class="btn btn-secondary btn-sm" onclick="closeShowcaseModal()">Cancel</button>
+                <button class="btn btn-primary btn-sm" onclick="saveSimulatedFirearmRecord()">
+                  <span>🔒 Save Encrypted to Safe</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Modal 2: ATF Bound Book Print Preview -->
+            <div class="showcase-modal" id="modal-sim-print-boundbook" style="display: none;">
+              <div class="showcase-modal-header">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <div style="width: 28px; height: 28px; border-radius: 6px; background: rgba(16, 185, 129, 0.2); display: flex; align-items: center; justify-content: center; color: var(--accent-emerald);">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                  </div>
+                  <strong style="font-size: 0.95rem; color: #fff;">ATF A&amp;D Bound Book Print Preview</strong>
+                </div>
+                <button class="showcase-modal-close" onclick="closeShowcaseModal()" aria-label="Close modal">&times;</button>
+              </div>
+
+              <div class="showcase-modal-body">
+                <div style="font-size: 0.775rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
+                  ArmoryVault includes a specialized <code>@media print</code> engine formatted for standard 8.5x11 Acquisition &amp; Disposition ledgers.
+                </div>
+
+                <!-- Mini 8.5x11 Paper Preview -->
+                <div style="background: #ffffff; color: #0f172a; padding: 1rem; border-radius: 4px; box-shadow: 0 4px 16px rgba(0,0,0,0.5); font-family: monospace; font-size: 0.65rem;">
+                  <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 0.3rem; margin-bottom: 0.5rem; font-weight: 700;">
+                    <span>ATF FORM 5300.9 / RECORD OF ACQUISITION AND DISPOSITION</span>
+                    <span>PAGE 1 OF 1</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; font-size: 0.55rem; margin-bottom: 0.4rem; color: #475569;">
+                    <span>LICENSEE / VAULT OWNER: PRIVATE COLLECTOR</span>
+                    <span>PRINTED: 2026-08-19 (ARMORYVAULT LEDGER)</span>
+                  </div>
+                  <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.6rem;">
+                    <thead>
+                      <tr style="border-bottom: 1px solid #cbd5e1; background: #f1f5f9;">
+                        <th style="padding: 2px;">SERIAL #</th>
+                        <th style="padding: 2px;">MAKE</th>
+                        <th style="padding: 2px;">MODEL</th>
+                        <th style="padding: 2px;">CALIBER</th>
+                        <th style="padding: 2px;">STATUS</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 2px; font-weight: 700;">BKWW492</td><td>Glock</td><td>19 Gen 5</td><td>9mm Luger</td><td>ACTIVE IN SAFE</td></tr>
+                      <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 2px; font-weight: 700;">DD089312</td><td>Daniel Defense</td><td>DDM4 V7</td><td>5.56 NATO</td><td>ACTIVE IN SAFE</td></tr>
+                      <tr><td style="padding: 2px; font-weight: 700;">3491024</td><td>Springfield</td><td>M1 Garand</td><td>.30-06 Sprg</td><td>ACTIVE IN SAFE</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="showcase-modal-footer">
+                <button class="btn btn-secondary btn-sm" onclick="closeShowcaseModal()">Close</button>
+                <button class="btn btn-emerald btn-sm" onclick="alert('In ArmoryVault Desktop, this sends the formatted 8.5x11 vector ledger directly to your system printer or PDF save dialog.')">
+                  <span>🖨️ Print 8.5x11 Vector Ledger</span>
+                </button>
               </div>
             </div>
           </div>
@@ -1301,12 +1434,43 @@
           <p class="support-desc">
             ArmoryVault is an independent, air-gapped, zero-cloud privacy project built for firearm collectors, competitive shooters, and precision handloaders. No subscriptions, no ads, and no tracking. If you enjoy using ArmoryVault, consider supporting ongoing development and releases!
           </p>
+          <!-- Interactive Donation Amount Selector -->
+          <div class="donation-deck">
+            <div class="donation-deck-label">Select or Enter Donation Amount (USD):</div>
+            <div class="donation-presets-grid" id="donation-presets">
+              <button type="button" class="donation-chip" data-amount="5">
+                <span class="chip-amount">$5</span>
+                <span class="chip-label">☕ Coffee</span>
+              </button>
+              <button type="button" class="donation-chip" data-amount="15">
+                <span class="chip-amount">$15</span>
+                <span class="chip-label">🛠️ Supporter</span>
+              </button>
+              <button type="button" class="donation-chip active" data-amount="25">
+                <span class="chip-amount">$25</span>
+                <span class="chip-label">🛡️ Patron</span>
+              </button>
+              <button type="button" class="donation-chip" data-amount="50">
+                <span class="chip-amount">$50</span>
+                <span class="chip-label">⚡ Champion</span>
+              </button>
+              <button type="button" class="donation-chip" data-amount="100">
+                <span class="chip-amount">$100</span>
+                <span class="chip-label">👑 Sponsor</span>
+              </button>
+              <div class="custom-amount-wrap">
+                <span class="custom-currency-prefix">$</span>
+                <input type="number" id="custom-donation-input" class="custom-amount-input" placeholder="Custom" min="1" max="5000" step="any" aria-label="Custom donation amount in USD" />
+              </div>
+            </div>
+          </div>
+
           <div class="support-actions">
-            <a href="https://paypal.me/ArmoryVault" target="_blank" rel="noopener" class="btn btn-paypal btn-lg">
+            <a href="https://paypal.me/ArmoryVault/25USD" target="_blank" rel="noopener" class="btn btn-paypal btn-lg" id="btn-paypal-proceed">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.004.524 5.33.24 5.713.24h8.283c3.08 0 5.438.747 6.456 2.062.915 1.18.995 2.76.24 4.697-.107.275-.236.544-.383.805-.72 1.282-1.874 2.228-3.431 2.813 1.956.49 3.09 1.785 2.664 3.868-.504 2.457-2.456 3.86-5.803 3.86H9.72c-.442 0-.816.326-.886.763l-.758 4.795a.641.641 0 0 1-.633.541l-.367-.307z"/>
               </svg>
-              <span>Donate via PayPal (paypal.me/ArmoryVault)</span>
+              <span id="btn-paypal-proceed-text">Proceed to Donate $25 USD via PayPal</span>
             </a>
             <a href="https://github.com/cook0001/ArmoryVault" target="_blank" rel="noopener" class="btn btn-secondary btn-lg">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -1446,6 +1610,11 @@
       </div>
     </div>
   </footer>
+
+  <!-- Floating Back-to-Top Button -->
+  <button id="btn-back-to-top" class="btn-back-to-top" aria-label="Back to top" title="Back to top">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg>
+  </button>
 
   <!-- Scripts -->
   <script src="app.js"></script>

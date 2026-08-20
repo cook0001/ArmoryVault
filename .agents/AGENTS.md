@@ -24,3 +24,7 @@
 
 ## 5. General Best Practices
 - **TypeScript Strictness**: Maintain strict typings. Use the defined interfaces in `src/types` (e.g., `Ammo`, `ReloadingComponent`, `Accessory`) instead of falling back to `any`.
+
+## 6. Upgrade Suggestions & Implementation Plans
+- **Mandatory Implementation Plans for Upgrades**: Anytime the AI agent recommends or suggests upgrades, optimizations, performance improvements, UI enhancements, or architectural modifications, it MUST automatically generate an `implementation_plan.md` artifact detailing the proposed scope, technical breakdown, and verification strategy so the user can review, annotate, and approve the plan before any execution begins.
+

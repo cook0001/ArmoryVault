@@ -11,6 +11,8 @@ document.addEventListener('DOMContentLoaded', () => {
   initFeedbackHub();
   initFaqAccordion();
   initClipboardButtons();
+  initBackToTop();
+  initDonationDeck();
 });
 
 /* ==========================================================================
@@ -46,42 +48,52 @@ function initNavbar() {
   }
 }
 
-/* ==========================================================================
-   2. OS Detection & Recommended Download Highlighting
-   ========================================================================== */
+let currentDetectedOsCard = 'mac-arm';
+
 function initOsDetection() {
   const userAgent = navigator.userAgent.toLowerCase();
   const platform = navigator.platform?.toLowerCase() || '';
   
   let detectedOs = 'windows'; // fallback
-  let isMacArm = false;
+  currentDetectedOsCard = 'windows';
 
   if (userAgent.includes('mac') || platform.includes('mac')) {
     detectedOs = 'macos';
+    currentDetectedOsCard = 'mac-arm'; // default modern Mac
     // Test for Apple Silicon / M-series
     if (navigator.userAgentData) {
       navigator.userAgentData.getHighEntropyValues(['architecture']).then(ua => {
         if (ua.architecture === 'arm') {
+          currentDetectedOsCard = 'mac-arm';
           highlightDownloadCard('mac-arm');
         } else {
+          currentDetectedOsCard = 'mac-intel';
           highlightDownloadCard('mac-intel');
         }
+        updateSmartHeroCta();
       }).catch(() => {
-        highlightDownloadCard('mac-arm'); // default modern Mac to Apple Silicon
+        highlightDownloadCard('mac-arm');
+        updateSmartHeroCta();
       });
     } else {
-      // Modern WebGL renderer inspection heuristic or default Apple Silicon
       highlightDownloadCard('mac-arm');
+      updateSmartHeroCta();
     }
   } else if (userAgent.includes('win') || platform.includes('win')) {
     detectedOs = 'windows';
+    currentDetectedOsCard = 'windows';
     highlightDownloadCard('windows');
+    updateSmartHeroCta();
   } else if (userAgent.includes('linux') || platform.includes('linux')) {
     detectedOs = 'linux';
+    currentDetectedOsCard = 'linux';
     highlightDownloadCard('linux');
+    updateSmartHeroCta();
   } else if (userAgent.includes('android') || userAgent.includes('iphone') || userAgent.includes('ipad')) {
     detectedOs = 'mobile';
+    currentDetectedOsCard = 'mobile';
     highlightDownloadCard('mobile');
+    updateSmartHeroCta();
   }
 
   // Pre-fill OS in Feedback form if input exists
@@ -95,6 +107,7 @@ function initOsDetection() {
 }
 
 function highlightDownloadCard(cardId) {
+  currentDetectedOsCard = cardId;
   document.querySelectorAll('.download-card').forEach(card => {
     card.classList.remove('recommended');
     const existingBadge = card.querySelector('.download-badge-rec');
@@ -109,6 +122,7 @@ function highlightDownloadCard(cardId) {
     badge.textContent = 'Detected For Your System';
     targetCard.prepend(badge);
   }
+  updateSmartHeroCta();
 }
 
 /* ==========================================================================
@@ -121,6 +135,36 @@ let globalReleases = {
   mobileNightly: null,
   activeChannel: 'stable'
 };
+
+// Caching fetch with 15-minute TTL to prevent GitHub rate-limiting (60 req/hr)
+async function fetchWithCache(url, ttlMs = 900000) {
+  const cacheKey = `av_gh_cache_${url}`;
+  try {
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Date.now() - parsed.timestamp < ttlMs && parsed.data) {
+        return parsed.data;
+      }
+    }
+  } catch (e) {
+    // localStorage might be restricted
+  }
+
+  try {
+    const res = await fetch(url).catch(() => null);
+    if (res && res.ok) {
+      const data = await res.json();
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), data }));
+      } catch (e) {}
+      return data;
+    }
+  } catch (e) {
+    console.warn('Fetch failed for', url, e);
+  }
+  return null;
+}
 
 async function initReleaseData() {
   const repoOwner = 'cook0001';
@@ -136,10 +180,9 @@ async function initReleaseData() {
   const fallbackMobileNightly = 'v2.6.0-nightly.1';
 
   try {
-    // 1. Fetch Desktop Releases
-    const desktopRes = await fetch(desktopApiUrl, { cache: 'no-cache' }).catch(() => null);
-    if (desktopRes && desktopRes.ok) {
-      const releases = await desktopRes.json();
+    // 1. Fetch Desktop Releases with caching
+    const releases = await fetchWithCache(desktopApiUrl);
+    if (releases && Array.isArray(releases) && releases.length > 0) {
       const stable = releases.find(r => !r.prerelease && !r.draft) || releases[0];
       const nightly = releases.find(r => r.prerelease || r.tag_name?.includes('nightly') || r.tag_name?.includes('beta'));
       globalReleases.stable = stable || { tag_name: fallbackStableTag, assets: [] };
@@ -149,10 +192,9 @@ async function initReleaseData() {
       globalReleases.nightly = { tag_name: fallbackNightlyTag, assets: [] };
     }
 
-    // 2. Fetch Mobile Companion Releases
-    const mobileRes = await fetch(mobileApiUrl, { cache: 'no-cache' }).catch(() => null);
-    if (mobileRes && mobileRes.ok) {
-      const mobReleases = await mobileRes.json();
+    // 2. Fetch Mobile Companion Releases with caching
+    const mobReleases = await fetchWithCache(mobileApiUrl);
+    if (mobReleases && Array.isArray(mobReleases) && mobReleases.length > 0) {
       const mobStable = mobReleases.find(r => !r.prerelease && !r.draft) || mobReleases[0];
       const mobNightly = mobReleases.find(r => r.prerelease || r.tag_name?.includes('nightly') || r.tag_name?.includes('beta'));
       globalReleases.mobileStable = mobStable || { tag_name: fallbackMobileStable, assets: [] };
@@ -297,6 +339,8 @@ function applyChannelAssets(channel) {
   if (qrImg) {
     qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(mobileApkUrl)}&bgcolor=ffffff&color=090d16&margin=0`;
   }
+
+  updateSmartHeroCta();
 }
 
 function updateDownloadBtn(btnId, url, labelSuffix) {
@@ -305,6 +349,52 @@ function updateDownloadBtn(btnId, url, labelSuffix) {
     btn.href = url;
     const subtext = btn.querySelector('.btn-subtext');
     if (subtext) subtext.textContent = labelSuffix;
+  }
+}
+
+function updateSmartHeroCta() {
+  const btn = document.getElementById('hero-smart-download-btn');
+  const textEl = document.getElementById('hero-smart-btn-text');
+  const badgeEl = document.getElementById('hero-detected-badge');
+  if (!btn || !textEl) return;
+
+  const channel = globalReleases.activeChannel || 'stable';
+  const rel = channel === 'nightly' ? globalReleases.nightly : globalReleases.stable;
+  const mobRel = channel === 'nightly' ? globalReleases.mobileNightly : globalReleases.mobileStable;
+  const tagName = rel?.tag_name || (channel === 'nightly' ? 'v2.8.0-nightly.1' : 'v2.7.1');
+  const mobTagName = mobRel?.tag_name || (channel === 'nightly' ? 'v2.6.0-nightly.1' : 'v2.5.0');
+  const assets = rel?.assets || [];
+  const mobAssets = mobRel?.assets || [];
+
+  const repoBase = 'https://github.com/cook0001/ArmoryVault/releases';
+  const mobRepoBase = 'https://github.com/cook0001/ArmoryVault-Companion-App/releases';
+
+  const macArmAsset = assets.find(a => a.name.endsWith('.dmg') && (a.name.includes('arm64') || a.name.includes('aarch64')));
+  const macIntelAsset = assets.find(a => a.name.endsWith('.dmg') && (a.name.includes('x64') || a.name.includes('x86_64') || (!a.name.includes('arm64') && !a.name.includes('aarch64'))));
+  const winAsset = assets.find(a => a.name.endsWith('.exe'));
+  const linuxAsset = assets.find(a => a.name.endsWith('.AppImage'));
+  const apkAsset = mobAssets.find(a => a.name?.endsWith('.apk')) || assets.find(a => a.name?.endsWith('.apk'));
+
+  if (currentDetectedOsCard === 'mac-arm') {
+    btn.href = macArmAsset ? macArmAsset.browser_download_url : `${repoBase}/tag/${tagName}`;
+    textEl.textContent = `Download for macOS (Apple Silicon ${tagName})`;
+    if (badgeEl) badgeEl.textContent = `⚡ Auto-detected: macOS Apple Silicon (M1-M5)`;
+  } else if (currentDetectedOsCard === 'mac-intel') {
+    btn.href = macIntelAsset ? macIntelAsset.browser_download_url : `${repoBase}/tag/${tagName}`;
+    textEl.textContent = `Download for macOS (Intel ${tagName})`;
+    if (badgeEl) badgeEl.textContent = `⚡ Auto-detected: macOS Intel (x64)`;
+  } else if (currentDetectedOsCard === 'windows') {
+    btn.href = winAsset ? winAsset.browser_download_url : `${repoBase}/tag/${tagName}`;
+    textEl.textContent = `Download for Windows (${tagName} .exe)`;
+    if (badgeEl) badgeEl.textContent = `⚡ Auto-detected: Windows (64-bit)`;
+  } else if (currentDetectedOsCard === 'linux') {
+    btn.href = linuxAsset ? linuxAsset.browser_download_url : `${repoBase}/tag/${tagName}`;
+    textEl.textContent = `Download for Linux (${tagName} .AppImage)`;
+    if (badgeEl) badgeEl.textContent = `⚡ Auto-detected: Linux (.AppImage)`;
+  } else if (currentDetectedOsCard === 'mobile') {
+    btn.href = apkAsset ? apkAsset.browser_download_url : `${mobRepoBase}/tag/${mobTagName}`;
+    textEl.textContent = `Download Companion APK (${mobTagName})`;
+    if (badgeEl) badgeEl.textContent = `⚡ Auto-detected: Android Mobile`;
   }
 }
 
@@ -563,6 +653,14 @@ function initRangeSimulator() {
 
     updateDisplay();
 
+    // Trigger recoil spark micro-animation on the simulator box
+    const simBox = document.querySelector('.range-simulator');
+    if (simBox) {
+      simBox.classList.remove('recoil-active');
+      void simBox.offsetWidth; // trigger DOM reflow
+      simBox.classList.add('recoil-active');
+    }
+
     // Show visual confirmation
     if (feedbackBox) {
       feedbackBox.style.display = 'flex';
@@ -758,4 +856,137 @@ function initClipboardButtons() {
       }
     });
   });
+}
+
+/* ==========================================================================
+   9. In-Frame Showcase Modal Simulator (Add Firearm & Bound Book Print)
+   ========================================================================== */
+window.openShowcaseModal = function(type) {
+  const overlay = document.getElementById('showcase-modal-overlay');
+  const addModal = document.getElementById('modal-sim-add-firearm');
+  const printModal = document.getElementById('modal-sim-print-boundbook');
+  if (!overlay) return;
+
+  overlay.style.display = 'flex';
+  if (type === 'add-firearm') {
+    if (addModal) addModal.style.display = 'block';
+    if (printModal) printModal.style.display = 'none';
+  } else if (type === 'print-boundbook') {
+    if (addModal) addModal.style.display = 'none';
+    if (printModal) printModal.style.display = 'block';
+  }
+};
+
+window.closeShowcaseModal = function() {
+  const overlay = document.getElementById('showcase-modal-overlay');
+  if (overlay) overlay.style.display = 'none';
+};
+
+window.saveSimulatedFirearmRecord = function() {
+  closeShowcaseModal();
+  const feedbackBox = document.getElementById('sim-feedback');
+  if (feedbackBox) {
+    feedbackBox.style.display = 'flex';
+    feedbackBox.innerHTML = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      <span><strong>Record Saved:</strong> Springfield M1 Garand added to Vault Safe with 4-part wear schedule and AES-256 encryption.</span>
+    `;
+    setTimeout(() => {
+      feedbackBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
+  }
+};
+
+// Close modal on Escape key
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeShowcaseModal();
+  }
+});
+
+/* ==========================================================================
+   10. Floating Back-to-Top Navigation
+   ========================================================================== */
+function initBackToTop() {
+  const btn = document.getElementById('btn-back-to-top');
+  if (!btn) return;
+
+  window.addEventListener('scroll', () => {
+    if (window.scrollY > 400) {
+      btn.classList.add('visible');
+    } else {
+      btn.classList.remove('visible');
+    }
+  }, { passive: true });
+
+  btn.addEventListener('click', () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+}
+
+/* ==========================================================================
+   11. Interactive PayPal Donation Deck & Custom Amount Selector
+   ========================================================================== */
+function initDonationDeck() {
+  const chips = document.querySelectorAll('.donation-chip');
+  const customInput = document.getElementById('custom-donation-input');
+  const proceedBtn = document.getElementById('btn-paypal-proceed');
+  const proceedText = document.getElementById('btn-paypal-proceed-text');
+
+  if (!proceedBtn) return;
+
+  const basePaypalUrl = 'https://paypal.me/ArmoryVault';
+
+  function setDonationAmount(amount) {
+    if (amount && !isNaN(amount) && Number(amount) > 0) {
+      const formattedAmount = Number(amount);
+      proceedBtn.href = `${basePaypalUrl}/${formattedAmount}USD`;
+      if (proceedText) {
+        proceedText.textContent = `Proceed to Donate $${formattedAmount} USD via PayPal`;
+      }
+    } else {
+      proceedBtn.href = basePaypalUrl;
+      if (proceedText) {
+        proceedText.textContent = `Proceed to Donate via PayPal`;
+      }
+    }
+  }
+
+  // Handle Preset Chips
+  chips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      chips.forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      if (customInput) customInput.value = '';
+      const amount = chip.dataset.amount;
+      setDonationAmount(amount);
+    });
+  });
+
+  // Handle Custom Amount Input
+  if (customInput) {
+    customInput.addEventListener('input', () => {
+      const val = customInput.value.trim();
+      if (val) {
+        chips.forEach(c => c.classList.remove('active'));
+        setDonationAmount(val);
+      } else {
+        // If empty, revert to default preset $25
+        const defaultChip = document.querySelector('.donation-chip[data-amount="25"]');
+        if (defaultChip) {
+          defaultChip.classList.add('active');
+          setDonationAmount('25');
+        } else {
+          setDonationAmount('');
+        }
+      }
+    });
+
+    customInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        proceedBtn.click();
+      }
+    });
+  }
 }
