@@ -2,7 +2,7 @@
    ArmoryVault - Tactical Dark Glassmorphism Design System
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
 
 :root {
   /* Canvas & Backgrounds */
@@ -49,9 +49,9 @@
   --shadow-glow-emerald: 0 0 35px rgba(16, 185, 129, 0.2);
 
   /* Typography Tokens */
-  --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
+  --font-heading: "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
 
   /* Radii */
   --radius-sm: 8px;
@@ -69,7 +69,9 @@
    CSS Reset & Base
    ========================================================================== */
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -114,7 +116,7 @@ body {
   height: 100vh;
   pointer-events: none;
   z-index: 0;
-  background-image: 
+  background-image:
     linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
   background-size: 40px 40px;
@@ -123,7 +125,12 @@ body {
 }
 
 /* Typography */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--font-heading);
   color: var(--text-primary);
   font-weight: 700;
@@ -149,7 +156,9 @@ p {
   color: var(--text-secondary);
 }
 
-code, pre, .mono {
+code,
+pre,
+.mono {
   font-family: var(--font-mono);
 }
 
@@ -322,15 +331,25 @@ code, pre, .mono {
    Page Wrappers & Containers
    ========================================================================== */
 
-.dashboard, .form-page, .details-page, .page-container, .bound-book-page {
+.dashboard,
+.form-page,
+.details-page,
+.page-container,
+.bound-book-page {
   max-width: var(--max-content-width);
   margin: 0 auto;
   animation: fadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .page-header {
@@ -374,12 +393,16 @@ button {
   font-family: var(--font-heading);
   font-weight: 600;
   font-size: 0.9rem;
-  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+  box-shadow:
+    0 4px 16px rgba(37, 99, 235, 0.35),
+    inset 0 1px 1px rgba(255, 255, 255, 0.2);
 }
 
 .btn-primary:hover {
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  box-shadow: 0 6px 22px rgba(59, 130, 246, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+  box-shadow:
+    0 6px 22px rgba(59, 130, 246, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.3);
   transform: translateY(-1px);
 }
 
@@ -401,7 +424,8 @@ button {
   transform: translateY(-1px);
 }
 
-.btn-emerald, .btn-success {
+.btn-emerald,
+.btn-success {
   background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.15);
@@ -412,7 +436,8 @@ button {
   box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
 }
 
-.btn-emerald:hover, .btn-success:hover {
+.btn-emerald:hover,
+.btn-success:hover {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   transform: translateY(-1px);
 }
@@ -469,7 +494,10 @@ button {
   padding: 1.25rem 1.5rem;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
   position: relative;
   overflow: hidden;
 }
@@ -477,7 +505,9 @@ button {
 .stat-card:hover {
   transform: translateY(-2px);
   border-color: var(--border-highlight);
-  box-shadow: var(--shadow-md), 0 0 20px rgba(59, 130, 246, 0.12);
+  box-shadow:
+    var(--shadow-md),
+    0 0 20px rgba(59, 130, 246, 0.12);
 }
 
 .stat-label {
@@ -507,19 +537,26 @@ button {
 }
 
 /* Inventory Item Cards */
-.inventory-item, .firearm-card {
+.inventory-item,
+.firearm-card {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   padding: 1.25rem;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
   backdrop-filter: blur(16px);
 }
 
-.inventory-item:hover, .firearm-card:hover {
+.inventory-item:hover,
+.firearm-card:hover {
   transform: translateY(-3px);
   border-color: var(--border-highlight);
-  box-shadow: var(--shadow-md), 0 0 20px rgba(59, 130, 246, 0.15);
+  box-shadow:
+    var(--shadow-md),
+    0 0 20px rgba(59, 130, 246, 0.15);
 }
 
 .inventory-item-header {
@@ -670,7 +707,10 @@ button {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
   backdrop-filter: blur(16px);
   position: relative;
   cursor: pointer;
@@ -679,7 +719,9 @@ button {
 .tactical-card:hover {
   transform: translateY(-3px);
   border-color: var(--border-highlight);
-  box-shadow: var(--shadow-md), 0 0 25px rgba(59, 130, 246, 0.15);
+  box-shadow:
+    var(--shadow-md),
+    0 0 25px rgba(59, 130, 246, 0.15);
 }
 
 .tactical-card-image-wrap {
@@ -985,7 +1027,8 @@ button {
   gap: 0.75rem;
 }
 
-.search-box, .search-bar {
+.search-box,
+.search-bar {
   display: flex;
   align-items: center;
   background: rgba(11, 15, 25, 0.8);
@@ -998,12 +1041,14 @@ button {
   gap: 0.6rem;
 }
 
-.search-box:focus-within, .search-bar:focus-within {
+.search-box:focus-within,
+.search-bar:focus-within {
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
 }
 
-.search-box input, .search-bar input {
+.search-box input,
+.search-bar input {
   background: transparent;
   border: none;
   color: var(--text-primary);
@@ -1031,7 +1076,8 @@ button {
   background: rgba(255, 255, 255, 0.15);
 }
 
-.select-box, select {
+.select-box,
+select {
   background: rgba(11, 15, 25, 0.8);
   border: 1px solid var(--border-light);
   color: var(--text-primary);
@@ -1044,12 +1090,14 @@ button {
   transition: all 0.25s ease;
 }
 
-.select-box:focus, select:focus {
+.select-box:focus,
+select:focus {
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
 }
 
-.select-box option, select option {
+.select-box option,
+select option {
   background: #0f172a;
   color: #f8fafc;
 }
@@ -1101,11 +1149,15 @@ textarea {
   color: var(--text-primary);
   font-family: inherit;
   font-size: 0.925rem;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
   width: 100%;
 }
 
-input:focus, select:focus, textarea:focus {
+input:focus,
+select:focus,
+textarea:focus {
   outline: none;
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
@@ -1157,7 +1209,8 @@ table {
   text-align: left;
 }
 
-th, td {
+th,
+td {
   padding: 1rem 1.25rem;
 }
 
@@ -1221,21 +1274,25 @@ tr:hover {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.78);
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.82);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10000;
+  z-index: 99999;
   padding: 1.5rem;
   overflow-y: auto;
   animation: fadeIn 0.2s ease-out forwards;
 }
 
-.modal-overlay > .modal, dialog.modal, .modal {
+.modal-overlay > .modal,
+dialog.modal,
+.modal {
   background: #0f172a;
-  background-image: 
+  background-image:
     radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.15), transparent 60%),
     radial-gradient(circle at 100% 100%, rgba(16, 185, 129, 0.08), transparent 50%);
   border: 1px solid var(--border-light);
@@ -1245,7 +1302,9 @@ tr:hover {
   max-width: 640px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: var(--shadow-lg), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  box-shadow:
+    var(--shadow-lg),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
   color: var(--text-primary);
   margin: auto;
   position: relative;
@@ -1253,8 +1312,14 @@ tr:hover {
 }
 
 @keyframes slideUp {
-  from { transform: translateY(16px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .modal-header {
@@ -1273,6 +1338,98 @@ tr:hover {
   margin-top: 2rem;
   border-top: 1px solid var(--border-subtle);
   padding-top: 1.25rem;
+}
+
+/* ==========================================================================
+   Floating Toast Notifications & Pair Feedback
+   ========================================================================== */
+
+.toast-floating-container {
+  position: fixed;
+  top: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: auto;
+  animation: toastSlideDown 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes toastSlideDown {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+.toast-success-card {
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  border-radius: var(--radius-lg);
+  padding: 1.1rem 1.6rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow:
+    0 20px 40px rgba(0, 0, 0, 0.6),
+    0 0 25px rgba(16, 185, 129, 0.25);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  color: var(--text-primary);
+  min-width: 360px;
+  max-width: 90vw;
+  position: relative;
+  overflow: hidden;
+}
+
+.toast-progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #10b981, #38bdf8);
+  width: 100%;
+  animation: toastProgress 3.5s linear forwards;
+}
+
+@keyframes toastProgress {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #10b981;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  animation: pulse-emerald 2s infinite;
+}
+
+@keyframes pulse-emerald {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
 }
 
 /* ==========================================================================
@@ -1296,13 +1453,15 @@ tr:hover {
   font-size: 0.825rem;
 }
 
-.bound-book-table th, .bound-book-table td {
+.bound-book-table th,
+.bound-book-table td {
   border-bottom: 1px solid var(--border-subtle);
   border-right: 1px solid rgba(255, 255, 255, 0.05);
   padding: 0.75rem 0.95rem;
 }
 
-.bound-book-table th:last-child, .bound-book-table td:last-child {
+.bound-book-table th:last-child,
+.bound-book-table td:last-child {
   border-right: none;
 }
 
@@ -1526,7 +1685,9 @@ tr:hover {
   backdrop-filter: blur(16px);
   position: relative;
   overflow: hidden;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .ammo-showcase-card:hover {
@@ -1551,7 +1712,10 @@ tr:hover {
 }
 
 .ammo-card {
-  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .ammo-card:hover {
@@ -1588,12 +1752,20 @@ tr:hover {
     background: white !important;
     color: black !important;
   }
-  
-  .app-topbar, .sidebar, .no-print, .form-actions, .header-actions, .bg-mesh, .bg-grid {
+
+  .app-topbar,
+  .sidebar,
+  .no-print,
+  .form-actions,
+  .header-actions,
+  .bg-mesh,
+  .bg-grid {
     display: none !important;
   }
-  
-  .app-layout, .layout, .main-content {
+
+  .app-layout,
+  .layout,
+  .main-content {
     display: block !important;
     width: 100% !important;
     height: auto !important;
@@ -1601,23 +1773,24 @@ tr:hover {
     padding: 0 !important;
     overflow: visible !important;
   }
-  
+
   .bound-book-table-container {
     background: transparent !important;
     border: none !important;
     padding: 0 !important;
   }
-  
+
   .bound-book-table {
     color: black !important;
     width: 100% !important;
   }
-  
-  .bound-book-table th, .bound-book-table td {
+
+  .bound-book-table th,
+  .bound-book-table td {
     border: 1px solid black !important;
     color: black !important;
   }
-  
+
   .bound-book-table th {
     background: #f0f0f0 !important;
     color: black !important;

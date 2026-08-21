@@ -1,37 +1,60 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Ammo, ReloadingComponent } from '../types';
-import { 
-  PlusCircle, 
-  Target, 
-  Package, 
-  Trash2, 
-  Edit, 
-  Printer, 
-  Upload, 
-  AlertTriangle, 
-  Tag, 
-  Sparkles,
-  SlidersHorizontal,
-  Search,
-  X,
-  Layers,
-  FlaskConical,
-  Zap,
-  Shield,
+import {
+  AlertTriangle,
+  Boxes,
+  Calculator,
+  CheckCircle2,
   CircleDot,
   DollarSign,
-  Boxes,
-  CheckCircle2,
-  Filter,
+  Edit,
   Eye,
-  Calculator
+  Filter,
+  FlaskConical,
+  Layers,
+  Package,
+  PlusCircle,
+  Printer,
+  Search,
+  Shield,
+  SlidersHorizontal,
+  Sparkles,
+  Tag,
+  Target,
+  Trash2,
+  Upload,
+  X,
+  Zap,
 } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { parseBarcodeData } from '../utils/BarcodeEngine';
-import { getStandardPelletCount, generateInternalUPC, formatCaliber, buildCustomCategories, getAmmoCategory, escapeRegExp, COMPREHENSIVE_BULLET_TYPES } from '../utils/caliberHelpers';
 import { AmmoCanLabelModal } from '../components/AmmoCanLabelModal';
+import { AutocompleteInput } from '../components/AutocompleteInput';
 import { BatchManufactureModal } from '../components/BatchManufactureModal';
 import { ReloadingComponentModal } from '../components/ReloadingComponentModal';
+import { Ammo, ReloadingComponent } from '../types';
+import { parseBarcodeData } from '../utils/BarcodeEngine';
+import {
+  buildCustomCategories,
+  COMPREHENSIVE_BULLET_TYPES,
+  escapeRegExp,
+  formatCaliber,
+  generateInternalUPC,
+  getAmmoCategory,
+  getStandardPelletCount,
+} from '../utils/caliberHelpers';
+import {
+  AMMO_MANUFACTURERS,
+  BRASS_MAKES,
+  BULLET_MANUFACTURERS,
+  CALIBER_OPTIONS,
+  COMMON_POWDERS,
+  COMMON_PRIMERS,
+  PRIMER_TYPES,
+  SHOTGUN_PAYLOADS,
+  SHOTGUN_SHELL_LENGTHS,
+  SHOTGUN_SHOT_SIZES,
+} from '../utils/formOptions';
+import { formatPowderMultiUnit, toGrains } from '../utils/powderUnits';
 
 export { formatCaliber } from '../utils/caliberHelpers';
 
@@ -56,7 +79,7 @@ const DEFAULT_METRIC_VISIBILITY: MetricVisibility = {
   powderStock: true,
   primersStock: true,
   bulletsStock: true,
-  brassStock: true
+  brassStock: true,
 };
 
 export const AmmoDashboard = () => {
@@ -70,13 +93,15 @@ export const AmmoDashboard = () => {
   const [activeAmmoTab, setActiveAmmoTab] = useState<'factory' | 'handload'>('factory');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilterChip, setSelectedFilterChip] = useState<string>('all');
-  
+
   // Customization
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
   const [metricVisibility, setMetricVisibility] = useState<MetricVisibility>(() => {
     try {
       const saved = localStorage.getItem('armoryvault_ammo_metrics');
-      return saved ? { ...DEFAULT_METRIC_VISIBILITY, ...JSON.parse(saved) } : DEFAULT_METRIC_VISIBILITY;
+      return saved
+        ? { ...DEFAULT_METRIC_VISIBILITY, ...JSON.parse(saved) }
+        : DEFAULT_METRIC_VISIBILITY;
     } catch {
       return DEFAULT_METRIC_VISIBILITY;
     }
@@ -91,7 +116,10 @@ export const AmmoDashboard = () => {
   const [inspectingAmmo, setInspectingAmmo] = useState<Ammo | null>(null);
   const [labelModalAmmo, setLabelModalAmmo] = useState<Ammo | null>(null);
   const [batchManufactureAmmo, setBatchManufactureAmmo] = useState<Ammo | null>(null);
-  const [upcStatus, setUpcStatus] = useState<{ message: string, type: 'success' | 'error' | 'info' | 'loading' } | null>(null);
+  const [upcStatus, setUpcStatus] = useState<{
+    message: string;
+    type: 'success' | 'error' | 'info' | 'loading';
+  } | null>(null);
   const [calcRds, setCalcRds] = useState<number | ''>('');
   const [calcBoxes, setCalcBoxes] = useState<number>(1);
   const locationProcessed = useRef<string | null>(null);
@@ -105,7 +133,7 @@ export const AmmoDashboard = () => {
     if (window.api) {
       const [ammoData, compData] = await Promise.all([
         window.api.getAmmo(),
-        window.api.getComponents ? window.api.getComponents() : []
+        window.api.getComponents ? window.api.getComponents() : [],
       ]);
       setAmmoList(ammoData || []);
       setComponents(compData || []);
@@ -132,11 +160,21 @@ export const AmmoDashboard = () => {
       setActiveDepotView('reloading');
     }
 
-    if (location.state && (location.state as any).openAddModal && locationProcessed.current !== location.key) {
+    if (
+      location.state &&
+      (location.state as any).openAddModal &&
+      locationProcessed.current !== location.key
+    ) {
       locationProcessed.current = location.key;
       const state = location.state as any;
 
-      if (state.type === 'Powder' || state.type === 'Primer' || state.type === 'Bullet' || state.type === 'Brass' || state.parsedData?.type) {
+      if (
+        state.type === 'Powder' ||
+        state.type === 'Primer' ||
+        state.type === 'Bullet' ||
+        state.type === 'Brass' ||
+        state.parsedData?.type
+      ) {
         setActiveDepotView('reloading');
         setEditingComponent(null);
         setIsComponentModalOpen(true);
@@ -145,33 +183,33 @@ export const AmmoDashboard = () => {
         setIsAmmoModalOpen(true);
         setEditingAmmo(null);
         setIsAddingStockMode(false);
-        
+
         const upcToLookup = state.upc || '';
-        const formDataToSet: any = { 
-          type: 'factory', 
-          upc_code: upcToLookup, 
-          count: state.count 
+        const formDataToSet: any = {
+          type: 'factory',
+          upc_code: upcToLookup,
+          count: state.count,
         };
 
         if (state.parsedData) {
           Object.assign(formDataToSet, state.parsedData);
         }
-        
+
         setFormData(formDataToSet);
-        
+
         if (upcToLookup && !state.parsedData) {
           setTimeout(() => {
             lookupUPC(upcToLookup);
           }, 100);
         }
       }
-      
+
       window.history.replaceState({}, document.title);
     }
   }, [location]);
 
   const handleToggleMetric = (key: keyof MetricVisibility) => {
-    setMetricVisibility(prev => {
+    setMetricVisibility((prev) => {
       const updated = { ...prev, [key]: !prev[key] };
       localStorage.setItem('armoryvault_ammo_metrics', JSON.stringify(updated));
       return updated;
@@ -212,11 +250,14 @@ export const AmmoDashboard = () => {
     if (!window.api) return;
     try {
       const QRCode = (await import('qrcode')).default;
-      const qrDataUrl = await QRCode.toDataURL(`armoryvault://ammo/${ammo.id}`, { width: 300, margin: 1 });
+      const qrDataUrl = await QRCode.toDataURL(`armoryvault://ammo/${ammo.id}`, {
+        width: 300,
+        margin: 1,
+      });
       await window.api.printQRLabel({
         itemName: `${ammo.caliber} ${ammo.manufacturer || 'Ammo'}`,
         itemDetails: `Type: ${ammo.type}\nQuantity: ${ammo.count || 0}`,
-        qrDataUrl
+        qrDataUrl,
       });
     } catch (err) {
       console.error('Failed to print QR label', err);
@@ -228,10 +269,13 @@ export const AmmoDashboard = () => {
     if (!window.api) return;
     try {
       const QRCode = (await import('qrcode')).default;
-      const qrDataUrl = await QRCode.toDataURL(`armoryvault://ammo/${ammo.id}`, { width: 300, margin: 1 });
+      const qrDataUrl = await QRCode.toDataURL(`armoryvault://ammo/${ammo.id}`, {
+        width: 300,
+        margin: 1,
+      });
       await window.api.saveQRImage({
         itemName: `${ammo.caliber} ${ammo.manufacturer || 'Ammo'}`,
-        qrDataUrl
+        qrDataUrl,
       });
     } catch (err) {
       console.error('Failed to save QR label', err);
@@ -280,22 +324,25 @@ export const AmmoDashboard = () => {
     const currentSkus = await window.api.getSkus();
     if (currentSkus[cleanUpc]) {
       const data = currentSkus[cleanUpc];
-      
-      const localMatch = ammoList.find(a => a.upc_code === cleanUpc);
+
+      const localMatch = ammoList.find((a) => a.upc_code === cleanUpc);
       if (localMatch) {
         setEditingAmmo(localMatch);
         setIsAddingStockMode(true);
         setFormData({ ...localMatch });
         setCalcRds(data.count || 20);
         setCalcBoxes(1);
-        setUpcStatus({ message: 'Found in your inventory! How many boxes are you adding?', type: 'success' });
+        setUpcStatus({
+          message: 'Found in your inventory! How many boxes are you adding?',
+          type: 'success',
+        });
         return;
       }
 
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         ...data,
-        upc_code: cleanUpc
+        upc_code: cleanUpc,
       }));
       if (data.count) {
         setCalcRds(data.count);
@@ -306,14 +353,17 @@ export const AmmoDashboard = () => {
     }
 
     // 2. Check Inventory
-    const localMatch = ammoList.find(a => a.upc_code === upc);
+    const localMatch = ammoList.find((a) => a.upc_code === upc);
     if (localMatch) {
       setEditingAmmo(localMatch);
       setIsAddingStockMode(true);
       setFormData({ ...localMatch });
       setCalcBoxes(1);
       setCalcRds('');
-      setUpcStatus({ message: 'Found in your inventory! How many boxes are you adding?', type: 'success' });
+      setUpcStatus({
+        message: 'Found in your inventory! How many boxes are you adding?',
+        type: 'success',
+      });
       return;
     }
 
@@ -324,7 +374,11 @@ export const AmmoDashboard = () => {
         const parsed = parseBarcodeData(item, ammoList);
 
         if (parsed.category === 'component') {
-          if (window.confirm("This looks like a Reloading Component. Would you like to switch to Components?")) {
+          if (
+            window.confirm(
+              'This looks like a Reloading Component. Would you like to switch to Components?'
+            )
+          ) {
             setIsAmmoModalOpen(false);
             setActiveDepotView('reloading');
             openAddComponentModal();
@@ -337,33 +391,43 @@ export const AmmoDashboard = () => {
           setCalcBoxes(1);
         }
 
-        setFormData(prev => ({
-          ...prev,
-          manufacturer: parsed.parsedAmmo?.manufacturer || prev.manufacturer,
-          caliber: parsed.parsedAmmo?.caliber || prev.caliber,
-          grain: parsed.parsedAmmo?.grain || prev.grain,
-          projectile: parsed.parsedAmmo?.projectile || prev.projectile,
-          isPlusP: parsed.parsedAmmo?.isPlusP !== undefined ? parsed.parsedAmmo.isPlusP : prev.isPlusP,
-          costPerRound: parsed.parsedAmmo?.costPerRound || prev.costPerRound,
-          boxPrice: parsed.parsedAmmo?.boxPrice !== undefined ? parsed.parsedAmmo.boxPrice : (prev as any).boxPrice,
-          count: parsed.parsedAmmo?.count || prev.count,
-          upc_match: parsed.parsedAmmo?.upc_match || prev.upc_match,
-          upc_code: upc
-        } as any));
+        setFormData(
+          (prev) =>
+            ({
+              ...prev,
+              manufacturer: parsed.parsedAmmo?.manufacturer || prev.manufacturer,
+              caliber: parsed.parsedAmmo?.caliber || prev.caliber,
+              grain: parsed.parsedAmmo?.grain || prev.grain,
+              projectile: parsed.parsedAmmo?.projectile || prev.projectile,
+              isPlusP:
+                parsed.parsedAmmo?.isPlusP !== undefined ? parsed.parsedAmmo.isPlusP : prev.isPlusP,
+              costPerRound: parsed.parsedAmmo?.costPerRound || prev.costPerRound,
+              boxPrice:
+                parsed.parsedAmmo?.boxPrice !== undefined
+                  ? parsed.parsedAmmo.boxPrice
+                  : (prev as any).boxPrice,
+              count: parsed.parsedAmmo?.count || prev.count,
+              upc_match: parsed.parsedAmmo?.upc_match || prev.upc_match,
+              upc_code: upc,
+            }) as any
+        );
 
         setUpcStatus({ message: 'Barcode parsed automatically!', type: 'success' });
       } else {
-        setUpcStatus({ message: "Barcode not found in database. Manual entry required.", type: 'error' });
+        setUpcStatus({
+          message: 'Barcode not found in database. Manual entry required.',
+          type: 'error',
+        });
       }
     } catch (e) {
-      console.warn("UPC Lookup failed:", e);
-      setUpcStatus({ message: "Network error looking up barcode.", type: 'error' });
+      console.warn('UPC Lookup failed:', e);
+      setUpcStatus({ message: 'Network error looking up barcode.', type: 'error' });
     }
   };
 
   const handleAmmoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    let submissionData = { ...formData };
+    const submissionData = { ...formData };
     if (submissionData.type === 'handload' && !submissionData.upc_code) {
       submissionData.upc_code = generateInternalUPC();
     }
@@ -374,27 +438,32 @@ export const AmmoDashboard = () => {
       }
       await window.api.updateAmmo(editingAmmo.id, submissionData as Ammo);
     } else {
-      const duplicate = ammoList.find(a => 
-        a.type === submissionData.type &&
-        a.caliber === submissionData.caliber &&
-        a.manufacturer === submissionData.manufacturer &&
-        a.grain === submissionData.grain &&
-        a.projectile === submissionData.projectile
+      const duplicate = ammoList.find(
+        (a) =>
+          a.type === submissionData.type &&
+          a.caliber === submissionData.caliber &&
+          a.manufacturer === submissionData.manufacturer &&
+          a.grain === submissionData.grain &&
+          a.projectile === submissionData.projectile
       );
-      
+
       let merged = false;
       if (duplicate) {
-        if (window.confirm(`An existing entry for ${duplicate.manufacturer || ''} ${duplicate.caliber} ${duplicate.grain || ''}gr was found. Would you like to merge this into the existing entry?`)) {
-           const mergedData = { ...duplicate };
-           mergedData.count = (duplicate.count || 0) + (submissionData.count || 0);
-           if (!mergedData.upc_code && submissionData.upc_code) {
-             mergedData.upc_code = submissionData.upc_code;
-           }
-           await window.api.updateAmmo(duplicate.id!, mergedData as Ammo);
-           merged = true;
+        if (
+          window.confirm(
+            `An existing entry for ${duplicate.manufacturer || ''} ${duplicate.caliber} ${duplicate.grain || ''}gr was found. Would you like to merge this into the existing entry?`
+          )
+        ) {
+          const mergedData = { ...duplicate };
+          mergedData.count = (duplicate.count || 0) + (submissionData.count || 0);
+          if (!mergedData.upc_code && submissionData.upc_code) {
+            mergedData.upc_code = submissionData.upc_code;
+          }
+          await window.api.updateAmmo(duplicate.id!, mergedData as Ammo);
+          merged = true;
         }
       }
-      
+
       if (!merged) {
         await window.api.addAmmo(submissionData as Ammo);
       }
@@ -405,18 +474,19 @@ export const AmmoDashboard = () => {
     }
     setIsAmmoModalOpen(false);
     setIsAddingStockMode(false);
-    
+
     if ((location.state as any)?.syncItemId) {
       window.history.replaceState({}, document.title);
     }
-    
+
     loadData();
   };
 
   const isAmmoLow = (a: Ammo) => {
     const threshold = a.min_threshold ?? a.low_stock_threshold;
     if (threshold !== undefined && threshold > 0 && a.count <= threshold) return true;
-    if (a.target_stock_goal && (a.count / a.target_stock_goal * 100) <= (a.alert_percentage || 20)) return true;
+    if (a.target_stock_goal && (a.count / a.target_stock_goal) * 100 <= (a.alert_percentage || 20))
+      return true;
     return false;
   };
 
@@ -425,27 +495,44 @@ export const AmmoDashboard = () => {
   };
 
   // Telemetry Calculations
-  const totalAmmoCount = useMemo(() => ammoList.reduce((sum, a) => sum + (Number(a.count) || 0), 0), [ammoList]);
-  const totalCaliberCount = useMemo(() => new Set(ammoList.map(a => a.caliber)).size, [ammoList]);
-  const totalAmmoVal = useMemo(() => ammoList.reduce((sum, a) => sum + (Number(a.count) || 0) * (Number(a.costPerRound) || 0), 0), [ammoList]);
-  const lowAmmoAlerts = useMemo(() => ammoList.filter(ammo => isAmmoLow(ammo)), [ammoList]);
+  const totalAmmoCount = useMemo(
+    () => ammoList.reduce((sum, a) => sum + (Number(a.count) || 0), 0),
+    [ammoList]
+  );
+  const totalCaliberCount = useMemo(() => new Set(ammoList.map((a) => a.caliber)).size, [ammoList]);
+  const totalAmmoVal = useMemo(
+    () =>
+      ammoList.reduce((sum, a) => sum + (Number(a.count) || 0) * (Number(a.costPerRound) || 0), 0),
+    [ammoList]
+  );
+  const lowAmmoAlerts = useMemo(() => ammoList.filter((ammo) => isAmmoLow(ammo)), [ammoList]);
 
-  const totalPowderLbs = useMemo(() => {
+  const totalPowderGrains = useMemo(() => {
     return components
-      .filter(c => c.type === 'Powder')
-      .reduce((sum, c) => sum + (Number(c.quantity) || 0) * (c.weightUnit === 'oz' ? 0.0625 : 1), 0);
+      .filter((c) => c.type === 'Powder')
+      .reduce((sum, c) => sum + toGrains(Number(c.quantity) || 0, c.weightUnit || 'lbs'), 0);
   }, [components]);
 
+  const totalPowderLbs = useMemo(() => {
+    return Number((totalPowderGrains / 7000).toFixed(2));
+  }, [totalPowderGrains]);
+
   const totalPrimersCount = useMemo(() => {
-    return components.filter(c => c.type === 'Primer').reduce((sum, c) => sum + (Number(c.quantity) || 0), 0);
+    return components
+      .filter((c) => c.type === 'Primer')
+      .reduce((sum, c) => sum + (Number(c.quantity) || 0), 0);
   }, [components]);
 
   const totalBulletsCount = useMemo(() => {
-    return components.filter(c => c.type === 'Bullet').reduce((sum, c) => sum + (Number(c.quantity) || 0), 0);
+    return components
+      .filter((c) => c.type === 'Bullet')
+      .reduce((sum, c) => sum + (Number(c.quantity) || 0), 0);
   }, [components]);
 
   const totalBrassCount = useMemo(() => {
-    return components.filter(c => c.type === 'Brass').reduce((sum, c) => sum + (Number(c.quantity) || 0), 0);
+    return components
+      .filter((c) => c.type === 'Brass')
+      .reduce((sum, c) => sum + (Number(c.quantity) || 0), 0);
   }, [components]);
 
   const totalReloadingVal = useMemo(() => {
@@ -453,25 +540,46 @@ export const AmmoDashboard = () => {
   }, [components]);
 
   const grandTotalDepotVal = totalAmmoVal + totalReloadingVal;
-  const lowComponentAlerts = useMemo(() => components.filter(c => isComponentLow(c)), [components]);
+  const lowComponentAlerts = useMemo(
+    () => components.filter((c) => isComponentLow(c)),
+    [components]
+  );
 
   // Top Caliber Showcase Breakdown (Website Preview Style)
   const topCaliberShowcase = useMemo(() => {
-    const caliberMap: Record<string, { caliber: string, count: number, factoryCount: number, handloadCount: number, goal: number, profiles: string[] }> = {};
-    
-    ammoList.forEach(a => {
+    const caliberMap: Record<
+      string,
+      {
+        caliber: string;
+        count: number;
+        factoryCount: number;
+        handloadCount: number;
+        goal: number;
+        profiles: string[];
+      }
+    > = {};
+
+    ammoList.forEach((a) => {
       const cal = a.caliber || 'Unknown';
       if (!caliberMap[cal]) {
-        caliberMap[cal] = { caliber: cal, count: 0, factoryCount: 0, handloadCount: 0, goal: 0, profiles: [] };
+        caliberMap[cal] = {
+          caliber: cal,
+          count: 0,
+          factoryCount: 0,
+          handloadCount: 0,
+          goal: 0,
+          profiles: [],
+        };
       }
-      caliberMap[cal].count += (Number(a.count) || 0);
-      if (a.type === 'factory') caliberMap[cal].factoryCount += (Number(a.count) || 0);
-      else caliberMap[cal].handloadCount += (Number(a.count) || 0);
+      caliberMap[cal].count += Number(a.count) || 0;
+      if (a.type === 'factory') caliberMap[cal].factoryCount += Number(a.count) || 0;
+      else caliberMap[cal].handloadCount += Number(a.count) || 0;
       if (a.target_stock_goal) caliberMap[cal].goal += a.target_stock_goal;
 
-      const profileName = a.type === 'factory' 
-        ? `${a.manufacturer || ''} ${a.projectile || (a.grain ? a.grain + 'gr' : '')}`.trim()
-        : `Handload ${a.bullet_manufacturer || ''} ${a.grain ? a.grain + 'gr' : ''} (${a.powder || ''})`.trim();
+      const profileName =
+        a.type === 'factory'
+          ? `${a.manufacturer || ''} ${a.projectile || (a.grain ? a.grain + 'gr' : '')}`.trim()
+          : `Handload ${a.bullet_manufacturer || ''} ${a.grain ? a.grain + 'gr' : ''} (${a.powder || ''})`.trim();
       if (profileName && !caliberMap[cal].profiles.includes(profileName)) {
         caliberMap[cal].profiles.push(profileName);
       }
@@ -484,21 +592,34 @@ export const AmmoDashboard = () => {
 
   // Filtered Ammo List
   const filteredAmmo = useMemo(() => {
-    return ammoList.filter(a => {
+    return ammoList.filter((a) => {
       // Subview filter
       if (activeDepotView === 'ammo' && a.type !== activeAmmoTab) return false;
 
       // Chip filter
       if (selectedFilterChip === 'low_stock' && !isAmmoLow(a)) return false;
       if (selectedFilterChip === 'handload' && a.type !== 'handload') return false;
-      if (selectedFilterChip === 'pistol' && getAmmoCategory(a.caliber, customCategories) !== 'Pistol') return false;
-      if (selectedFilterChip === 'rifle' && getAmmoCategory(a.caliber, customCategories) !== 'Rifle') return false;
-      if (selectedFilterChip === 'shotgun' && getAmmoCategory(a.caliber, customCategories) !== 'Shotgun') return false;
+      if (
+        selectedFilterChip === 'pistol' &&
+        getAmmoCategory(a.caliber, customCategories) !== 'Pistol'
+      )
+        return false;
+      if (
+        selectedFilterChip === 'rifle' &&
+        getAmmoCategory(a.caliber, customCategories) !== 'Rifle'
+      )
+        return false;
+      if (
+        selectedFilterChip === 'shotgun' &&
+        getAmmoCategory(a.caliber, customCategories) !== 'Shotgun'
+      )
+        return false;
 
       // Text query
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        const searchable = `${a.caliber} ${a.manufacturer || ''} ${a.projectile || ''} ${a.powder || ''} ${a.shot_size || ''} ${a.notes || ''}`.toLowerCase();
+        const searchable =
+          `${a.caliber} ${a.manufacturer || ''} ${a.projectile || ''} ${a.powder || ''} ${a.shot_size || ''} ${a.notes || ''}`.toLowerCase();
         return searchable.includes(q);
       }
       return true;
@@ -507,7 +628,7 @@ export const AmmoDashboard = () => {
 
   // Filtered Components List
   const filteredComponents = useMemo(() => {
-    return components.filter(c => {
+    return components.filter((c) => {
       if (selectedFilterChip === 'low_stock' && !isComponentLow(c)) return false;
       if (selectedFilterChip === 'powder' && c.type !== 'Powder') return false;
       if (selectedFilterChip === 'primer' && c.type !== 'Primer') return false;
@@ -516,7 +637,8 @@ export const AmmoDashboard = () => {
 
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        const searchable = `${c.manufacturer} ${c.name || ''} ${c.type} ${c.caliber || ''} ${c.notes || ''}`.toLowerCase();
+        const searchable =
+          `${c.manufacturer} ${c.name || ''} ${c.type} ${c.caliber || ''} ${c.notes || ''}`.toLowerCase();
         return searchable.includes(q);
       }
       return true;
@@ -541,8 +663,8 @@ export const AmmoDashboard = () => {
 
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
           {/* Quick Add Menu */}
-          <button 
-            className="btn-primary" 
+          <button
+            className="btn-primary"
             onClick={() => {
               if (activeDepotView === 'reloading') openAddComponentModal();
               else openAddAmmoModal(activeAmmoTab);
@@ -550,13 +672,17 @@ export const AmmoDashboard = () => {
             style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
           >
             <PlusCircle size={16} />
-            <span>{activeDepotView === 'reloading' ? 'Add Component' : `Add ${activeAmmoTab === 'factory' ? 'Ammo' : 'Handload'}`}</span>
+            <span>
+              {activeDepotView === 'reloading'
+                ? 'Add Component'
+                : `Add ${activeAmmoTab === 'factory' ? 'Ammo' : 'Handload'}`}
+            </span>
           </button>
 
           {/* Customize Cards Dropdown */}
           <div className="customize-metrics-wrap">
-            <button 
-              className="btn-secondary" 
+            <button
+              className="btn-secondary"
               onClick={() => setIsCustomizeOpen(!isCustomizeOpen)}
               title="Customize Depot Metric Cards"
               style={{ padding: '0.5rem 0.85rem', fontSize: '0.85rem' }}
@@ -567,44 +693,94 @@ export const AmmoDashboard = () => {
 
             {isCustomizeOpen && (
               <div className="customize-metrics-popover">
-                <div style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.4rem' }}>
+                <div
+                  style={{
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: 'var(--text-muted)',
+                    marginBottom: '0.4rem',
+                  }}
+                >
                   Live Ammunition Cards
                 </div>
                 <label className="metric-toggle-row">
                   <span>🎯 Total Live Rounds</span>
-                  <input type="checkbox" checked={metricVisibility.totalRounds} onChange={() => handleToggleMetric('totalRounds')} />
+                  <input
+                    type="checkbox"
+                    checked={metricVisibility.totalRounds}
+                    onChange={() => handleToggleMetric('totalRounds')}
+                  />
                 </label>
                 <label className="metric-toggle-row">
                   <span>📦 Caliber Profiles</span>
-                  <input type="checkbox" checked={metricVisibility.caliberProfiles} onChange={() => handleToggleMetric('caliberProfiles')} />
+                  <input
+                    type="checkbox"
+                    checked={metricVisibility.caliberProfiles}
+                    onChange={() => handleToggleMetric('caliberProfiles')}
+                  />
                 </label>
                 <label className="metric-toggle-row">
                   <span>💵 Ammo Inventory Value</span>
-                  <input type="checkbox" checked={metricVisibility.ammoValue} onChange={() => handleToggleMetric('ammoValue')} />
+                  <input
+                    type="checkbox"
+                    checked={metricVisibility.ammoValue}
+                    onChange={() => handleToggleMetric('ammoValue')}
+                  />
                 </label>
                 <label className="metric-toggle-row">
                   <span>⚠️ Ammo Low Stock Health</span>
-                  <input type="checkbox" checked={metricVisibility.lowStockHealth} onChange={() => handleToggleMetric('lowStockHealth')} />
+                  <input
+                    type="checkbox"
+                    checked={metricVisibility.lowStockHealth}
+                    onChange={() => handleToggleMetric('lowStockHealth')}
+                  />
                 </label>
 
-                <div style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', margin: '0.8rem 0 0.4rem' }}>
+                <div
+                  style={{
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: 'var(--text-muted)',
+                    margin: '0.8rem 0 0.4rem',
+                  }}
+                >
                   Reloading Component Cards
                 </div>
                 <label className="metric-toggle-row">
                   <span>🧪 Smokeless Powder (lbs)</span>
-                  <input type="checkbox" checked={metricVisibility.powderStock} onChange={() => handleToggleMetric('powderStock')} />
+                  <input
+                    type="checkbox"
+                    checked={metricVisibility.powderStock}
+                    onChange={() => handleToggleMetric('powderStock')}
+                  />
                 </label>
                 <label className="metric-toggle-row">
                   <span>⚡ Primers on Hand</span>
-                  <input type="checkbox" checked={metricVisibility.primersStock} onChange={() => handleToggleMetric('primersStock')} />
+                  <input
+                    type="checkbox"
+                    checked={metricVisibility.primersStock}
+                    onChange={() => handleToggleMetric('primersStock')}
+                  />
                 </label>
                 <label className="metric-toggle-row">
                   <span>🎯 Projectiles / Bullets</span>
-                  <input type="checkbox" checked={metricVisibility.bulletsStock} onChange={() => handleToggleMetric('bulletsStock')} />
+                  <input
+                    type="checkbox"
+                    checked={metricVisibility.bulletsStock}
+                    onChange={() => handleToggleMetric('bulletsStock')}
+                  />
                 </label>
                 <label className="metric-toggle-row">
                   <span>🛡️ Brass Casings</span>
-                  <input type="checkbox" checked={metricVisibility.brassStock} onChange={() => handleToggleMetric('brassStock')} />
+                  <input
+                    type="checkbox"
+                    checked={metricVisibility.brassStock}
+                    onChange={() => handleToggleMetric('brassStock')}
+                  />
                 </label>
               </div>
             )}
@@ -613,17 +789,39 @@ export const AmmoDashboard = () => {
       </div>
 
       {/* Togglable Command Metrics Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '1rem', marginBottom: '1.75rem' }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+          gap: '1rem',
+          marginBottom: '1.75rem',
+        }}
+      >
         {/* Metric 1: Total Live Rounds */}
         {metricVisibility.totalRounds && (
           <div className="stat-card">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-              <div style={{ background: 'rgba(59, 130, 246, 0.12)', border: '1px solid rgba(59, 130, 246, 0.25)', padding: '0.75rem', borderRadius: '12px', color: '#60a5fa' }}>
+              <div
+                style={{
+                  background: 'rgba(59, 130, 246, 0.12)',
+                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                  padding: '0.75rem',
+                  borderRadius: '12px',
+                  color: '#60a5fa',
+                }}
+              >
                 <Target size={22} />
               </div>
               <div>
                 <div className="stat-label">Total Live Rounds</div>
-                <div className="stat-val">{totalAmmoCount.toLocaleString()} <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)' }}>rds</span></div>
+                <div className="stat-val">
+                  {totalAmmoCount.toLocaleString()}{' '}
+                  <span
+                    style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)' }}
+                  >
+                    rds
+                  </span>
+                </div>
                 <div className="stat-sub">{totalCaliberCount} Distinct Calibers</div>
               </div>
             </div>
@@ -634,13 +832,24 @@ export const AmmoDashboard = () => {
         {metricVisibility.caliberProfiles && (
           <div className="stat-card">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-              <div style={{ background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.25)', padding: '0.75rem', borderRadius: '12px', color: '#34d399' }}>
+              <div
+                style={{
+                  background: 'rgba(16, 185, 129, 0.12)',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  padding: '0.75rem',
+                  borderRadius: '12px',
+                  color: '#34d399',
+                }}
+              >
                 <Package size={22} />
               </div>
               <div>
                 <div className="stat-label">Caliber Profiles</div>
                 <div className="stat-val">{ammoList.length}</div>
-                <div className="stat-sub">{ammoList.filter(a => a.type === 'factory').length} Factory &bull; {ammoList.filter(a => a.type === 'handload').length} Handload</div>
+                <div className="stat-sub">
+                  {ammoList.filter((a) => a.type === 'factory').length} Factory &bull;{' '}
+                  {ammoList.filter((a) => a.type === 'handload').length} Handload
+                </div>
               </div>
             </div>
           </div>
@@ -650,12 +859,26 @@ export const AmmoDashboard = () => {
         {metricVisibility.ammoValue && (
           <div className="stat-card">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-              <div style={{ background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.25)', padding: '0.75rem', borderRadius: '12px', color: '#fbbf24' }}>
+              <div
+                style={{
+                  background: 'rgba(245, 158, 11, 0.12)',
+                  border: '1px solid rgba(245, 158, 11, 0.25)',
+                  padding: '0.75rem',
+                  borderRadius: '12px',
+                  color: '#fbbf24',
+                }}
+              >
                 <DollarSign size={22} />
               </div>
               <div>
                 <div className="stat-label">Ammo Net Value</div>
-                <div className="stat-val">${totalAmmoVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                <div className="stat-val">
+                  $
+                  {totalAmmoVal.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </div>
                 <div className="stat-sub">Live Ammo Stock Baseline</div>
               </div>
             </div>
@@ -664,28 +887,44 @@ export const AmmoDashboard = () => {
 
         {/* Metric 4: Low Stock Health */}
         {metricVisibility.lowStockHealth && (
-          <div 
-            className="stat-card" 
-            onClick={() => setSelectedFilterChip(selectedFilterChip === 'low_stock' ? 'all' : 'low_stock')}
+          <div
+            className="stat-card"
+            onClick={() =>
+              setSelectedFilterChip(selectedFilterChip === 'low_stock' ? 'all' : 'low_stock')
+            }
             style={{ cursor: 'pointer' }}
             title="Click to filter low stock items"
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-              <div style={{ 
-                background: lowAmmoAlerts.length > 0 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.12)', 
-                border: `1px solid ${lowAmmoAlerts.length > 0 ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.25)'}`, 
-                padding: '0.75rem', 
-                borderRadius: '12px', 
-                color: lowAmmoAlerts.length > 0 ? '#f87171' : '#34d399' 
-              }}>
-                {lowAmmoAlerts.length > 0 ? <AlertTriangle size={22} /> : <CheckCircle2 size={22} />}
+              <div
+                style={{
+                  background:
+                    lowAmmoAlerts.length > 0
+                      ? 'rgba(239, 68, 68, 0.15)'
+                      : 'rgba(16, 185, 129, 0.12)',
+                  border: `1px solid ${lowAmmoAlerts.length > 0 ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.25)'}`,
+                  padding: '0.75rem',
+                  borderRadius: '12px',
+                  color: lowAmmoAlerts.length > 0 ? '#f87171' : '#34d399',
+                }}
+              >
+                {lowAmmoAlerts.length > 0 ? (
+                  <AlertTriangle size={22} />
+                ) : (
+                  <CheckCircle2 size={22} />
+                )}
               </div>
               <div>
                 <div className="stat-label">Stock Health</div>
-                <div className="stat-val" style={{ color: lowAmmoAlerts.length > 0 ? '#f87171' : '#34d399' }}>
+                <div
+                  className="stat-val"
+                  style={{ color: lowAmmoAlerts.length > 0 ? '#f87171' : '#34d399' }}
+                >
                   {lowAmmoAlerts.length > 0 ? `${lowAmmoAlerts.length} Low` : '100% Ready'}
                 </div>
-                <div className="stat-sub">{lowAmmoAlerts.length > 0 ? 'Replenishment Needed' : 'All Levels Optimal'}</div>
+                <div className="stat-sub">
+                  {lowAmmoAlerts.length > 0 ? 'Replenishment Needed' : 'All Levels Optimal'}
+                </div>
               </div>
             </div>
           </div>
@@ -695,13 +934,30 @@ export const AmmoDashboard = () => {
         {metricVisibility.powderStock && (
           <div className="stat-card">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-              <div style={{ background: 'rgba(168, 85, 247, 0.12)', border: '1px solid rgba(168, 85, 247, 0.25)', padding: '0.75rem', borderRadius: '12px', color: '#c084fc' }}>
+              <div
+                style={{
+                  background: 'rgba(168, 85, 247, 0.12)',
+                  border: '1px solid rgba(168, 85, 247, 0.25)',
+                  padding: '0.75rem',
+                  borderRadius: '12px',
+                  color: '#c084fc',
+                }}
+              >
                 <FlaskConical size={22} />
               </div>
               <div>
                 <div className="stat-label">Smokeless Powder</div>
-                <div className="stat-val">{totalPowderLbs.toFixed(1)} <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)' }}>lbs</span></div>
-                <div className="stat-sub">{components.filter(c => c.type === 'Powder').length} Powder Types</div>
+                <div className="stat-val">
+                  {totalPowderLbs.toFixed(1)}{' '}
+                  <span
+                    style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)' }}
+                  >
+                    lbs
+                  </span>
+                </div>
+                <div className="stat-sub">
+                  {components.filter((c) => c.type === 'Powder').length} Powder Types
+                </div>
               </div>
             </div>
           </div>
@@ -711,13 +967,30 @@ export const AmmoDashboard = () => {
         {metricVisibility.primersStock && (
           <div className="stat-card">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-              <div style={{ background: 'rgba(234, 179, 8, 0.12)', border: '1px solid rgba(234, 179, 8, 0.25)', padding: '0.75rem', borderRadius: '12px', color: '#facc15' }}>
+              <div
+                style={{
+                  background: 'rgba(234, 179, 8, 0.12)',
+                  border: '1px solid rgba(234, 179, 8, 0.25)',
+                  padding: '0.75rem',
+                  borderRadius: '12px',
+                  color: '#facc15',
+                }}
+              >
                 <Zap size={22} />
               </div>
               <div>
                 <div className="stat-label">Primers on Hand</div>
-                <div className="stat-val">{totalPrimersCount.toLocaleString()} <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)' }}>ct</span></div>
-                <div className="stat-sub">{components.filter(c => c.type === 'Primer').length} Primer Lots</div>
+                <div className="stat-val">
+                  {totalPrimersCount.toLocaleString()}{' '}
+                  <span
+                    style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)' }}
+                  >
+                    ct
+                  </span>
+                </div>
+                <div className="stat-sub">
+                  {components.filter((c) => c.type === 'Primer').length} Primer Lots
+                </div>
               </div>
             </div>
           </div>
@@ -727,13 +1000,30 @@ export const AmmoDashboard = () => {
         {metricVisibility.bulletsStock && (
           <div className="stat-card">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-              <div style={{ background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.25)', padding: '0.75rem', borderRadius: '12px', color: '#38bdf8' }}>
+              <div
+                style={{
+                  background: 'rgba(56, 189, 248, 0.12)',
+                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                  padding: '0.75rem',
+                  borderRadius: '12px',
+                  color: '#38bdf8',
+                }}
+              >
                 <CircleDot size={22} />
               </div>
               <div>
                 <div className="stat-label">Projectiles</div>
-                <div className="stat-val">{totalBulletsCount.toLocaleString()} <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)' }}>ct</span></div>
-                <div className="stat-sub">{components.filter(c => c.type === 'Bullet').length} Bullet Varieties</div>
+                <div className="stat-val">
+                  {totalBulletsCount.toLocaleString()}{' '}
+                  <span
+                    style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)' }}
+                  >
+                    ct
+                  </span>
+                </div>
+                <div className="stat-sub">
+                  {components.filter((c) => c.type === 'Bullet').length} Bullet Varieties
+                </div>
               </div>
             </div>
           </div>
@@ -743,12 +1033,27 @@ export const AmmoDashboard = () => {
         {metricVisibility.brassStock && (
           <div className="stat-card">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-              <div style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.25)', padding: '0.75rem', borderRadius: '12px', color: '#f87171' }}>
+              <div
+                style={{
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                  padding: '0.75rem',
+                  borderRadius: '12px',
+                  color: '#f87171',
+                }}
+              >
                 <Shield size={22} />
               </div>
               <div>
                 <div className="stat-label">Brass &amp; Hulls</div>
-                <div className="stat-val">{totalBrassCount.toLocaleString()} <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)' }}>ct</span></div>
+                <div className="stat-val">
+                  {totalBrassCount.toLocaleString()}{' '}
+                  <span
+                    style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)' }}
+                  >
+                    ct
+                  </span>
+                </div>
                 <div className="stat-sub">Across All Prep Stages</div>
               </div>
             </div>
@@ -759,13 +1064,36 @@ export const AmmoDashboard = () => {
       {/* Top Caliber Quick-Stock Breakdown Cards (Website Preview Style) */}
       {topCaliberShowcase.length > 0 && (
         <div style={{ marginBottom: '1.75rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-            <h3 style={{ margin: 0, fontSize: '1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '0.85rem',
+            }}
+          >
+            <h3
+              style={{
+                margin: 0,
+                fontSize: '1rem',
+                color: 'var(--text-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
               <Boxes size={18} style={{ color: 'var(--accent-primary)' }} />
               Top Vault Calibers &bull; Live Telemetry
             </h3>
             <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-              Total Depot Net Worth: <strong style={{ color: 'var(--success)' }}>${grandTotalDepotVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+              Total Depot Net Worth:{' '}
+              <strong style={{ color: 'var(--success)' }}>
+                $
+                {grandTotalDepotVal.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </strong>
             </span>
           </div>
 
@@ -775,33 +1103,91 @@ export const AmmoDashboard = () => {
               const accentClass = accents[idx % accents.length];
               return (
                 <div key={top.caliber} className={`ammo-showcase-card ${accentClass}`}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-start',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-muted)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        fontWeight: 700,
+                      }}
+                    >
                       {top.caliber}
                     </div>
                     <span className="inventory-caliber-badge">#{idx + 1} Caliber</span>
                   </div>
-                  
-                  <div style={{ fontSize: '1.4rem', fontWeight: 700, margin: '0.4rem 0 0.2rem', color: '#fff' }}>
-                    {top.count.toLocaleString()} <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)' }}>rds</span>
+
+                  <div
+                    style={{
+                      fontSize: '1.4rem',
+                      fontWeight: 700,
+                      margin: '0.4rem 0 0.2rem',
+                      color: '#fff',
+                    }}
+                  >
+                    {top.count.toLocaleString()}{' '}
+                    <span
+                      style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)' }}
+                    >
+                      rds
+                    </span>
                   </div>
 
-                  <div style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div
+                    style={{
+                      fontSize: '0.775rem',
+                      color: 'var(--text-secondary)',
+                      marginBottom: '0.75rem',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
                     {top.profiles.slice(0, 2).join(' + ') || `${top.factoryCount} factory rds`}
                   </div>
 
                   {top.goal > 0 && (
                     <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.725rem', color: 'var(--text-muted)', marginBottom: '3px' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          fontSize: '0.725rem',
+                          color: 'var(--text-muted)',
+                          marginBottom: '3px',
+                        }}
+                      >
                         <span>Target Goal ({top.goal} rds)</span>
                         <span>{Math.min(100, Math.round((top.count / top.goal) * 100))}%</span>
                       </div>
-                      <div style={{ width: '100%', height: '5px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px', overflow: 'hidden' }}>
-                        <div style={{ 
-                          width: `${Math.min(100, (top.count / top.goal) * 100)}%`, 
-                          height: '100%', 
-                          background: idx === 0 ? 'var(--accent-primary)' : idx === 1 ? 'var(--accent-emerald)' : 'var(--accent-amber)' 
-                        }} />
+                      <div
+                        style={{
+                          width: '100%',
+                          height: '5px',
+                          background: 'rgba(255,255,255,0.08)',
+                          borderRadius: '3px',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: `${Math.min(100, (top.count / top.goal) * 100)}%`,
+                            height: '100%',
+                            background:
+                              idx === 0
+                                ? 'var(--accent-primary)'
+                                : idx === 1
+                                  ? 'var(--accent-emerald)'
+                                  : 'var(--accent-amber)',
+                          }}
+                        />
                       </div>
                     </div>
                   )}
@@ -813,46 +1199,66 @@ export const AmmoDashboard = () => {
       )}
 
       {/* Sub-View Switcher Tabs */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.75rem', flexWrap: 'wrap' }}>
-        <button 
-          onClick={() => { setActiveDepotView('ammo'); setSelectedFilterChip('all'); }}
+      <div
+        style={{
+          display: 'flex',
+          gap: '0.5rem',
+          marginBottom: '1.25rem',
+          borderBottom: '1px solid var(--border-subtle)',
+          paddingBottom: '0.75rem',
+          flexWrap: 'wrap',
+        }}
+      >
+        <button
+          onClick={() => {
+            setActiveDepotView('ammo');
+            setSelectedFilterChip('all');
+          }}
           className={`btn-secondary ${activeDepotView === 'ammo' ? 'active' : ''}`}
-          style={{ 
-            padding: '0.5rem 1.15rem', 
+          style={{
+            padding: '0.5rem 1.15rem',
             fontSize: '0.9rem',
             background: activeDepotView === 'ammo' ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
-            borderColor: activeDepotView === 'ammo' ? 'var(--accent-primary)' : 'var(--border-light)',
-            color: activeDepotView === 'ammo' ? '#93c5fd' : 'var(--text-secondary)'
+            borderColor:
+              activeDepotView === 'ammo' ? 'var(--accent-primary)' : 'var(--border-light)',
+            color: activeDepotView === 'ammo' ? '#93c5fd' : 'var(--text-secondary)',
           }}
         >
           <Target size={16} />
           <span>Live Ammunition ({totalAmmoCount.toLocaleString()} rds)</span>
         </button>
 
-        <button 
-          onClick={() => { setActiveDepotView('reloading'); setSelectedFilterChip('all'); }}
+        <button
+          onClick={() => {
+            setActiveDepotView('reloading');
+            setSelectedFilterChip('all');
+          }}
           className={`btn-secondary ${activeDepotView === 'reloading' ? 'active' : ''}`}
-          style={{ 
-            padding: '0.5rem 1.15rem', 
+          style={{
+            padding: '0.5rem 1.15rem',
             fontSize: '0.9rem',
             background: activeDepotView === 'reloading' ? 'rgba(168, 85, 247, 0.2)' : 'transparent',
             borderColor: activeDepotView === 'reloading' ? '#c084fc' : 'var(--border-light)',
-            color: activeDepotView === 'reloading' ? '#c084fc' : 'var(--text-secondary)'
+            color: activeDepotView === 'reloading' ? '#c084fc' : 'var(--text-secondary)',
           }}
         >
           <FlaskConical size={16} />
           <span>Reloading Supplies ({components.length} Items)</span>
         </button>
 
-        <button 
-          onClick={() => { setActiveDepotView('combined'); setSelectedFilterChip('all'); }}
+        <button
+          onClick={() => {
+            setActiveDepotView('combined');
+            setSelectedFilterChip('all');
+          }}
           className={`btn-secondary ${activeDepotView === 'combined' ? 'active' : ''}`}
-          style={{ 
-            padding: '0.5rem 1.15rem', 
+          style={{
+            padding: '0.5rem 1.15rem',
             fontSize: '0.9rem',
             background: activeDepotView === 'combined' ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
-            borderColor: activeDepotView === 'combined' ? 'var(--accent-emerald)' : 'var(--border-light)',
-            color: activeDepotView === 'combined' ? '#34d399' : 'var(--text-secondary)'
+            borderColor:
+              activeDepotView === 'combined' ? 'var(--accent-emerald)' : 'var(--border-light)',
+            color: activeDepotView === 'combined' ? '#34d399' : 'var(--text-secondary)',
           }}
         >
           <Layers size={16} />
@@ -864,98 +1270,141 @@ export const AmmoDashboard = () => {
       <div className="dashboard-control-deck">
         {/* Left: Filter Chips */}
         <div className="filter-chips-bar">
-          <button 
+          <button
             className={`filter-chip ${selectedFilterChip === 'all' ? 'active' : ''}`}
             onClick={() => setSelectedFilterChip('all')}
           >
             <span>All Items</span>
             <span className="filter-chip-count">
-              {activeDepotView === 'ammo' ? ammoList.length : activeDepotView === 'reloading' ? components.length : ammoList.length + components.length}
+              {activeDepotView === 'ammo'
+                ? ammoList.length
+                : activeDepotView === 'reloading'
+                  ? components.length
+                  : ammoList.length + components.length}
             </span>
           </button>
 
           {activeDepotView === 'ammo' && (
             <>
-              <button 
+              <button
                 className={`filter-chip ${selectedFilterChip === 'pistol' ? 'active' : ''}`}
                 onClick={() => setSelectedFilterChip('pistol')}
               >
                 <span>🎯 Handguns</span>
-                <span className="filter-chip-count">{ammoList.filter(a => getAmmoCategory(a.caliber, customCategories) === 'Pistol').length}</span>
+                <span className="filter-chip-count">
+                  {
+                    ammoList.filter(
+                      (a) => getAmmoCategory(a.caliber, customCategories) === 'Pistol'
+                    ).length
+                  }
+                </span>
               </button>
 
-              <button 
+              <button
                 className={`filter-chip ${selectedFilterChip === 'rifle' ? 'active' : ''}`}
                 onClick={() => setSelectedFilterChip('rifle')}
               >
                 <span>🎯 Rifles</span>
-                <span className="filter-chip-count">{ammoList.filter(a => getAmmoCategory(a.caliber, customCategories) === 'Rifle').length}</span>
+                <span className="filter-chip-count">
+                  {
+                    ammoList.filter((a) => getAmmoCategory(a.caliber, customCategories) === 'Rifle')
+                      .length
+                  }
+                </span>
               </button>
 
-              <button 
+              <button
                 className={`filter-chip ${selectedFilterChip === 'shotgun' ? 'active' : ''}`}
                 onClick={() => setSelectedFilterChip('shotgun')}
               >
                 <span>🎯 Shotguns</span>
-                <span className="filter-chip-count">{ammoList.filter(a => getAmmoCategory(a.caliber, customCategories) === 'Shotgun').length}</span>
+                <span className="filter-chip-count">
+                  {
+                    ammoList.filter(
+                      (a) => getAmmoCategory(a.caliber, customCategories) === 'Shotgun'
+                    ).length
+                  }
+                </span>
               </button>
 
-              <button 
+              <button
                 className={`filter-chip ${selectedFilterChip === 'handload' ? 'active' : ''}`}
                 onClick={() => setSelectedFilterChip('handload')}
               >
                 <span>🔥 Handloads</span>
-                <span className="filter-chip-count">{ammoList.filter(a => a.type === 'handload').length}</span>
+                <span className="filter-chip-count">
+                  {ammoList.filter((a) => a.type === 'handload').length}
+                </span>
               </button>
             </>
           )}
 
           {activeDepotView === 'reloading' && (
             <>
-              <button 
+              <button
                 className={`filter-chip ${selectedFilterChip === 'powder' ? 'active' : ''}`}
                 onClick={() => setSelectedFilterChip('powder')}
               >
                 <span>🧪 Powder</span>
-                <span className="filter-chip-count">{components.filter(c => c.type === 'Powder').length}</span>
+                <span className="filter-chip-count">
+                  {components.filter((c) => c.type === 'Powder').length}
+                </span>
               </button>
 
-              <button 
+              <button
                 className={`filter-chip ${selectedFilterChip === 'primer' ? 'active' : ''}`}
                 onClick={() => setSelectedFilterChip('primer')}
               >
                 <span>⚡ Primers</span>
-                <span className="filter-chip-count">{components.filter(c => c.type === 'Primer').length}</span>
+                <span className="filter-chip-count">
+                  {components.filter((c) => c.type === 'Primer').length}
+                </span>
               </button>
 
-              <button 
+              <button
                 className={`filter-chip ${selectedFilterChip === 'bullet' ? 'active' : ''}`}
                 onClick={() => setSelectedFilterChip('bullet')}
               >
                 <span>🎯 Bullets</span>
-                <span className="filter-chip-count">{components.filter(c => c.type === 'Bullet').length}</span>
+                <span className="filter-chip-count">
+                  {components.filter((c) => c.type === 'Bullet').length}
+                </span>
               </button>
 
-              <button 
+              <button
                 className={`filter-chip ${selectedFilterChip === 'brass' ? 'active' : ''}`}
                 onClick={() => setSelectedFilterChip('brass')}
               >
                 <span>🛡️ Brass</span>
-                <span className="filter-chip-count">{components.filter(c => c.type === 'Brass').length}</span>
+                <span className="filter-chip-count">
+                  {components.filter((c) => c.type === 'Brass').length}
+                </span>
               </button>
             </>
           )}
 
-          <button 
+          <button
             className={`filter-chip ${selectedFilterChip === 'low_stock' ? 'active' : ''}`}
             onClick={() => setSelectedFilterChip('low_stock')}
             style={{
-              borderColor: (lowAmmoAlerts.length > 0 || lowComponentAlerts.length > 0) ? 'rgba(239, 68, 68, 0.4)' : undefined,
-              color: (lowAmmoAlerts.length > 0 || lowComponentAlerts.length > 0) ? '#f87171' : undefined
+              borderColor:
+                lowAmmoAlerts.length > 0 || lowComponentAlerts.length > 0
+                  ? 'rgba(239, 68, 68, 0.4)'
+                  : undefined,
+              color:
+                lowAmmoAlerts.length > 0 || lowComponentAlerts.length > 0 ? '#f87171' : undefined,
             }}
           >
             <span>⚠️ Low Stock</span>
-            <span className="filter-chip-count" style={{ background: (lowAmmoAlerts.length > 0 || lowComponentAlerts.length > 0) ? 'rgba(239,68,68,0.3)' : undefined }}>
+            <span
+              className="filter-chip-count"
+              style={{
+                background:
+                  lowAmmoAlerts.length > 0 || lowComponentAlerts.length > 0
+                    ? 'rgba(239,68,68,0.3)'
+                    : undefined,
+              }}
+            >
               {activeDepotView === 'reloading' ? lowComponentAlerts.length : lowAmmoAlerts.length}
             </span>
           </button>
@@ -965,7 +1414,7 @@ export const AmmoDashboard = () => {
         <div className="dashboard-control-right">
           {activeDepotView === 'ammo' && (
             <div className="view-mode-toggle" style={{ marginRight: '0.4rem' }}>
-              <button 
+              <button
                 className={`view-mode-btn ${activeAmmoTab === 'factory' ? 'active' : ''}`}
                 onClick={() => setActiveAmmoTab('factory')}
                 style={{ width: 'auto', padding: '0 0.6rem', fontSize: '0.8rem', gap: '0.3rem' }}
@@ -974,7 +1423,7 @@ export const AmmoDashboard = () => {
                 <Package size={14} />
                 <span>Factory</span>
               </button>
-              <button 
+              <button
                 className={`view-mode-btn ${activeAmmoTab === 'handload' ? 'active' : ''}`}
                 onClick={() => setActiveAmmoTab('handload')}
                 style={{ width: 'auto', padding: '0 0.6rem', fontSize: '0.8rem', gap: '0.3rem' }}
@@ -988,16 +1437,16 @@ export const AmmoDashboard = () => {
 
           <div className="search-box">
             <Search size={15} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-            <input 
-              type="text" 
-              placeholder="Search calibers, bullets, powder..." 
+            <input
+              type="text"
+              placeholder="Search calibers, bullets, powder..."
               value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
             {searchQuery && (
-              <button 
-                type="button" 
-                className="search-clear-btn" 
+              <button
+                type="button"
+                className="search-clear-btn"
                 onClick={() => setSearchQuery('')}
                 title="Clear search"
               >
@@ -1012,75 +1461,242 @@ export const AmmoDashboard = () => {
       {(activeDepotView === 'ammo' || activeDepotView === 'combined') && (
         <div style={{ marginBottom: '2.5rem' }}>
           {activeDepotView === 'combined' && (
-            <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <h2
+              style={{
+                fontSize: '1.25rem',
+                marginBottom: '1rem',
+                color: 'var(--text-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
               <Target size={20} style={{ color: 'var(--accent-primary)' }} />
               Live Ammunition Inventory
             </h2>
           )}
 
-          {['Pistol', 'Rifle', 'Shotgun', 'Other'].map(category => {
+          {['Pistol', 'Rifle', 'Shotgun', 'Other'].map((category) => {
             const categoryAmmo = filteredAmmo
-              .filter(a => getAmmoCategory(a.caliber, customCategories) === category)
+              .filter((a) => getAmmoCategory(a.caliber, customCategories) === category)
               .sort((a, b) => (a.caliber || '').localeCompare(b.caliber || ''));
             if (categoryAmmo.length === 0) return null;
             return (
               <div key={category} style={{ marginBottom: '2rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.5rem', marginBottom: '1.25rem' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    borderBottom: '1px solid var(--border-subtle)',
+                    paddingBottom: '0.5rem',
+                    marginBottom: '1.25rem',
+                  }}
+                >
                   <h3 style={{ fontSize: '1.1rem', margin: 0, color: 'var(--text-primary)' }}>
                     {category} Calibers
                   </h3>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    {categoryAmmo.reduce((sum, a) => sum + (Number(a.count) || 0), 0).toLocaleString()} rounds
+                    {categoryAmmo
+                      .reduce((sum, a) => sum + (Number(a.count) || 0), 0)
+                      .toLocaleString()}{' '}
+                    rounds
                   </span>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem' }}>
-                  {categoryAmmo.map(ammo => {
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+                    gap: '1.25rem',
+                  }}
+                >
+                  {categoryAmmo.map((ammo) => {
                     const isLow = isAmmoLow(ammo);
                     return (
-                      <div 
-                        key={ammo.id} 
-                        className="card ammo-card" 
-                        onClick={() => setInspectingAmmo(ammo)} 
-                        style={{ 
-                          position: 'relative', 
-                          cursor: 'pointer', 
-                          border: isLow ? '1px solid rgba(239, 68, 68, 0.4)' : undefined, 
-                          background: isLow ? 'rgba(239, 68, 68, 0.03)' : undefined 
+                      <div
+                        key={ammo.id}
+                        className="card ammo-card"
+                        onClick={() => setInspectingAmmo(ammo)}
+                        style={{
+                          position: 'relative',
+                          cursor: 'pointer',
+                          border: isLow ? '1px solid rgba(239, 68, 68, 0.4)' : undefined,
+                          background: isLow ? 'rgba(239, 68, 68, 0.03)' : undefined,
                         }}
                       >
-                        <div style={{ position: 'absolute', top: '1rem', right: '1rem', display: 'flex', gap: '0.35rem' }}>
-                          <button onClick={(e) => { e.stopPropagation(); setLabelModalAmmo(ammo); }} style={{ background: 'transparent', border: 'none', color: '#38bdf8', cursor: 'pointer', padding: '0.2rem' }} title="Print Can / Box Sticker Label"><Tag size={15} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); handlePrintAmmoQR(ammo); }} style={{ background: 'transparent', border: 'none', color: '#60a5fa', cursor: 'pointer', padding: '0.2rem' }} title="Print Standard QR Sheet"><Printer size={15} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); handleSaveAmmoQR(ammo); }} style={{ background: 'transparent', border: 'none', color: '#60a5fa', cursor: 'pointer', padding: '0.2rem' }} title="Save QR Image"><Upload size={15} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); openEditAmmoModal(ammo); }} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '0.2rem' }}><Edit size={15} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); handleDeleteAmmo(ammo.id!); }} style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '0.2rem' }}><Trash2 size={15} /></button>
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: '1rem',
+                            right: '1rem',
+                            display: 'flex',
+                            gap: '0.35rem',
+                          }}
+                        >
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setLabelModalAmmo(ammo);
+                            }}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#38bdf8',
+                              cursor: 'pointer',
+                              padding: '0.2rem',
+                            }}
+                            title="Print Can / Box Sticker Label"
+                          >
+                            <Tag size={15} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePrintAmmoQR(ammo);
+                            }}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#60a5fa',
+                              cursor: 'pointer',
+                              padding: '0.2rem',
+                            }}
+                            title="Print Standard QR Sheet"
+                          >
+                            <Printer size={15} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSaveAmmoQR(ammo);
+                            }}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#60a5fa',
+                              cursor: 'pointer',
+                              padding: '0.2rem',
+                            }}
+                            title="Save QR Image"
+                          >
+                            <Upload size={15} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEditAmmoModal(ammo);
+                            }}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: 'var(--text-secondary)',
+                              cursor: 'pointer',
+                              padding: '0.2rem',
+                            }}
+                          >
+                            <Edit size={15} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteAmmo(ammo.id!);
+                            }}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: 'var(--danger)',
+                              cursor: 'pointer',
+                              padding: '0.2rem',
+                            }}
+                          >
+                            <Trash2 size={15} />
+                          </button>
                         </div>
-                        
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
-                          <h3 style={{ fontSize: '1.2rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            marginBottom: '0.25rem',
+                            flexWrap: 'wrap',
+                          }}
+                        >
+                          <h3
+                            style={{
+                              fontSize: '1.2rem',
+                              margin: 0,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.4rem',
+                            }}
+                          >
                             {ammo.caliber}
-                            {ammo.isPlusP && <span style={{ fontSize: '0.7rem', padding: '0.1rem 0.35rem', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', borderRadius: '4px', border: '1px solid rgba(239, 68, 68, 0.3)', fontWeight: 'bold' }}>+P</span>}
+                            {ammo.isPlusP && (
+                              <span
+                                style={{
+                                  fontSize: '0.7rem',
+                                  padding: '0.1rem 0.35rem',
+                                  background: 'rgba(239, 68, 68, 0.15)',
+                                  color: '#ef4444',
+                                  borderRadius: '4px',
+                                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                                  fontWeight: 'bold',
+                                }}
+                              >
+                                +P
+                              </span>
+                            )}
                           </h3>
                           {isLow && (
-                            <span style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
+                            <span
+                              style={{
+                                background: 'rgba(239, 68, 68, 0.15)',
+                                color: '#f87171',
+                                border: '1px solid rgba(239, 68, 68, 0.3)',
+                                padding: '0.1rem 0.4rem',
+                                borderRadius: '4px',
+                                fontSize: '0.7rem',
+                                fontWeight: 'bold',
+                              }}
+                            >
                               Low Stock
                             </span>
                           )}
                         </div>
 
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1rem', minHeight: '1.3rem' }}>
+                        <p
+                          style={{
+                            color: 'var(--text-secondary)',
+                            fontSize: '0.85rem',
+                            marginBottom: '1rem',
+                            minHeight: '1.3rem',
+                          }}
+                        >
                           {(() => {
                             const isShotgun = category === 'Shotgun';
                             if (ammo.type === 'factory') {
                               if (isShotgun) {
-                                const fmtPayload = ammo.oz_payload ? (ammo.oz_payload.toLowerCase().includes('oz') ? ammo.oz_payload : `${ammo.oz_payload} oz`) : (ammo.pellet_count ? `${ammo.pellet_count} pellets` : '');
+                                const fmtPayload = ammo.oz_payload
+                                  ? ammo.oz_payload.toLowerCase().includes('oz')
+                                    ? ammo.oz_payload
+                                    : `${ammo.oz_payload} oz`
+                                  : ammo.pellet_count
+                                    ? `${ammo.pellet_count} pellets`
+                                    : '';
                                 return `${ammo.manufacturer || 'Unknown Make'} - ${ammo.shot_size || 'Unknown Shot'} ${fmtPayload ? `(${fmtPayload})` : ''}`.trim();
                               }
                               return `${ammo.manufacturer || 'Unknown Make'} - ${ammo.grain || '??'}gr ${ammo.projectile || ''}`.trim();
                             } else {
                               if (isShotgun) {
-                                const fmtPayload = ammo.oz_payload ? (ammo.oz_payload.toLowerCase().includes('oz') ? ammo.oz_payload : `${ammo.oz_payload} oz`) : (ammo.pellet_count ? `${ammo.pellet_count} pellets` : '');
+                                const fmtPayload = ammo.oz_payload
+                                  ? ammo.oz_payload.toLowerCase().includes('oz')
+                                    ? ammo.oz_payload
+                                    : `${ammo.oz_payload} oz`
+                                  : ammo.pellet_count
+                                    ? `${ammo.pellet_count} pellets`
+                                    : '';
                                 return `${ammo.shot_size || 'Unknown Shot'} - ${ammo.powder || 'Unknown Powder'} ${ammo.powderCharge ? `(${ammo.powderCharge}gr)` : ''} ${fmtPayload ? `(${fmtPayload})` : ''}`.trim();
                               }
                               return `${ammo.bullet_manufacturer ? ammo.bullet_manufacturer + ' ' : ''}${ammo.grain ? ammo.grain + 'gr ' : ''}${ammo.projectile || 'Unknown'} - ${ammo.powder || 'Unknown Powder'} ${ammo.powderCharge ? `(${ammo.powderCharge}gr)` : ''}`.trim();
@@ -1088,35 +1704,99 @@ export const AmmoDashboard = () => {
                           })()}
                         </p>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', background: 'rgba(0,0,0,0.25)', padding: '0.85rem 1rem', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.75rem',
+                            background: 'rgba(0,0,0,0.25)',
+                            padding: '0.85rem 1rem',
+                            borderRadius: '8px',
+                            border: '1px solid var(--border-subtle)',
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                            }}
+                          >
                             <div>
-                              <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Rounds in Stock</span>
-                              <strong style={{ fontSize: '1.35rem', color: isLow ? 'var(--danger)' : 'var(--accent)' }}>
+                              <span
+                                style={{
+                                  color: 'var(--text-muted)',
+                                  fontSize: '0.75rem',
+                                  display: 'block',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.04em',
+                                }}
+                              >
+                                Rounds in Stock
+                              </span>
+                              <strong
+                                style={{
+                                  fontSize: '1.35rem',
+                                  color: isLow ? 'var(--danger)' : 'var(--accent)',
+                                }}
+                              >
                                 {ammo.count.toLocaleString()}
                               </strong>
                             </div>
                             {ammo.costPerRound && (
                               <div style={{ textAlign: 'right' }}>
-                                <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Cost / Rnd</span>
-                                <strong style={{ fontSize: '1.1rem', color: 'var(--success)' }}>${ammo.costPerRound.toFixed(2)}</strong>
+                                <span
+                                  style={{
+                                    color: 'var(--text-muted)',
+                                    fontSize: '0.75rem',
+                                    display: 'block',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.04em',
+                                  }}
+                                >
+                                  Cost / Rnd
+                                </span>
+                                <strong style={{ fontSize: '1.1rem', color: 'var(--success)' }}>
+                                  ${ammo.costPerRound.toFixed(2)}
+                                </strong>
                               </div>
                             )}
                           </div>
-                          
+
                           {ammo.target_stock_goal && (
                             <div>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.725rem', color: 'var(--text-secondary)', marginBottom: '3px' }}>
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  fontSize: '0.725rem',
+                                  color: 'var(--text-secondary)',
+                                  marginBottom: '3px',
+                                }}
+                              >
                                 <span>Stock Goal</span>
-                                <span>{Math.round((ammo.count / ammo.target_stock_goal) * 100)}% ({ammo.target_stock_goal})</span>
+                                <span>
+                                  {Math.round((ammo.count / ammo.target_stock_goal) * 100)}% (
+                                  {ammo.target_stock_goal})
+                                </span>
                               </div>
-                              <div style={{ width: '100%', height: '5px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px', overflow: 'hidden' }}>
-                                <div style={{ 
-                                  height: '100%', 
-                                  width: `${Math.min(100, (ammo.count / ammo.target_stock_goal) * 100)}%`, 
-                                  background: isLow ? 'var(--danger)' : 'var(--accent)',
-                                  transition: 'width 0.3s ease'
-                                }} />
+                              <div
+                                style={{
+                                  width: '100%',
+                                  height: '5px',
+                                  background: 'rgba(255,255,255,0.08)',
+                                  borderRadius: '3px',
+                                  overflow: 'hidden',
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    height: '100%',
+                                    width: `${Math.min(100, (ammo.count / ammo.target_stock_goal) * 100)}%`,
+                                    background: isLow ? 'var(--danger)' : 'var(--accent)',
+                                    transition: 'width 0.3s ease',
+                                  }}
+                                />
                               </div>
                             </div>
                           )}
@@ -1124,10 +1804,29 @@ export const AmmoDashboard = () => {
 
                         {ammo.type === 'handload' && (
                           <>
-                            <div style={{ marginTop: '0.85rem', fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
-                              <div><strong>Primer:</strong> {ammo.primer_type ? `${ammo.primer_type} (${ammo.primer || 'Unknown'})` : (ammo.primer || 'N/A')}</div>
-                              <div><strong>Brass/Hull:</strong> {ammo.brass || ammo.shell_length || 'N/A'}</div>
-                              <div><strong>OAL:</strong> {ammo.oal ? `${ammo.oal}"` : 'N/A'}</div>
+                            <div
+                              style={{
+                                marginTop: '0.85rem',
+                                fontSize: '0.8rem',
+                                color: 'var(--text-secondary)',
+                                display: 'grid',
+                                gridTemplateColumns: '1fr 1fr',
+                                gap: '0.4rem',
+                              }}
+                            >
+                              <div>
+                                <strong>Primer:</strong>{' '}
+                                {ammo.primer_type
+                                  ? `${ammo.primer_type} (${ammo.primer || 'Unknown'})`
+                                  : ammo.primer || 'N/A'}
+                              </div>
+                              <div>
+                                <strong>Brass/Hull:</strong>{' '}
+                                {ammo.brass || ammo.shell_length || 'N/A'}
+                              </div>
+                              <div>
+                                <strong>OAL:</strong> {ammo.oal ? `${ammo.oal}"` : 'N/A'}
+                              </div>
                             </div>
                             <button
                               type="button"
@@ -1144,7 +1843,7 @@ export const AmmoDashboard = () => {
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 gap: '0.4rem',
-                                width: '100%'
+                                width: '100%',
                               }}
                               title="Manufacture a batch of this recipe and deduct powder, primers, brass, and bullets automatically"
                             >
@@ -1161,15 +1860,32 @@ export const AmmoDashboard = () => {
           })}
 
           {filteredAmmo.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '3.5rem 1rem', background: 'var(--bg-surface)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+            <div
+              style={{
+                textAlign: 'center',
+                padding: '3.5rem 1rem',
+                background: 'var(--bg-surface)',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border-subtle)',
+              }}
+            >
               <Target size={36} opacity={0.3} style={{ marginBottom: '0.75rem' }} />
               <h3>No Ammunition Profiles Found</h3>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+              <p
+                style={{
+                  color: 'var(--text-secondary)',
+                  fontSize: '0.875rem',
+                  marginTop: '0.25rem',
+                }}
+              >
                 Try adjusting your search query or add a new ammunition profile.
               </p>
-              <button 
-                className="btn-secondary btn-sm" 
-                onClick={() => { setSearchQuery(''); setSelectedFilterChip('all'); }} 
+              <button
+                className="btn-secondary btn-sm"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSelectedFilterChip('all');
+                }}
                 style={{ marginTop: '0.85rem' }}
               >
                 Reset Filters
@@ -1183,50 +1899,124 @@ export const AmmoDashboard = () => {
       {(activeDepotView === 'reloading' || activeDepotView === 'combined') && (
         <div style={{ marginBottom: '2.5rem' }}>
           {activeDepotView === 'combined' && (
-            <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <h2
+              style={{
+                fontSize: '1.25rem',
+                marginBottom: '1rem',
+                color: 'var(--text-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
               <FlaskConical size={20} style={{ color: '#c084fc' }} />
               Reloading Components Inventory
             </h2>
           )}
 
-          {['Powder', 'Primer', 'Bullet', 'Brass'].map(type => {
-            const typeComps = filteredComponents.filter(c => c.type === type);
+          {['Powder', 'Primer', 'Bullet', 'Brass'].map((type) => {
+            const typeComps = filteredComponents.filter((c) => c.type === type);
             if (typeComps.length === 0) return null;
 
             return (
               <div key={type} style={{ marginBottom: '2rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.5rem', marginBottom: '1.25rem' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    borderBottom: '1px solid var(--border-subtle)',
+                    paddingBottom: '0.5rem',
+                    marginBottom: '1.25rem',
+                  }}
+                >
                   <h3 style={{ fontSize: '1.1rem', margin: 0, color: 'var(--text-primary)' }}>
-                    {type === 'Powder' ? '🧪 Smokeless Powder' : type === 'Primer' ? '⚡ Primers' : type === 'Bullet' ? '🎯 Projectiles & Bullets' : '🛡️ Brass & Casings'}
+                    {type === 'Powder'
+                      ? '🧪 Smokeless Powder'
+                      : type === 'Primer'
+                        ? '⚡ Primers'
+                        : type === 'Bullet'
+                          ? '🎯 Projectiles & Bullets'
+                          : '🛡️ Brass & Casings'}
                   </h3>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                     {typeComps.length} Varieties
                   </span>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
-                  {typeComps.map(c => {
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                    gap: '1.25rem',
+                  }}
+                >
+                  {typeComps.map((c) => {
                     const isLow = isComponentLow(c);
                     return (
-                      <div 
-                        key={c.id} 
-                        className="card ammo-card" 
-                        style={{ 
-                          position: 'relative', 
-                          border: isLow ? '1px solid rgba(239, 68, 68, 0.4)' : undefined, 
-                          background: isLow ? 'rgba(239, 68, 68, 0.03)' : undefined 
+                      <div
+                        key={c.id}
+                        className="card ammo-card"
+                        style={{
+                          position: 'relative',
+                          border: isLow ? '1px solid rgba(239, 68, 68, 0.4)' : undefined,
+                          background: isLow ? 'rgba(239, 68, 68, 0.03)' : undefined,
                         }}
                       >
-                        <div style={{ position: 'absolute', top: '1rem', right: '1rem', display: 'flex', gap: '0.35rem' }}>
-                          <button onClick={() => openEditComponentModal(c)} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '0.2rem' }}><Edit size={15} /></button>
-                          <button onClick={() => handleDeleteComponent(c.id!)} style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '0.2rem' }}><Trash2 size={15} /></button>
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: '1rem',
+                            right: '1rem',
+                            display: 'flex',
+                            gap: '0.35rem',
+                          }}
+                        >
+                          <button
+                            onClick={() => openEditComponentModal(c)}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: 'var(--text-secondary)',
+                              cursor: 'pointer',
+                              padding: '0.2rem',
+                            }}
+                          >
+                            <Edit size={15} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteComponent(c.id!)}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: 'var(--danger)',
+                              cursor: 'pointer',
+                              padding: '0.2rem',
+                            }}
+                          >
+                            <Trash2 size={15} />
+                          </button>
                         </div>
 
-                        <div style={{ fontSize: '0.75rem', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
+                        <div
+                          style={{
+                            fontSize: '0.75rem',
+                            color: 'var(--accent)',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em',
+                            fontWeight: 700,
+                          }}
+                        >
                           {c.manufacturer}
                         </div>
 
-                        <h3 style={{ fontSize: '1.15rem', margin: '0.2rem 0 0.5rem', color: 'var(--text-primary)' }}>
+                        <h3
+                          style={{
+                            fontSize: '1.15rem',
+                            margin: '0.2rem 0 0.5rem',
+                            color: 'var(--text-primary)',
+                          }}
+                        >
                           {c.name || c.caliber || c.type}
                         </h3>
 
@@ -1234,22 +2024,36 @@ export const AmmoDashboard = () => {
                         <div style={{ marginBottom: '0.85rem' }}>
                           {c.type === 'Powder' && c.usageTags && c.usageTags.length > 0 && (
                             <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-                              {c.usageTags.map(tag => (
-                                <span key={tag} className="powder-usage-tag">{tag}</span>
+                              {c.usageTags.map((tag) => (
+                                <span key={tag} className="powder-usage-tag">
+                                  {tag}
+                                </span>
                               ))}
                             </div>
                           )}
 
                           {c.type === 'Brass' && (
-                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                              <span className="reloading-stage-badge">Stage: {c.prepStage || 'Raw Fired'}</span>
-                              {c.caliber && <span className="inventory-caliber-badge">{c.caliber}</span>}
+                            <div
+                              style={{
+                                display: 'flex',
+                                gap: '0.5rem',
+                                alignItems: 'center',
+                                flexWrap: 'wrap',
+                              }}
+                            >
+                              <span className="reloading-stage-badge">
+                                Stage: {c.prepStage || 'Raw Fired'}
+                              </span>
+                              {c.caliber && (
+                                <span className="inventory-caliber-badge">{c.caliber}</span>
+                              )}
                             </div>
                           )}
 
                           {c.type === 'Bullet' && (
                             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                              {c.caliber} &bull; {c.grain ? `${c.grain}gr ` : ''}{c.bulletType}
+                              {c.caliber} &bull; {c.grain ? `${c.grain}gr ` : ''}
+                              {c.bulletType}
                             </div>
                           )}
 
@@ -1261,18 +2065,96 @@ export const AmmoDashboard = () => {
                         </div>
 
                         {/* Stock & Valuation Box */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.25)', padding: '0.75rem 0.95rem', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            background: 'rgba(0,0,0,0.25)',
+                            padding: '0.75rem 0.95rem',
+                            borderRadius: '8px',
+                            border: '1px solid var(--border-subtle)',
+                          }}
+                        >
                           <div>
-                            <span style={{ color: 'var(--text-muted)', fontSize: '0.725rem', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Quantity on Hand</span>
-                            <strong style={{ fontSize: '1.25rem', color: isLow ? 'var(--danger)' : '#fff' }}>
-                              {c.quantity} <span style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-muted)' }}>{c.type === 'Powder' ? c.weightUnit : 'ct'}</span>
+                            <span
+                              style={{
+                                color: 'var(--text-muted)',
+                                fontSize: '0.725rem',
+                                display: 'block',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.04em',
+                              }}
+                            >
+                              Quantity on Hand
+                            </span>
+                            <strong
+                              style={{
+                                fontSize: '1.25rem',
+                                color: isLow ? 'var(--danger)' : '#fff',
+                              }}
+                            >
+                              {c.type === 'Powder' ? (
+                                <>
+                                  {c.quantity}{' '}
+                                  <span
+                                    style={{
+                                      fontSize: '0.8rem',
+                                      fontWeight: 500,
+                                      color: 'var(--text-muted)',
+                                    }}
+                                  >
+                                    {c.weightUnit || 'lbs'}
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: '0.75rem',
+                                      fontWeight: 400,
+                                      color: 'var(--accent)',
+                                      marginLeft: '0.4rem',
+                                    }}
+                                  >
+                                    (
+                                    {toGrains(
+                                      c.quantity || 0,
+                                      c.weightUnit || 'lbs'
+                                    ).toLocaleString()}{' '}
+                                    gr)
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  {c.quantity}{' '}
+                                  <span
+                                    style={{
+                                      fontSize: '0.8rem',
+                                      fontWeight: 500,
+                                      color: 'var(--text-muted)',
+                                    }}
+                                  >
+                                    ct
+                                  </span>
+                                </>
+                              )}
                             </strong>
                           </div>
 
                           {c.cost !== undefined && c.cost > 0 && (
                             <div style={{ textAlign: 'right' }}>
-                              <span style={{ color: 'var(--text-muted)', fontSize: '0.725rem', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Valuation</span>
-                              <strong style={{ fontSize: '1.05rem', color: 'var(--success)' }}>${Number(c.cost).toFixed(2)}</strong>
+                              <span
+                                style={{
+                                  color: 'var(--text-muted)',
+                                  fontSize: '0.725rem',
+                                  display: 'block',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.04em',
+                                }}
+                              >
+                                Valuation
+                              </span>
+                              <strong style={{ fontSize: '1.05rem', color: 'var(--success)' }}>
+                                ${Number(c.cost).toFixed(2)}
+                              </strong>
                             </div>
                           )}
                         </div>
@@ -1285,15 +2167,30 @@ export const AmmoDashboard = () => {
           })}
 
           {filteredComponents.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '3.5rem 1rem', background: 'var(--bg-surface)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+            <div
+              style={{
+                textAlign: 'center',
+                padding: '3.5rem 1rem',
+                background: 'var(--bg-surface)',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border-subtle)',
+              }}
+            >
               <FlaskConical size={36} opacity={0.3} style={{ marginBottom: '0.75rem' }} />
               <h3>No Reloading Components Found</h3>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-                Add powders, primers, bullets, or brass casings to start tracking your reloading depot.
+              <p
+                style={{
+                  color: 'var(--text-secondary)',
+                  fontSize: '0.875rem',
+                  marginTop: '0.25rem',
+                }}
+              >
+                Add powders, primers, bullets, or brass casings to start tracking your reloading
+                depot.
               </p>
-              <button 
-                className="btn-primary btn-sm" 
-                onClick={() => openAddComponentModal()} 
+              <button
+                className="btn-primary btn-sm"
+                onClick={() => openAddComponentModal()}
                 style={{ marginTop: '0.85rem' }}
               >
                 + Add First Component
@@ -1304,460 +2201,917 @@ export const AmmoDashboard = () => {
       )}
 
       {/* Comprehensive Ammo Form Modal (With Bullet Type & All Detailed Fields) */}
-      {isAmmoModalOpen && (
-        <div className="modal-overlay" onClick={() => setIsAmmoModalOpen(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: formData.type === 'handload' ? '860px' : '720px', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div className="modal-header">
-              <h2 style={{ margin: 0 }}>
-                {isAddingStockMode ? 'Add Stock' : editingAmmo ? 'Edit' : 'Add'} {formData.type === 'factory' ? 'Factory Ammo' : 'Custom Handload'}
-              </h2>
-              <button type="button" className="btn-icon" onClick={() => setIsAmmoModalOpen(false)}><X size={18} /></button>
-            </div>
-            
-            <form onSubmit={handleAmmoSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              {/* Section 1: Basic Barcode & Identification */}
-              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '1.25rem' }}>
-                <h3 style={{ fontSize: '1rem', color: 'var(--text-primary)', marginTop: 0, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Package size={16} style={{ color: 'var(--accent)' }} />
-                  Identification &amp; Stock Count
-                </h3>
+      {isAmmoModalOpen &&
+        createPortal(
+          <div className="modal-overlay" onClick={() => setIsAmmoModalOpen(false)}>
+            <div
+              className="modal"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                maxWidth: formData.type === 'handload' ? '860px' : '720px',
+                maxHeight: '90vh',
+                overflowY: 'auto',
+              }}
+            >
+              <div className="modal-header">
+                <h2 style={{ margin: 0 }}>
+                  {isAddingStockMode ? 'Add Stock' : editingAmmo ? 'Edit' : 'Add'}{' '}
+                  {formData.type === 'factory' ? 'Factory Ammo' : 'Custom Handload'}
+                </h2>
+                <button
+                  type="button"
+                  className="btn-icon"
+                  onClick={() => setIsAmmoModalOpen(false)}
+                >
+                  <X size={18} />
+                </button>
+              </div>
 
-                <div className="form-group">
-                  <label>UPC Barcode (Optional)</label>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      style={{ flex: 1 }} 
-                      value={formData.upc_code || ''} 
-                      onChange={e => setFormData({...formData, upc_code: e.target.value})} 
-                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); lookupUPC(formData.upc_code || ''); } }} 
-                      onBlur={e => lookupUPC(e.target.value)} 
-                      placeholder="Scan or type UPC barcode..." 
-                    />
-                    <button type="button" className="btn-secondary" style={{ padding: '0.5rem 1rem' }} onClick={() => lookupUPC(formData.upc_code || '')}>Lookup</button>
+              <form
+                onSubmit={handleAmmoSubmit}
+                style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}
+              >
+                {/* Section 1: Basic Barcode & Identification */}
+                <div
+                  style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    padding: '1.25rem',
+                  }}
+                >
+                  <h3
+                    style={{
+                      fontSize: '1rem',
+                      color: 'var(--text-primary)',
+                      marginTop: 0,
+                      marginBottom: '1rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                    }}
+                  >
+                    <Package size={16} style={{ color: 'var(--accent)' }} />
+                    Identification &amp; Stock Count
+                  </h3>
+
+                  <div className="form-group">
+                    <label>UPC Barcode (Optional)</label>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <input
+                        type="text"
+                        className="form-input"
+                        style={{ flex: 1 }}
+                        value={formData.upc_code || ''}
+                        onChange={(e) => setFormData({ ...formData, upc_code: e.target.value })}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            lookupUPC(formData.upc_code || '');
+                          }
+                        }}
+                        onBlur={(e) => lookupUPC(e.target.value)}
+                        placeholder="Scan or type UPC barcode..."
+                      />
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        style={{ padding: '0.5rem 1rem' }}
+                        onClick={() => lookupUPC(formData.upc_code || '')}
+                      >
+                        Lookup
+                      </button>
+                    </div>
+                    {upcStatus && (
+                      <div
+                        style={{
+                          marginTop: '0.5rem',
+                          fontSize: '0.85rem',
+                          padding: '0.5rem',
+                          borderRadius: '4px',
+                          background:
+                            upcStatus.type === 'success'
+                              ? 'rgba(34, 197, 94, 0.1)'
+                              : upcStatus.type === 'error'
+                                ? 'rgba(239, 68, 68, 0.1)'
+                                : 'rgba(56, 189, 248, 0.1)',
+                          color:
+                            upcStatus.type === 'success'
+                              ? '#4ade80'
+                              : upcStatus.type === 'error'
+                                ? '#f87171'
+                                : '#38bdf8',
+                          border: `1px solid ${upcStatus.type === 'success' ? 'rgba(34, 197, 94, 0.2)' : upcStatus.type === 'error' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(56, 189, 248, 0.2)'}`,
+                        }}
+                      >
+                        {upcStatus.message}
+                      </div>
+                    )}
                   </div>
-                  {upcStatus && (
-                    <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', padding: '0.5rem', borderRadius: '4px', background: upcStatus.type === 'success' ? 'rgba(34, 197, 94, 0.1)' : upcStatus.type === 'error' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(56, 189, 248, 0.1)', color: upcStatus.type === 'success' ? '#4ade80' : upcStatus.type === 'error' ? '#f87171' : '#38bdf8', border: `1px solid ${upcStatus.type === 'success' ? 'rgba(34, 197, 94, 0.2)' : upcStatus.type === 'error' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(56, 189, 248, 0.2)'}` }}>
-                      {upcStatus.message}
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label>Caliber *</label>
+                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <AutocompleteInput
+                          required
+                          name="caliber"
+                          value={formData.caliber || ''}
+                          onChange={(e) => handleShotgunChange('caliber', e.target.value)}
+                          onBlur={() =>
+                            handleShotgunChange('caliber', formatCaliber(formData.caliber || ''))
+                          }
+                          options={CALIBER_OPTIONS}
+                          placeholder="e.g. 9mm Luger, .45 ACP, .223 Rem"
+                        />
+                        <label
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            cursor: 'pointer',
+                            background: formData.isPlusP
+                              ? 'rgba(239, 68, 68, 0.15)'
+                              : 'rgba(255,255,255,0.05)',
+                            padding: '0.65rem 0.75rem',
+                            borderRadius: '4px',
+                            border: `1px solid ${formData.isPlusP ? 'rgba(239, 68, 68, 0.4)' : 'rgba(255,255,255,0.1)'}`,
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={!!formData.isPlusP}
+                            onChange={(e) =>
+                              setFormData({ ...formData, isPlusP: e.target.checked })
+                            }
+                            style={{ margin: 0 }}
+                          />
+                          <span
+                            style={{
+                              color: formData.isPlusP ? '#ef4444' : 'var(--text-secondary)',
+                              fontWeight: formData.isPlusP ? 'bold' : 'normal',
+                              fontSize: '0.85rem',
+                            }}
+                          >
+                            +P
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label>Total Rounds in Stock *</label>
+                      <input
+                        required
+                        type="number"
+                        className="form-input"
+                        value={formData.count === undefined ? '' : formData.count}
+                        onChange={(e) => {
+                          const cnt =
+                            e.target.value === '' ? ('' as any) : parseInt(e.target.value);
+                          setCalcRds('');
+                          const boxPrice = (formData as any).boxPrice;
+                          let newCPR = formData.costPerRound;
+                          if (boxPrice && typeof cnt === 'number' && cnt > 0) {
+                            newCPR = parseFloat((boxPrice / cnt).toFixed(3));
+                          }
+                          setFormData({ ...formData, count: cnt, costPerRound: newCPR });
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Box Calculator helper */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      background: 'rgba(56, 189, 248, 0.06)',
+                      border: '1px solid rgba(56, 189, 248, 0.2)',
+                      padding: '0.6rem 0.85rem',
+                      borderRadius: '6px',
+                      marginTop: '0.85rem',
+                    }}
+                  >
+                    <Calculator size={16} style={{ color: 'var(--accent)' }} />
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      Quick Calculator:
+                    </span>
+                    <input
+                      type="number"
+                      placeholder="Rds/Box"
+                      value={calcRds}
+                      style={{
+                        width: '85px',
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '4px',
+                        border: '1px solid #3f3f46',
+                        background: '#18181b',
+                        color: '#fff',
+                        fontSize: '0.85rem',
+                      }}
+                      onChange={(e) => {
+                        const rds = e.target.value === '' ? '' : parseInt(e.target.value);
+                        setCalcRds(rds);
+                        const newCount = typeof rds === 'number' ? rds * calcBoxes : formData.count;
+                        const boxPrice = (formData as any).boxPrice;
+                        let newCPR = formData.costPerRound;
+                        if (boxPrice && typeof rds === 'number' && rds > 0) {
+                          newCPR = parseFloat((boxPrice / rds).toFixed(3));
+                        }
+                        setFormData({ ...formData, count: newCount, costPerRound: newCPR });
+                      }}
+                    />
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      &times;
+                    </span>
+                    <input
+                      type="number"
+                      placeholder="Boxes"
+                      value={calcBoxes}
+                      style={{
+                        width: '70px',
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '4px',
+                        border: '1px solid #3f3f46',
+                        background: '#18181b',
+                        color: '#fff',
+                        fontSize: '0.85rem',
+                      }}
+                      onChange={(e) => {
+                        const boxes = e.target.value === '' ? 1 : parseInt(e.target.value);
+                        setCalcBoxes(boxes);
+                        if (typeof calcRds === 'number') {
+                          setFormData({ ...formData, count: calcRds * boxes });
+                        }
+                      }}
+                    />
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Boxes</span>
+                  </div>
+                </div>
+
+                {/* Section 2: Ammunition Specifications (Bullet Type, Weight, Make, etc.) */}
+                <div
+                  style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    padding: '1.25rem',
+                  }}
+                >
+                  <h3
+                    style={{
+                      fontSize: '1rem',
+                      color: 'var(--text-primary)',
+                      marginTop: 0,
+                      marginBottom: '1rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                    }}
+                  >
+                    <Target size={16} style={{ color: 'var(--accent)' }} />
+                    {formData.type === 'factory'
+                      ? 'Factory Specifications'
+                      : 'Custom Handload Recipe'}
+                  </h3>
+
+                  {formData.type === 'factory' ? (
+                    <>
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 1fr',
+                          gap: '1rem',
+                          marginBottom: '1rem',
+                        }}
+                      >
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label>Manufacturer / Brand</label>
+                          <AutocompleteInput
+                            name="manufacturer"
+                            value={formData.manufacturer || ''}
+                            onChange={(e) =>
+                              setFormData({ ...formData, manufacturer: e.target.value })
+                            }
+                            options={AMMO_MANUFACTURERS}
+                            placeholder="e.g. Winchester, Federal, Hornady, Blazer"
+                          />
+                        </div>
+
+                        {isFormShotgun ? (
+                          <div className="form-group" style={{ marginBottom: 0 }}>
+                            <label>Shell Length</label>
+                            <AutocompleteInput
+                              mode="select"
+                              name="shell_length"
+                              value={formData.shell_length || ''}
+                              onChange={(e) => handleShotgunChange('shell_length', e.target.value)}
+                              options={SHOTGUN_SHELL_LENGTHS}
+                            />
+                          </div>
+                        ) : (
+                          <div className="form-group" style={{ marginBottom: 0 }}>
+                            <label>Bullet Weight (Grain)</label>
+                            <input
+                              type="number"
+                              className="form-input"
+                              value={formData.grain ?? ''}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  grain:
+                                    e.target.value === '' ? undefined : parseInt(e.target.value),
+                                })
+                              }
+                              placeholder="e.g. 115, 124, 147, 55, 62, 77, 230"
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      {isFormShotgun ? (
+                        <div
+                          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}
+                        >
+                          <div className="form-group" style={{ marginBottom: 0 }}>
+                            <label>Shot Size / Slug</label>
+                            <AutocompleteInput
+                              mode="select"
+                              name="shot_size"
+                              value={formData.shot_size || ''}
+                              onChange={(e) => handleShotgunChange('shot_size', e.target.value)}
+                              options={SHOTGUN_SHOT_SIZES}
+                            />
+                          </div>
+
+                          {formData.shot_size?.toLowerCase().includes('buck') ? (
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                              <label>Pellet Count</label>
+                              <input
+                                type="number"
+                                className="form-input"
+                                value={formData.pellet_count || ''}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    pellet_count: e.target.value
+                                      ? parseInt(e.target.value)
+                                      : undefined,
+                                  })
+                                }
+                                placeholder="e.g. 8, 9, 12"
+                              />
+                            </div>
+                          ) : (
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                              <label>Payload Weight (oz)</label>
+                              <AutocompleteInput
+                                mode="select"
+                                name="oz_payload"
+                                value={formData.oz_payload || ''}
+                                onChange={(e) =>
+                                  setFormData({ ...formData, oz_payload: e.target.value })
+                                }
+                                options={SHOTGUN_PAYLOADS}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label>
+                            Bullet Type / Projectile (e.g. FMJ, JHP, HST, Gold Dot, ELD Match)
+                          </label>
+                          <AutocompleteInput
+                            name="projectile"
+                            value={formData.projectile || ''}
+                            onChange={(e) =>
+                              setFormData({ ...formData, projectile: e.target.value })
+                            }
+                            options={COMPREHENSIVE_BULLET_TYPES}
+                            placeholder="e.g. Full Metal Jacket (FMJ), Jacketed Hollow Point (JHP), HST, MatchKing"
+                          />
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {/* Handload Recipe Fields */}
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 1fr 1fr',
+                          gap: '1rem',
+                          marginBottom: '1rem',
+                        }}
+                      >
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label>Bullet Manufacturer</label>
+                          <AutocompleteInput
+                            name="bullet_manufacturer"
+                            value={formData.bullet_manufacturer || ''}
+                            onChange={(e) =>
+                              setFormData({ ...formData, bullet_manufacturer: e.target.value })
+                            }
+                            options={BULLET_MANUFACTURERS}
+                            placeholder="e.g. Sierra, Hornady, Nosler"
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label>Bullet Weight (Grain)</label>
+                          <input
+                            type="number"
+                            className="form-input"
+                            value={formData.grain ?? ''}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                grain: e.target.value === '' ? undefined : parseInt(e.target.value),
+                              })
+                            }
+                            placeholder="e.g. 77, 124, 168"
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label>Bullet Type</label>
+                          <AutocompleteInput
+                            name="projectile"
+                            value={formData.projectile || ''}
+                            onChange={(e) =>
+                              setFormData({ ...formData, projectile: e.target.value })
+                            }
+                            options={COMPREHENSIVE_BULLET_TYPES}
+                            placeholder="e.g. TMK, BTHP, V-Max"
+                          />
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 1fr 1fr',
+                          gap: '1rem',
+                          marginBottom: '1rem',
+                        }}
+                      >
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label>Powder</label>
+                          <AutocompleteInput
+                            name="powder"
+                            value={formData.powder || ''}
+                            onChange={(e) => setFormData({ ...formData, powder: e.target.value })}
+                            options={COMMON_POWDERS}
+                            placeholder="e.g. Varget, CFE 223, Titegroup"
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label>Charge (Grains)</label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            className="form-input"
+                            value={formData.powderCharge ?? ''}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                powderCharge:
+                                  e.target.value === '' ? undefined : parseFloat(e.target.value),
+                              })
+                            }
+                            placeholder="e.g. 24.5"
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label>Overall Length (OAL)</label>
+                          <input
+                            type="number"
+                            step="0.001"
+                            className="form-input"
+                            value={formData.oal ?? ''}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                oal: e.target.value === '' ? undefined : parseFloat(e.target.value),
+                              })
+                            }
+                            placeholder='e.g. 2.260"'
+                          />
+                        </div>
+                      </div>
+
+                      <div
+                        style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}
+                      >
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label>Primer Type</label>
+                          <AutocompleteInput
+                            name="primer_type"
+                            value={formData.primer_type || ''}
+                            onChange={(e) =>
+                              setFormData({ ...formData, primer_type: e.target.value })
+                            }
+                            options={PRIMER_TYPES}
+                            placeholder="e.g. Small Rifle, Large Pistol"
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label>Primer Model</label>
+                          <AutocompleteInput
+                            name="primer"
+                            value={formData.primer || ''}
+                            onChange={(e) => setFormData({ ...formData, primer: e.target.value })}
+                            options={COMMON_PRIMERS}
+                            placeholder="e.g. CCI #400, Fed 205M"
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label>Brass / Casing Make</label>
+                          <AutocompleteInput
+                            name="brass"
+                            value={formData.brass || ''}
+                            onChange={(e) => setFormData({ ...formData, brass: e.target.value })}
+                            options={BRASS_MAKES}
+                            placeholder="e.g. Starline, Lake City"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Section 3: Financials & Stock Alert Thresholds */}
+                <div
+                  style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    padding: '1.25rem',
+                  }}
+                >
+                  <h3
+                    style={{
+                      fontSize: '1rem',
+                      color: 'var(--text-primary)',
+                      marginTop: 0,
+                      marginBottom: '1rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                    }}
+                  >
+                    <DollarSign size={16} style={{ color: 'var(--success)' }} />
+                    Financials &amp; Threshold Alerts
+                  </h3>
+
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: '1rem',
+                      marginBottom: '1rem',
+                    }}
+                  >
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label>
+                        Box Purchase Price ($){' '}
+                        <span
+                          style={{
+                            fontSize: '0.75rem',
+                            color: 'var(--text-secondary)',
+                            fontWeight: 'normal',
+                          }}
+                        >
+                          (Auto-calcs CPR)
+                        </span>
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="form-input"
+                        value={(formData as any).boxPrice ?? ''}
+                        onChange={(e) => {
+                          const valStr = e.target.value;
+                          const val = parseFloat(valStr);
+                          if (!isNaN(val)) {
+                            const divisor =
+                              typeof calcRds === 'number' && calcRds > 0
+                                ? calcRds
+                                : formData.count && formData.count > 0
+                                  ? formData.count
+                                  : 0;
+
+                            const cpr =
+                              divisor > 0
+                                ? parseFloat((val / divisor).toFixed(3))
+                                : formData.costPerRound;
+                            setFormData({ ...formData, boxPrice: val, costPerRound: cpr } as any);
+                          } else {
+                            setFormData({
+                              ...formData,
+                              boxPrice: valStr === '' ? undefined : (val as any),
+                            } as any);
+                          }
+                        }}
+                        placeholder="e.g. 24.99"
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label>Cost Per Round ($)</label>
+                      <input
+                        type="number"
+                        step="0.001"
+                        className="form-input"
+                        value={formData.costPerRound ?? ''}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            costPerRound:
+                              e.target.value === '' ? undefined : parseFloat(e.target.value),
+                          })
+                        }
+                        placeholder="e.g. 0.35"
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label>Target Stock Goal (Rounds)</label>
+                      <input
+                        type="number"
+                        className="form-input"
+                        value={formData.target_stock_goal ?? ''}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            target_stock_goal:
+                              e.target.value === '' ? undefined : parseInt(e.target.value),
+                          })
+                        }
+                        placeholder="e.g. 1,000"
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label>Low Stock Alert Threshold (Rounds)</label>
+                      <input
+                        type="number"
+                        className="form-input"
+                        value={formData.min_threshold || formData.low_stock_threshold || ''}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            min_threshold:
+                              e.target.value === '' ? undefined : parseInt(e.target.value),
+                            low_stock_threshold:
+                              e.target.value === '' ? undefined : parseInt(e.target.value),
+                          })
+                        }
+                        placeholder="e.g. 200"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 4: Notes */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>Notes / Description</label>
+                  <textarea
+                    className="form-input"
+                    rows={2}
+                    value={formData.notes || ''}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    placeholder="Lot numbers, storage location, ammo can ID, velocity telemetry..."
+                  />
+                </div>
+
+                <div className="modal-actions" style={{ marginTop: '0.5rem' }}>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setIsAmmoModalOpen(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn-primary">
+                    Save Ammunition
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* Inspecting Ammo Details Dossier Modal */}
+      {inspectingAmmo &&
+        createPortal(
+          <div className="modal-overlay" onClick={() => setInspectingAmmo(null)}>
+            <div
+              className="modal"
+              onClick={(e) => e.stopPropagation()}
+              style={{ maxWidth: '640px' }}
+            >
+              <div className="modal-header">
+                <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  {inspectingAmmo.caliber}
+                  {inspectingAmmo.isPlusP && (
+                    <span
+                      style={{
+                        fontSize: '0.75rem',
+                        padding: '0.1rem 0.4rem',
+                        background: 'rgba(239, 68, 68, 0.15)',
+                        color: '#ef4444',
+                        borderRadius: '4px',
+                        fontWeight: 'bold',
+                      }}
+                    >
+                      +P
+                    </span>
+                  )}
+                  <span
+                    style={{
+                      fontSize: '0.8rem',
+                      color: 'var(--text-secondary)',
+                      fontWeight: 'normal',
+                    }}
+                  >
+                    ({inspectingAmmo.type === 'factory' ? 'Factory Ammo' : 'Custom Handload'})
+                  </span>
+                </h2>
+                <button type="button" className="btn-icon" onClick={() => setInspectingAmmo(null)}>
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '1rem',
+                    background: 'rgba(0,0,0,0.25)',
+                    padding: '1rem',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-subtle)',
+                  }}
+                >
+                  <div>
+                    <span
+                      style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-muted)',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      Rounds in Stock
+                    </span>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--accent)' }}>
+                      {inspectingAmmo.count.toLocaleString()} rds
+                    </div>
+                  </div>
+                  {inspectingAmmo.costPerRound && (
+                    <div>
+                      <span
+                        style={{
+                          fontSize: '0.75rem',
+                          color: 'var(--text-muted)',
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        Cost Per Round
+                      </span>
+                      <div style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--success)' }}>
+                        ${inspectingAmmo.costPerRound.toFixed(2)}
+                      </div>
                     </div>
                   )}
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label>Caliber *</label>
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                      <input 
-                        required 
-                        list="calibers-list" 
-                        type="text" 
-                        className="form-input" 
-                        style={{ flex: 1 }} 
-                        value={formData.caliber || ''} 
-                        onChange={e => handleShotgunChange('caliber', e.target.value)} 
-                        onBlur={() => handleShotgunChange('caliber', formatCaliber(formData.caliber || ''))} 
-                        placeholder="e.g. 9mm Luger, .45 ACP, .223 Rem" 
-                      />
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', background: formData.isPlusP ? 'rgba(239, 68, 68, 0.15)' : 'rgba(255,255,255,0.05)', padding: '0.65rem 0.75rem', borderRadius: '4px', border: `1px solid ${formData.isPlusP ? 'rgba(239, 68, 68, 0.4)' : 'rgba(255,255,255,0.1)'}` }}>
-                        <input type="checkbox" checked={!!formData.isPlusP} onChange={e => setFormData({...formData, isPlusP: e.target.checked})} style={{ margin: 0 }} />
-                        <span style={{ color: formData.isPlusP ? '#ef4444' : 'var(--text-secondary)', fontWeight: formData.isPlusP ? 'bold' : 'normal', fontSize: '0.85rem' }}>+P</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label>Total Rounds in Stock *</label>
-                    <input 
-                      required 
-                      type="number" 
-                      className="form-input" 
-                      value={formData.count === undefined ? '' : formData.count} 
-                      onChange={e => {
-                        const cnt = e.target.value === '' ? ('' as any) : parseInt(e.target.value);
-                        setCalcRds('');
-                        const boxPrice = (formData as any).boxPrice;
-                        let newCPR = formData.costPerRound;
-                        if (boxPrice && typeof cnt === 'number' && cnt > 0) {
-                          newCPR = parseFloat((boxPrice / cnt).toFixed(3));
-                        }
-                        setFormData({...formData, count: cnt, costPerRound: newCPR});
-                      }} 
-                    />
-                  </div>
-                </div>
-
-                {/* Box Calculator helper */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'rgba(56, 189, 248, 0.06)', border: '1px solid rgba(56, 189, 248, 0.2)', padding: '0.6rem 0.85rem', borderRadius: '6px', marginTop: '0.85rem' }}>
-                  <Calculator size={16} style={{ color: 'var(--accent)' }} />
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Quick Calculator:</span>
-                  <input 
-                    type="number" 
-                    placeholder="Rds/Box" 
-                    value={calcRds} 
-                    style={{ width: '85px', padding: '0.25rem 0.5rem', borderRadius: '4px', border: '1px solid #3f3f46', background: '#18181b', color: '#fff', fontSize: '0.85rem' }} 
-                    onChange={(e) => {
-                      const rds = e.target.value === '' ? '' : parseInt(e.target.value);
-                      setCalcRds(rds);
-                      const newCount = typeof rds === 'number' ? rds * calcBoxes : formData.count;
-                      const boxPrice = (formData as any).boxPrice;
-                      let newCPR = formData.costPerRound;
-                      if (boxPrice && typeof rds === 'number' && rds > 0) {
-                        newCPR = parseFloat((boxPrice / rds).toFixed(3));
-                      }
-                      setFormData({...formData, count: newCount, costPerRound: newCPR});
-                    }} 
-                  />
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>&times;</span>
-                  <input 
-                    type="number" 
-                    placeholder="Boxes" 
-                    value={calcBoxes} 
-                    style={{ width: '70px', padding: '0.25rem 0.5rem', borderRadius: '4px', border: '1px solid #3f3f46', background: '#18181b', color: '#fff', fontSize: '0.85rem' }} 
-                    onChange={(e) => {
-                      const boxes = e.target.value === '' ? 1 : parseInt(e.target.value);
-                      setCalcBoxes(boxes);
-                      if (typeof calcRds === 'number') {
-                        setFormData({...formData, count: calcRds * boxes});
-                      }
-                    }} 
-                  />
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Boxes</span>
-                </div>
-              </div>
-
-              {/* Section 2: Ammunition Specifications (Bullet Type, Weight, Make, etc.) */}
-              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '1.25rem' }}>
-                <h3 style={{ fontSize: '1rem', color: 'var(--text-primary)', marginTop: 0, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Target size={16} style={{ color: 'var(--accent)' }} />
-                  {formData.type === 'factory' ? 'Factory Specifications' : 'Custom Handload Recipe'}
-                </h3>
-
-                {formData.type === 'factory' ? (
-                  <>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label>Manufacturer / Brand</label>
-                        <input 
-                          type="text" 
-                          list="ammo-makes-list" 
-                          className="form-input" 
-                          value={formData.manufacturer || ''} 
-                          onChange={e => setFormData({...formData, manufacturer: e.target.value})} 
-                          placeholder="e.g. Winchester, Federal, Hornady, Blazer" 
-                        />
-                      </div>
-
-                      {isFormShotgun ? (
-                        <div className="form-group" style={{ marginBottom: 0 }}>
-                          <label>Shell Length</label>
-                          <select className="form-input" value={formData.shell_length || ''} onChange={e => handleShotgunChange('shell_length', e.target.value)}>
-                            <option value="">Select Length</option>
-                            <option value='1 3/4"'>1 3/4"</option>
-                            <option value='2 3/4"'>2 3/4"</option>
-                            <option value='3"'>3"</option>
-                            <option value='3 1/2"'>3 1/2"</option>
-                          </select>
-                        </div>
-                      ) : (
-                        <div className="form-group" style={{ marginBottom: 0 }}>
-                          <label>Bullet Weight (Grain)</label>
-                          <input 
-                            type="number" 
-                            className="form-input" 
-                            value={formData.grain ?? ''} 
-                            onChange={e => setFormData({...formData, grain: e.target.value === '' ? undefined : parseInt(e.target.value)})} 
-                            placeholder="e.g. 115, 124, 147, 55, 62, 77, 230" 
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    {isFormShotgun ? (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                        <div className="form-group" style={{ marginBottom: 0 }}>
-                          <label>Shot Size / Slug</label>
-                          <select className="form-input" value={formData.shot_size || ''} onChange={e => handleShotgunChange('shot_size', e.target.value)}>
-                            <option value="">Select Shot Size</option>
-                            <option value="Slug">Slug</option>
-                            <option value="000 Buck">000 Buck</option>
-                            <option value="00 Buck">00 Buck</option>
-                            <option value="0 Buck">0 Buck</option>
-                            <option value="1 Buck">1 Buck</option>
-                            <option value="4 Buck">4 Buck</option>
-                            <option value="BB">BB</option>
-                            <option value="2">#2</option>
-                            <option value="4">#4</option>
-                            <option value="6">#6</option>
-                            <option value="7 1/2">#7 1/2</option>
-                            <option value="8">#8</option>
-                            <option value="9">#9</option>
-                          </select>
-                        </div>
-
-                        {formData.shot_size?.toLowerCase().includes('buck') ? (
-                          <div className="form-group" style={{ marginBottom: 0 }}>
-                            <label>Pellet Count</label>
-                            <input type="number" className="form-input" value={formData.pellet_count || ''} onChange={e => setFormData({...formData, pellet_count: e.target.value ? parseInt(e.target.value) : undefined})} placeholder="e.g. 8, 9, 12" />
-                          </div>
-                        ) : (
-                          <div className="form-group" style={{ marginBottom: 0 }}>
-                            <label>Payload Weight (oz)</label>
-                            <select className="form-input" value={formData.oz_payload || ''} onChange={e => setFormData({...formData, oz_payload: e.target.value})}>
-                              <option value="">Select Payload</option>
-                              <option value="7/8 oz">7/8 oz</option>
-                              <option value="1 oz">1 oz</option>
-                              <option value="1 1/8 oz">1 1/8 oz</option>
-                              <option value="1 1/4 oz">1 1/4 oz</option>
-                            </select>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label>Bullet Type / Projectile (e.g. FMJ, JHP, HST, Gold Dot, ELD Match)</label>
-                        <input 
-                          type="text" 
-                          list="bullet-types-list" 
-                          className="form-input" 
-                          value={formData.projectile || ''} 
-                          onChange={e => setFormData({...formData, projectile: e.target.value})} 
-                          placeholder="e.g. Full Metal Jacket (FMJ), Jacketed Hollow Point (JHP), HST, MatchKing" 
-                        />
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    {/* Handload Recipe Fields */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label>Bullet Manufacturer</label>
-                        <input type="text" list="bullet-makes-list" className="form-input" value={formData.bullet_manufacturer || ''} onChange={e => setFormData({...formData, bullet_manufacturer: e.target.value})} placeholder="e.g. Sierra, Hornady, Nosler" />
-                      </div>
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label>Bullet Weight (Grain)</label>
-                        <input type="number" className="form-input" value={formData.grain ?? ''} onChange={e => setFormData({...formData, grain: e.target.value === '' ? undefined : parseInt(e.target.value)})} placeholder="e.g. 77, 124, 168" />
-                      </div>
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label>Bullet Type</label>
-                        <input type="text" list="bullet-types-list" className="form-input" value={formData.projectile || ''} onChange={e => setFormData({...formData, projectile: e.target.value})} placeholder="e.g. TMK, BTHP, V-Max" />
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label>Powder</label>
-                        <input type="text" list="powders-list" className="form-input" value={formData.powder || ''} onChange={e => setFormData({...formData, powder: e.target.value})} placeholder="e.g. Varget, CFE 223, Titegroup" />
-                      </div>
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label>Charge (Grains)</label>
-                        <input type="number" step="0.1" className="form-input" value={formData.powderCharge ?? ''} onChange={e => setFormData({...formData, powderCharge: e.target.value === '' ? undefined : parseFloat(e.target.value)})} placeholder="e.g. 24.5" />
-                      </div>
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label>Overall Length (OAL)</label>
-                        <input type="number" step="0.001" className="form-input" value={formData.oal ?? ''} onChange={e => setFormData({...formData, oal: e.target.value === '' ? undefined : parseFloat(e.target.value)})} placeholder='e.g. 2.260"' />
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label>Primer Type</label>
-                        <input type="text" list="primer-types-list" className="form-input" value={formData.primer_type || ''} onChange={e => setFormData({...formData, primer_type: e.target.value})} placeholder="e.g. Small Rifle, Large Pistol" />
-                      </div>
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label>Primer Model</label>
-                        <input type="text" list="primers-list" className="form-input" value={formData.primer || ''} onChange={e => setFormData({...formData, primer: e.target.value})} placeholder="e.g. CCI #400, Fed 205M" />
-                      </div>
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label>Brass / Casing Make</label>
-                        <input type="text" list="brass-list" className="form-input" value={formData.brass || ''} onChange={e => setFormData({...formData, brass: e.target.value})} placeholder="e.g. Starline, Lake City" />
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* Section 3: Financials & Stock Alert Thresholds */}
-              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '1.25rem' }}>
-                <h3 style={{ fontSize: '1rem', color: 'var(--text-primary)', marginTop: 0, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <DollarSign size={16} style={{ color: 'var(--success)' }} />
-                  Financials &amp; Threshold Alerts
-                </h3>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label>Box Purchase Price ($) <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 'normal' }}>(Auto-calcs CPR)</span></label>
-                    <input 
-                      type="number" 
-                      step="0.01" 
-                      className="form-input" 
-                      value={(formData as any).boxPrice ?? ''} 
-                      onChange={e => {
-                        const valStr = e.target.value;
-                        const val = parseFloat(valStr);
-                        if (!isNaN(val)) {
-                          const divisor = (typeof calcRds === 'number' && calcRds > 0)
-                            ? calcRds
-                            : (formData.count && formData.count > 0 ? formData.count : 0);
-                          
-                          const cpr = divisor > 0 ? parseFloat((val / divisor).toFixed(3)) : formData.costPerRound;
-                          setFormData({...formData, boxPrice: val, costPerRound: cpr} as any);
-                        } else {
-                          setFormData({...formData, boxPrice: valStr === '' ? undefined : (val as any)} as any);
-                        }
-                      }} 
-                      placeholder="e.g. 24.99" 
-                    />
-                  </div>
-
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label>Cost Per Round ($)</label>
-                    <input 
-                      type="number" 
-                      step="0.001" 
-                      className="form-input" 
-                      value={formData.costPerRound ?? ''} 
-                      onChange={e => setFormData({...formData, costPerRound: e.target.value === '' ? undefined : parseFloat(e.target.value)})} 
-                      placeholder="e.g. 0.35" 
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label>Target Stock Goal (Rounds)</label>
-                    <input 
-                      type="number" 
-                      className="form-input" 
-                      value={formData.target_stock_goal ?? ''} 
-                      onChange={e => setFormData({...formData, target_stock_goal: e.target.value === '' ? undefined : parseInt(e.target.value)})} 
-                      placeholder="e.g. 1,000" 
-                    />
-                  </div>
-
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label>Low Stock Alert Threshold (Rounds)</label>
-                    <input 
-                      type="number" 
-                      className="form-input" 
-                      value={formData.min_threshold || formData.low_stock_threshold || ''} 
-                      onChange={e => setFormData({
-                        ...formData, 
-                        min_threshold: e.target.value === '' ? undefined : parseInt(e.target.value), 
-                        low_stock_threshold: e.target.value === '' ? undefined : parseInt(e.target.value)
-                      })} 
-                      placeholder="e.g. 200" 
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Section 4: Notes */}
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label>Notes / Description</label>
-                <textarea 
-                  className="form-input" 
-                  rows={2} 
-                  value={formData.notes || ''} 
-                  onChange={e => setFormData({...formData, notes: e.target.value})} 
-                  placeholder="Lot numbers, storage location, ammo can ID, velocity telemetry..." 
-                />
-              </div>
-
-              <div className="modal-actions" style={{ marginTop: '0.5rem' }}>
-                <button type="button" className="btn-secondary" onClick={() => setIsAmmoModalOpen(false)}>Cancel</button>
-                <button type="submit" className="btn-primary">Save Ammunition</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Inspecting Ammo Details Dossier Modal */}
-      {inspectingAmmo && (
-        <div className="modal-overlay" onClick={() => setInspectingAmmo(null)}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '640px' }}>
-            <div className="modal-header">
-              <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                {inspectingAmmo.caliber}
-                {inspectingAmmo.isPlusP && <span style={{ fontSize: '0.75rem', padding: '0.1rem 0.4rem', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', borderRadius: '4px', fontWeight: 'bold' }}>+P</span>}
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 'normal' }}>
-                  ({inspectingAmmo.type === 'factory' ? 'Factory Ammo' : 'Custom Handload'})
-                </span>
-              </h2>
-              <button type="button" className="btn-icon" onClick={() => setInspectingAmmo(null)}><X size={18} /></button>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', background: 'rgba(0,0,0,0.25)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
-                <div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Rounds in Stock</span>
-                  <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--accent)' }}>{inspectingAmmo.count.toLocaleString()} rds</div>
-                </div>
-                {inspectingAmmo.costPerRound && (
                   <div>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Cost Per Round</span>
-                    <div style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--success)' }}>${inspectingAmmo.costPerRound.toFixed(2)}</div>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      Manufacturer / Make
+                    </span>
+                    <div style={{ fontWeight: 600 }}>
+                      {inspectingAmmo.manufacturer || inspectingAmmo.bullet_manufacturer || 'N/A'}
+                    </div>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      Bullet Weight &amp; Type
+                    </span>
+                    <div style={{ fontWeight: 600 }}>
+                      {inspectingAmmo.grain ? `${inspectingAmmo.grain}gr ` : ''}
+                      {inspectingAmmo.projectile || inspectingAmmo.shot_size || 'N/A'}
+                    </div>
+                  </div>
+                  {inspectingAmmo.type === 'handload' && (
+                    <>
+                      <div>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                          Powder &amp; Charge
+                        </span>
+                        <div style={{ fontWeight: 600 }}>
+                          {inspectingAmmo.powder || 'N/A'}{' '}
+                          {inspectingAmmo.powderCharge ? `(${inspectingAmmo.powderCharge}gr)` : ''}
+                        </div>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                          Primer
+                        </span>
+                        <div style={{ fontWeight: 600 }}>
+                          {inspectingAmmo.primer_type
+                            ? `${inspectingAmmo.primer_type} (${inspectingAmmo.primer || ''})`
+                            : inspectingAmmo.primer || 'N/A'}
+                        </div>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                          Brass Casing
+                        </span>
+                        <div style={{ fontWeight: 600 }}>{inspectingAmmo.brass || 'N/A'}</div>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                          Overall Length (OAL)
+                        </span>
+                        <div style={{ fontWeight: 600 }}>
+                          {inspectingAmmo.oal ? `${inspectingAmmo.oal}"` : 'N/A'}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {inspectingAmmo.notes && (
+                  <div
+                    style={{
+                      background: 'rgba(0,0,0,0.2)',
+                      padding: '0.85rem',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-subtle)',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-muted)',
+                        textTransform: 'uppercase',
+                        display: 'block',
+                        marginBottom: '0.25rem',
+                      }}
+                    >
+                      Notes
+                    </span>
+                    <div
+                      style={{
+                        fontSize: '0.875rem',
+                        color: 'var(--text-secondary)',
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      {inspectingAmmo.notes}
+                    </div>
                   </div>
                 )}
-              </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Manufacturer / Make</span>
-                  <div style={{ fontWeight: 600 }}>{inspectingAmmo.manufacturer || inspectingAmmo.bullet_manufacturer || 'N/A'}</div>
+                <div
+                  style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem', flexWrap: 'wrap' }}
+                >
+                  <button
+                    className="btn-secondary"
+                    onClick={() => {
+                      setInspectingAmmo(null);
+                      setLabelModalAmmo(inspectingAmmo);
+                    }}
+                    style={{ flex: 1 }}
+                  >
+                    <Tag size={15} /> Print Box Label
+                  </button>
+                  <button
+                    className="btn-secondary"
+                    onClick={() => {
+                      setInspectingAmmo(null);
+                      openEditAmmoModal(inspectingAmmo);
+                    }}
+                    style={{ flex: 1 }}
+                  >
+                    <Edit size={15} /> Edit Details
+                  </button>
                 </div>
-                <div>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Bullet Weight &amp; Type</span>
-                  <div style={{ fontWeight: 600 }}>
-                    {inspectingAmmo.grain ? `${inspectingAmmo.grain}gr ` : ''}{inspectingAmmo.projectile || inspectingAmmo.shot_size || 'N/A'}
-                  </div>
-                </div>
-                {inspectingAmmo.type === 'handload' && (
-                  <>
-                    <div>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Powder &amp; Charge</span>
-                      <div style={{ fontWeight: 600 }}>{inspectingAmmo.powder || 'N/A'} {inspectingAmmo.powderCharge ? `(${inspectingAmmo.powderCharge}gr)` : ''}</div>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Primer</span>
-                      <div style={{ fontWeight: 600 }}>{inspectingAmmo.primer_type ? `${inspectingAmmo.primer_type} (${inspectingAmmo.primer || ''})` : inspectingAmmo.primer || 'N/A'}</div>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Brass Casing</span>
-                      <div style={{ fontWeight: 600 }}>{inspectingAmmo.brass || 'N/A'}</div>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Overall Length (OAL)</span>
-                      <div style={{ fontWeight: 600 }}>{inspectingAmmo.oal ? `${inspectingAmmo.oal}"` : 'N/A'}</div>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {inspectingAmmo.notes && (
-                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '0.85rem', borderRadius: '6px', border: '1px solid var(--border-subtle)' }}>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '0.25rem' }}>Notes</span>
-                  <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>{inspectingAmmo.notes}</div>
-                </div>
-              )}
-
-              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                <button className="btn-secondary" onClick={() => { setInspectingAmmo(null); setLabelModalAmmo(inspectingAmmo); }} style={{ flex: 1 }}>
-                  <Tag size={15} /> Print Box Label
-                </button>
-                <button className="btn-secondary" onClick={() => { setInspectingAmmo(null); openEditAmmoModal(inspectingAmmo); }} style={{ flex: 1 }}>
-                  <Edit size={15} /> Edit Details
-                </button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
 
       {/* Reloading Component Modal */}
-      <ReloadingComponentModal 
+      <ReloadingComponentModal
         isOpen={isComponentModalOpen}
         onClose={() => setIsComponentModalOpen(false)}
         onSave={() => loadData()}
@@ -1767,7 +3121,7 @@ export const AmmoDashboard = () => {
 
       {/* Ammo Can Label Sticker Modal */}
       {labelModalAmmo && (
-        <AmmoCanLabelModal 
+        <AmmoCanLabelModal
           isOpen={true}
           onClose={() => setLabelModalAmmo(null)}
           ammo={labelModalAmmo}
@@ -1776,187 +3130,13 @@ export const AmmoDashboard = () => {
 
       {/* Batch Manufacture Modal */}
       {batchManufactureAmmo && (
-        <BatchManufactureModal 
+        <BatchManufactureModal
           isOpen={true}
           onClose={() => setBatchManufactureAmmo(null)}
           onSuccess={() => loadData()}
           ammo={batchManufactureAmmo}
         />
       )}
-
-      {/* Autocomplete Datalists */}
-      <datalist id="calibers-list">
-        <option value="9mm Luger" />
-        <option value=".45 ACP" />
-        <option value=".223 Remington" />
-        <option value="5.56x45mm NATO" />
-        <option value=".308 Winchester" />
-        <option value="7.62x51mm NATO" />
-        <option value="7.62x39mm" />
-        <option value=".22 LR" />
-        <option value="12 Gauge" />
-        <option value="20 Gauge" />
-        <option value="16 Gauge" />
-        <option value="28 Gauge" />
-        <option value=".410 Bore" />
-        <option value=".380 ACP" />
-        <option value=".38 Special" />
-        <option value=".357 Magnum" />
-        <option value=".44 Magnum" />
-        <option value="10mm Auto" />
-        <option value="5.7x28mm" />
-        <option value=".300 Blackout" />
-        <option value="6.5mm Creedmoor" />
-        <option value=".300 Winchester Magnum" />
-        <option value=".270 Winchester" />
-        <option value="7mm Remington Magnum" />
-        <option value=".30-06 Springfield" />
-        <option value=".30 Carbine" />
-        <option value=".30-40 Krag" />
-        <option value=".30-30 Winchester" />
-        <option value=".45-70 Government" />
-        <option value=".405 Winchester" />
-        <option value=".303 British" />
-        <option value="7.62x54mmR" />
-        <option value="7.92x57mm Mauser (8mm Mauser)" />
-        <option value="6.5x55mm Swedish Mauser" />
-        <option value="7.5x55mm Swiss (GP11)" />
-        <option value="7.65x53mm Argentine Mauser" />
-        <option value="7x57mm Mauser (7mm Mauser)" />
-        <option value="6.5x50mmSR Arisaka" />
-        <option value="7.7x58mm Arisaka" />
-        <option value="6.5x52mm Carcano" />
-        <option value="7.35x51mm Carcano" />
-        <option value="8x56mmR Steyr-Mannlicher" />
-        <option value="8x50mmR Lebel" />
-        <option value="7.5x54mm French" />
-        <option value="7.62x25mm Tokarev" />
-        <option value="9x18mm Makarov" />
-        <option value="7.62x38mmR (Nagant)" />
-      </datalist>
-
-      <datalist id="bullet-types-list">
-        {COMPREHENSIVE_BULLET_TYPES.map((bt, idx) => (
-          <option key={idx} value={bt} />
-        ))}
-      </datalist>
-
-      <datalist id="ammo-makes-list">
-        <option value="Federal Premium" />
-        <option value="Hornady" />
-        <option value="Winchester" />
-        <option value="Remington" />
-        <option value="CCI / Speer" />
-        <option value="Blazer" />
-        <option value="PMC" />
-        <option value="Sellier & Bellot" />
-        <option value="Fiocchi" />
-        <option value="Magtech" />
-        <option value="Aguila" />
-        <option value="Norma" />
-        <option value="Lapua" />
-        <option value="Underwood" />
-        <option value="Buffalo Bore" />
-        <option value="Black Hills" />
-        <option value="Sig Sauer" />
-        <option value="Monarch" />
-        <option value="PPU (Prvi Partizan)" />
-        <option value="Wolf" />
-        <option value="Tula" />
-      </datalist>
-
-      <datalist id="bullet-makes-list">
-        <option value="Sierra" />
-        <option value="Hornady" />
-        <option value="Nosler" />
-        <option value="Barnes" />
-        <option value="Speer" />
-        <option value="Berger" />
-        <option value="Lapua" />
-        <option value="Berry's" />
-        <option value="Extreme Bullets" />
-        <option value="Lehigh Defense" />
-      </datalist>
-
-      <datalist id="powders-list">
-        <option value="Hodgdon Varget" />
-        <option value="Hodgdon H4350" />
-        <option value="Hodgdon CFE 223" />
-        <option value="Hodgdon CFE Pistol" />
-        <option value="Hodgdon H335" />
-        <option value="Hodgdon H4895" />
-        <option value="Hodgdon Titegroup" />
-        <option value="Hodgdon Clays" />
-        <option value="Alliant Unique" />
-        <option value="Alliant Bullseye" />
-        <option value="Alliant Reloder 15" />
-        <option value="Alliant Reloder 16" />
-        <option value="Alliant Power Pistol" />
-        <option value="Vihtavuori N140" />
-        <option value="Vihtavuori N320" />
-        <option value="Vihtavuori N133" />
-        <option value="Winchester 231 (W231)" />
-        <option value="Winchester AutoComp" />
-        <option value="Winchester StaBALL 6.5" />
-        <option value="IMR 4064" />
-        <option value="IMR 4895" />
-        <option value="IMR 4166" />
-        <option value="Ramshot TAC" />
-        <option value="Ramshot Big Game" />
-        <option value="Accurate No. 5" />
-        <option value="Accurate No. 9" />
-        <option value="Accurate 2230" />
-      </datalist>
-
-      <datalist id="primers-list">
-        <option value="CCI #400 Small Rifle" />
-        <option value="CCI #450 Small Rifle Magnum" />
-        <option value="CCI #41 Small Rifle (Military 5.56)" />
-        <option value="CCI #200 Large Rifle" />
-        <option value="CCI #250 Large Rifle Magnum" />
-        <option value="CCI #34 Large Rifle (Military 7.62)" />
-        <option value="CCI #500 Small Pistol" />
-        <option value="CCI #550 Small Pistol Magnum" />
-        <option value="CCI #300 Large Pistol" />
-        <option value="CCI #350 Large Pistol Magnum" />
-        <option value="Federal #205M Match Small Rifle" />
-        <option value="Federal #210M Match Large Rifle" />
-        <option value="Federal #100 Small Pistol" />
-        <option value="Federal #150 Large Pistol" />
-        <option value="Winchester WSR Small Rifle" />
-        <option value="Winchester WLR Large Rifle" />
-        <option value="Winchester WSP Small Pistol" />
-        <option value="Winchester WLP Large Pistol" />
-        <option value="Remington 7 1/2 Bench Rest Small Rifle" />
-        <option value="Remington 9 1/2 Large Rifle" />
-        <option value="Cheddite 209 Shotgun" />
-        <option value="Winchester 209 Shotgun" />
-      </datalist>
-
-      <datalist id="primer-types-list">
-        <option value="Small Pistol" />
-        <option value="Small Pistol Magnum" />
-        <option value="Large Pistol" />
-        <option value="Large Pistol Magnum" />
-        <option value="Small Rifle" />
-        <option value="Small Rifle Magnum" />
-        <option value="Large Rifle" />
-        <option value="Large Rifle Magnum" />
-        <option value="Shotgun 209" />
-      </datalist>
-
-      <datalist id="brass-list">
-        <option value="Starline" />
-        <option value="Lake City (LC)" />
-        <option value="Lapua" />
-        <option value="Peterson" />
-        <option value="Alpha Munitions" />
-        <option value="Hornady" />
-        <option value="Winchester" />
-        <option value="Federal" />
-        <option value="Remington" />
-        <option value="Mixed Range Brass" />
-      </datalist>
     </div>
   );
 };

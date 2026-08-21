@@ -8,22 +8,22 @@ export interface Accessory {
   type: 'Optic' | 'Suppressor' | 'Light' | 'Holster' | 'Mount' | 'Sling' | 'Magazine' | 'Other';
   manufacturer: string;
   model: string;
-  
+
   magnification?: string;
   ratedCalibers?: string;
   lumens?: number;
   supportedModels?: string;
   caliber?: string;
   capacity?: number;
-  
+
   quantity?: number;
   serialNumber?: string;
   round_count?: number;
   value?: number | null;
   purchaseDate?: string;
-  
+
   mounts?: AccessoryMount[];
-  
+
   notes?: string;
   photo?: string | null;
   photos?: string[];
@@ -110,12 +110,12 @@ export interface Firearm {
   condition: string;
   image_path: string;
   photos?: string[];
-  
+
   // Maintenance Schedule & Rules
   maintenance_round_threshold?: number;
   maintenance_date_threshold_days?: number;
   maintenance_schedules?: MaintenanceScheduleItem[];
-  
+
   // Bound Book Fields
   purchased_from?: string;
   firearm_type?: string;
@@ -127,8 +127,8 @@ export interface Firearm {
   sold_price?: number | null;
   sale_notes?: string;
   logs?: MaintenanceLog[];
-  documents?: { name: string, path: string, date_added?: string }[];
-  
+  documents?: { name: string; path: string; date_added?: string }[];
+
   // NFA Info
   is_nfa?: boolean;
   nfa_type?: 'Suppressor' | 'SBR' | 'SBS' | 'Machine Gun' | 'AOW' | 'Destructive Device';
@@ -143,29 +143,42 @@ export interface ReloadingComponent {
   type: 'Powder' | 'Brass' | 'Bullet' | 'Primer';
   manufacturer: string;
   name?: string; // e.g. "Varget" (Powder), "XTP" (Bullet), or "#400" (Primer)
-  
+
   // General Inventory
   quantity: number; // Count for Brass/Bullet/Primer, or Weight for Powder
   min_threshold?: number;
-  cost?: number; 
+  cost?: number;
   purchaseDate?: string;
   notes?: string;
   upc_code?: string;
 
   // Powder Specific
-  weightUnit?: 'lbs' | 'oz'; // User preference toggle for display/input
+  weightUnit?: 'lbs' | 'oz' | 'grains'; // User preference toggle for display/input
   usageTags?: ('Pistol' | 'Rifle' | 'Shotgun')[]; // Multi-select tags
 
   // Brass & Primer Specific
-  primerType?: 'Small Rifle' | 'Large Rifle' | 'Small Pistol' | 'Large Pistol' | '209 Shotgun' | string;
+  primerType?:
+    | 'Small Rifle'
+    | 'Large Rifle'
+    | 'Small Pistol'
+    | 'Large Pistol'
+    | '209 Shotgun'
+    | string;
   isMagnumPrimer?: boolean; // Toggle for magnum
 
   // Brass Specific
-  prepStage?: 'Fired / Dirty' | 'Cleaned' | 'Deprimed' | 'Sized' | 'Trimmed' | 'Primed' | 'Ready to Load';
+  prepStage?:
+    | 'Fired / Dirty'
+    | 'Cleaned'
+    | 'Deprimed'
+    | 'Sized'
+    | 'Trimmed'
+    | 'Primed'
+    | 'Ready to Load';
 
   // Brass & Bullet Specific
   caliber?: string; // e.g. ".308", "7mm"
-  
+
   // Bullet Specific
   bulletType?: string; // e.g. "FMJ", "JHP"
   grain?: number; // Bullet weight
@@ -173,11 +186,11 @@ export interface ReloadingComponent {
 
 export interface CustomSkuItem {
   category?: 'ammo' | 'accessory' | 'component';
-  
+
   // Common Fields
   manufacturer?: string;
   notes?: string;
-  
+
   // Ammo Fields
   caliber?: string;
   grain?: number;
@@ -186,20 +199,28 @@ export interface CustomSkuItem {
   count?: number;
   costPerRound?: number;
   boxPrice?: number;
-  
+
   // Accessory / Part Fields
-  accessoryType?: 'Optic' | 'Suppressor' | 'Light' | 'Holster' | 'Mount' | 'Sling' | 'Magazine' | 'Other';
+  accessoryType?:
+    | 'Optic'
+    | 'Suppressor'
+    | 'Light'
+    | 'Holster'
+    | 'Mount'
+    | 'Sling'
+    | 'Magazine'
+    | 'Other';
   model?: string;
   value?: number;
   serialNumber?: string;
   supportedModels?: string;
-  
+
   // Reloading Component Fields
   componentType?: 'Powder' | 'Brass' | 'Bullet' | 'Primer';
   name?: string;
   quantity?: number;
   cost?: number;
-  weightUnit?: 'lbs' | 'oz';
+  weightUnit?: 'lbs' | 'oz' | 'grains';
   primerType?: string;
   isMagnumPrimer?: boolean;
   bulletType?: string;
@@ -228,64 +249,96 @@ declare global {
       setupVault: (password: string) => Promise<string>;
       unlockVault: (password: string) => Promise<boolean>;
       unlockWithRecoveryCode: (code: string) => Promise<boolean>;
-      changePassword: (currentPassword: string, newPassword: string, regenerateRecoveryKey?: boolean) => Promise<{ success: boolean; error?: string; message?: string; newRecoveryCode?: string | null }>;
-      regenerateRecoveryKey: (currentPassword: string) => Promise<{ success: boolean; error?: string; message?: string; newRecoveryCode?: string | null }>;
+      changePassword: (
+        currentPassword: string,
+        newPassword: string,
+        regenerateRecoveryKey?: boolean
+      ) => Promise<{
+        success: boolean;
+        error?: string;
+        message?: string;
+        newRecoveryCode?: string | null;
+      }>;
+      regenerateRecoveryKey: (
+        currentPassword: string
+      ) => Promise<{
+        success: boolean;
+        error?: string;
+        message?: string;
+        newRecoveryCode?: string | null;
+      }>;
       getRecoveryCode: () => Promise<string | null>;
       lockVault: () => Promise<void>;
-      
+
       getFirearms: () => Promise<Firearm[]>;
       addFirearm: (firearm: Firearm) => Promise<number>;
       updateFirearm: (id: number, firearm: Firearm) => Promise<number>;
       deleteFirearm: (id: number) => Promise<number>;
-      
+
       getAmmo: () => Promise<Ammo[]>;
       addAmmo: (ammo: Ammo) => Promise<number>;
       updateAmmo: (id: number, ammo: Ammo) => Promise<number>;
       deleteAmmo: (id: number) => Promise<number>;
-      
+
       getAccessories: () => Promise<Accessory[]>;
       addAccessory: (accessory: Accessory) => Promise<number>;
       updateAccessory: (id: number, accessory: Accessory) => Promise<number>;
       deleteAccessory: (id: number) => Promise<number>;
-      
+
       getComponents: () => Promise<ReloadingComponent[]>;
       addComponent: (component: ReloadingComponent) => Promise<number>;
       updateComponent: (id: number, component: ReloadingComponent) => Promise<number>;
       deleteComponent: (id: number) => Promise<number>;
-      
+
       getSkus: () => Promise<CustomSkuDatabase>;
       saveSkus: (skus: CustomSkuDatabase) => Promise<boolean>;
       deleteSku: (skuId: string) => Promise<string>;
-      
+
       getCustomSchedulePresets: () => Promise<CustomSchedulePreset[]>;
       saveCustomSchedulePresets: (presets: CustomSchedulePreset[]) => Promise<boolean>;
-      manufactureHandloadBatch: (ammoId: number, quantity: number, deductions: {
-        powderId?: number;
-        powderAmount?: number;
-        powderUnit?: 'lbs' | 'oz' | 'grains';
-        primerId?: number;
-        primerCount?: number;
-        brassId?: number;
-        brassCount?: number;
-        bulletId?: number;
-        bulletCount?: number;
-      }) => Promise<{ success: boolean; error?: string; remainingStock?: any }>;
-      
+      manufactureHandloadBatch: (
+        ammoId: number,
+        quantity: number,
+        deductions: {
+          powderId?: number;
+          powderAmount?: number;
+          powderUnit?: 'lbs' | 'oz' | 'grains';
+          primerId?: number;
+          primerCount?: number;
+          brassId?: number;
+          brassCount?: number;
+          bulletId?: number;
+          bulletCount?: number;
+        }
+      ) => Promise<{ success: boolean; error?: string; remainingStock?: any }>;
+
       savePhoto: (sourcePath: string, filename: string) => Promise<string | null>;
       saveBase64Photo: (base64Data: string, filename: string) => Promise<string | null>;
       saveDocument: (sourcePath: string, filename: string) => Promise<string | null>;
-      
+
       getBackupFolder: () => Promise<string | null>;
-      createZipBackup: () => Promise<{ success: boolean; canceled?: boolean; filePath?: string; error?: string } | boolean>;
-      restoreBackup: () => Promise<{ success: boolean; canceled?: boolean; requiresRelogin?: boolean; error?: string; filePath?: string }>;
+      createZipBackup: () => Promise<
+        { success: boolean; canceled?: boolean; filePath?: string; error?: string } | boolean
+      >;
+      restoreBackup: () => Promise<{
+        success: boolean;
+        canceled?: boolean;
+        requiresRelogin?: boolean;
+        error?: string;
+        filePath?: string;
+      }>;
       selectBackupFolder: () => Promise<string | null>;
       getConfig: (key: string) => Promise<any>;
       setConfig: (key: string, value: any) => Promise<void>;
-      
-      selectAndSaveDocument: () => Promise<{name: string, path: string} | null>;
+
+      selectAndSaveDocument: () => Promise<{ name: string; path: string } | null>;
       selectAndSavePhoto: () => Promise<string[] | null>;
       openExternalFile: (filePath: string) => Promise<void>;
-      printQRLabel: (data: { itemName: string; itemDetails: string; qrDataUrl: string }) => Promise<boolean>;
+      printQRLabel: (data: {
+        itemName: string;
+        itemDetails: string;
+        qrDataUrl: string;
+      }) => Promise<boolean>;
       saveQRImage: (data: { itemName: string; qrDataUrl: string }) => Promise<boolean>;
       readFileBase64: (filePath: string) => Promise<string | null>;
       readFileBuffer: (filePath: string) => Promise<Uint8Array | null>;
@@ -293,15 +346,41 @@ declare global {
       generateBillOfSale: (data: any) => Promise<string | null>;
       generateInsuranceReport: (data: any) => Promise<string | null>;
       lookupUPC: (upc: string) => Promise<any>;
-      
-      logRangeSession: (data: { firearm_id: number; ammo_id?: number; rounds_fired: number; date?: string; notes?: string; cost?: number; location?: string }) => Promise<{ success: boolean; firearm_rounds?: number; ammo_remaining?: number; error?: string }>;
-      completeMaintenanceTask: (firearmId: number, taskId: string, logData: { action_performed?: string; part_details?: string; cost?: number; date?: string; notes?: string }) => Promise<boolean>;
+
+      logRangeSession: (data: {
+        firearm_id: number;
+        ammo_id?: number;
+        rounds_fired: number;
+        date?: string;
+        notes?: string;
+        cost?: number;
+        location?: string;
+      }) => Promise<{
+        success: boolean;
+        firearm_rounds?: number;
+        ammo_remaining?: number;
+        error?: string;
+      }>;
+      completeMaintenanceTask: (
+        firearmId: number,
+        taskId: string,
+        logData: {
+          action_performed?: string;
+          part_details?: string;
+          cost?: number;
+          date?: string;
+          notes?: string;
+        }
+      ) => Promise<boolean>;
       exportData: (dataString: string, filename: string) => Promise<string | null>;
       onUpdateMessage: (callback: (msg: any) => void) => () => void;
       restartApp: () => void;
       getPlatform: () => string;
       getLocalIp: () => Promise<string>;
       onSyncReceived: (callback: () => void) => () => void;
+      onDevicePaired?: (
+        callback: (data: { deviceName?: string; timestamp?: number }) => void
+      ) => () => void;
       onVaultLocked: (callback: () => void) => () => void;
       getSyncQueue: () => Promise<SyncItem[]>;
       removeSyncItem: (id: number) => Promise<number>;
@@ -312,7 +391,16 @@ declare global {
 
 export interface SyncItem {
   id?: number;
-  type: 'ammo_adjustment' | 'component_adjustment' | 'accessory_adjustment' | 'firearm_log' | 'firearm_photo' | 'universal_scan' | 'range_session' | 'firearm_maintenance' | 'bill_of_sale_transfer';
+  type:
+    | 'ammo_adjustment'
+    | 'component_adjustment'
+    | 'accessory_adjustment'
+    | 'firearm_log'
+    | 'firearm_photo'
+    | 'universal_scan'
+    | 'range_session'
+    | 'firearm_maintenance'
+    | 'bill_of_sale_transfer';
   upcOrId?: string;
   action?: 'add' | 'remove';
   count?: number;

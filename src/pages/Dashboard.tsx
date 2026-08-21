@@ -1,25 +1,26 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Firearm, Ammo, Accessory, ReloadingComponent } from '../types';
-import { 
-  Search, 
-  Target, 
-  DollarSign, 
-  Package, 
-  ArrowUpDown, 
-  ArrowUp, 
-  ArrowDown, 
-  PieChart, 
-  Flame, 
-  LayoutGrid, 
-  List, 
-  SlidersHorizontal, 
-  AlertTriangle, 
-  CheckCircle2, 
-  ChevronRight,
+import {
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   Camera,
-  X
+  CheckCircle2,
+  ChevronRight,
+  DollarSign,
+  Flame,
+  LayoutGrid,
+  List,
+  Package,
+  PieChart,
+  Search,
+  SlidersHorizontal,
+  Target,
+  X,
 } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AutocompleteInput } from '../components/AutocompleteInput';
+import { Accessory, Ammo, Firearm, ReloadingComponent } from '../types';
 
 type SortKey = 'make' | 'model' | 'caliber' | 'serial_number' | 'rounds' | 'status';
 type SortDir = 'asc' | 'desc';
@@ -53,7 +54,7 @@ export const Dashboard = () => {
   const [categoryChip, setCategoryChip] = useState<CategoryChip>('all');
   const [sortKey, setSortKey] = useState<SortKey>('make');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
-  
+
   // View mode preference (Grid vs Table)
   const [viewMode, setViewMode] = useState<'grid' | 'table'>(() => {
     return (localStorage.getItem('armoryvault_dashboard_view') as 'grid' | 'table') || 'grid';
@@ -122,26 +123,32 @@ export const Dashboard = () => {
 
   // Telemetry & Maintenance Calculations
   const getLifetimeRounds = (f: Firearm) => {
-    return f.logs?.filter(l => l.type === 'Range').reduce((sum, l) => sum + (Number(l.rounds_fired) || 0), 0) || 0;
+    return (
+      f.logs
+        ?.filter((l) => l.type === 'Range')
+        .reduce((sum, l) => sum + (Number(l.rounds_fired) || 0), 0) || 0
+    );
   };
 
   const getDirtyRounds = (f: Firearm) => {
     if (!f.logs || f.logs.length === 0) return 0;
-    const cleaningLogs = f.logs.filter(l => l.type === 'Cleaning').sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const cleaningLogs = f.logs
+      .filter((l) => l.type === 'Cleaning')
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     const lastCleaningDate = cleaningLogs.length > 0 ? new Date(cleaningLogs[0].date).getTime() : 0;
-    
+
     return f.logs
-      .filter(l => l.type === 'Range' && new Date(l.date).getTime() >= lastCleaningDate)
+      .filter((l) => l.type === 'Range' && new Date(l.date).getTime() >= lastCleaningDate)
       .reduce((sum, l) => sum + (l.rounds_fired || 0), 0);
   };
 
   const isMaintenanceDue = (f: Firearm) => {
     if (f.is_sold) return false;
     const totalLifetimeRounds = getLifetimeRounds(f);
-    
+
     // Custom scheduled tasks
     if (f.maintenance_schedules && f.maintenance_schedules.length > 0) {
-      const anyDue = f.maintenance_schedules.some(s => {
+      const anyDue = f.maintenance_schedules.some((s) => {
         const roundsSince = totalLifetimeRounds - (s.last_performed_rounds || 0);
         return roundsSince >= (s.interval_rounds || 3000);
       });
@@ -170,42 +177,46 @@ export const Dashboard = () => {
 
   // Metrics summaries
   const totalFirearms = firearms.length;
-  const availableCount = firearms.filter(f => !f.is_sold).length;
+  const availableCount = firearms.filter((f) => !f.is_sold).length;
   const totalAmmoCount = ammoList.reduce((sum, a) => sum + (Number(a.count) || 0), 0);
   const totalLifetimeRounds = firearms.reduce((sum, f) => sum + getLifetimeRounds(f), 0);
-  
+
   const totalInvested = firearms.reduce((acc, f) => {
     const logsCost = f.logs?.reduce((sum, log) => sum + (Number(log.cost) || 0), 0) || 0;
     return acc + (Number(f.purchase_price) || 0) + logsCost;
   }, 0);
-  const totalSoldValue = firearms.reduce((acc, f) => acc + (f.is_sold ? (Number(f.sold_price) || 0) : 0), 0);
-  
-  const serviceDueCount = firearms.filter(f => isMaintenanceDue(f)).length;
+  const totalSoldValue = firearms.reduce(
+    (acc, f) => acc + (f.is_sold ? Number(f.sold_price) || 0 : 0),
+    0
+  );
+
+  const serviceDueCount = firearms.filter((f) => isMaintenanceDue(f)).length;
 
   // Category counts for chip badges
   const categoryCounts = useMemo(() => {
     return {
       all: firearms.length,
-      handgun: firearms.filter(f => {
+      handgun: firearms.filter((f) => {
         const t = (f.firearm_type || '').toLowerCase();
         return t.includes('pistol') || t.includes('revolver') || t.includes('handgun');
       }).length,
-      rifle: firearms.filter(f => {
+      rifle: firearms.filter((f) => {
         const t = (f.firearm_type || '').toLowerCase();
         return t.includes('rifle') || t.includes('carbine');
       }).length,
-      shotgun: firearms.filter(f => (f.firearm_type || '').toLowerCase().includes('shotgun')).length,
-      vintage: firearms.filter(f => isVintageFirearm(f)).length,
+      shotgun: firearms.filter((f) => (f.firearm_type || '').toLowerCase().includes('shotgun'))
+        .length,
+      vintage: firearms.filter((f) => isVintageFirearm(f)).length,
       service_due: serviceDueCount,
-      nfa: firearms.filter(f => f.is_nfa).length
+      nfa: firearms.filter((f) => f.is_nfa).length,
     };
   }, [firearms, serviceDueCount]);
 
   // Filtered list
-  const filtered = firearms.filter(f => {
+  const filtered = firearms.filter((f) => {
     // Text search
     const query = search.toLowerCase();
-    const matchesSearch = 
+    const matchesSearch =
       (f.make || '').toLowerCase().includes(query) ||
       (f.model || '').toLowerCase().includes(query) ||
       (f.caliber || '').toLowerCase().includes(query) ||
@@ -213,14 +224,18 @@ export const Dashboard = () => {
       (f.notes || '').toLowerCase().includes(query);
 
     // Sold status filter
-    const matchesSold = filterSold === 'all' || (filterSold === 'sold' && f.is_sold) || (filterSold === 'available' && !f.is_sold);
+    const matchesSold =
+      filterSold === 'all' ||
+      (filterSold === 'sold' && f.is_sold) ||
+      (filterSold === 'available' && !f.is_sold);
 
     // Category chip filter
     let matchesCategory = true;
     const typeStr = (f.firearm_type || '').toLowerCase();
 
     if (categoryChip === 'handgun') {
-      matchesCategory = typeStr.includes('pistol') || typeStr.includes('revolver') || typeStr.includes('handgun');
+      matchesCategory =
+        typeStr.includes('pistol') || typeStr.includes('revolver') || typeStr.includes('handgun');
     } else if (categoryChip === 'rifle') {
       matchesCategory = typeStr.includes('rifle') || typeStr.includes('carbine');
     } else if (categoryChip === 'shotgun') {
@@ -256,7 +271,7 @@ export const Dashboard = () => {
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
-      setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortKey(key);
       setSortDir('asc');
@@ -264,27 +279,44 @@ export const Dashboard = () => {
   };
 
   const SortIcon = ({ column }: { column: SortKey }) => {
-    if (sortKey !== column) return <ArrowUpDown size={13} style={{ opacity: 0.3, marginLeft: '0.3rem' }} />;
-    return sortDir === 'asc'
-      ? <ArrowUp size={13} style={{ color: 'var(--accent)', marginLeft: '0.3rem' }} />
-      : <ArrowDown size={13} style={{ color: 'var(--accent)', marginLeft: '0.3rem' }} />;
+    if (sortKey !== column)
+      return <ArrowUpDown size={13} style={{ opacity: 0.3, marginLeft: '0.3rem' }} />;
+    return sortDir === 'asc' ? (
+      <ArrowUp size={13} style={{ color: 'var(--accent)', marginLeft: '0.3rem' }} />
+    ) : (
+      <ArrowDown size={13} style={{ color: 'var(--accent)', marginLeft: '0.3rem' }} />
+    );
   };
 
   // Helper for mounted accessories on card
   const getMountedAccessories = (firearmId?: number) => {
     if (!firearmId) return [];
-    return accessories.filter(a => {
+    return accessories.filter((a) => {
       if (a.mounts && a.mounts.length > 0) {
-        return a.mounts.some(m => m.firearmId === firearmId);
+        return a.mounts.some((m) => m.firearmId === firearmId);
       }
       return false;
     });
   };
 
   // Valuation breakdown
-  const firearmsVal = firearms.filter(f => !f.is_sold).reduce((sum, f) => sum + (Number(f.purchase_price) || 0) + (f.logs?.reduce((lsum, l) => lsum + (Number(l.cost) || 0), 0) || 0), 0);
-  const accessoriesVal = accessories.reduce((sum, a) => sum + (Number(a.value) || 0) * (a.quantity || 1), 0);
-  const ammoVal = ammoList.reduce((sum, a) => sum + (Number(a.count) || 0) * (Number(a.costPerRound) || 0), 0);
+  const firearmsVal = firearms
+    .filter((f) => !f.is_sold)
+    .reduce(
+      (sum, f) =>
+        sum +
+        (Number(f.purchase_price) || 0) +
+        (f.logs?.reduce((lsum, l) => lsum + (Number(l.cost) || 0), 0) || 0),
+      0
+    );
+  const accessoriesVal = accessories.reduce(
+    (sum, a) => sum + (Number(a.value) || 0) * (a.quantity || 1),
+    0
+  );
+  const ammoVal = ammoList.reduce(
+    (sum, a) => sum + (Number(a.count) || 0) * (Number(a.costPerRound) || 0),
+    0
+  );
   const componentsVal = components.reduce((sum, c) => sum + (Number(c.cost) || 0), 0);
   const grandTotalVal = firearmsVal + accessoriesVal + ammoVal + componentsVal;
 
@@ -301,8 +333,8 @@ export const Dashboard = () => {
 
         {/* Customize Cards Dropdown */}
         <div className="customize-metrics-wrap">
-          <button 
-            className="btn-secondary" 
+          <button
+            className="btn-secondary"
             onClick={() => setIsCustomizeOpen(!isCustomizeOpen)}
             title="Customize Metric Cards"
             style={{ padding: '0.45rem 0.85rem', fontSize: '0.85rem' }}
@@ -313,28 +345,57 @@ export const Dashboard = () => {
 
           {isCustomizeOpen && (
             <div className="customize-metrics-popover">
-              <div style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.4rem' }}>
+              <div
+                style={{
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: 'var(--text-muted)',
+                  marginBottom: '0.4rem',
+                }}
+              >
                 Metric Cards Display
               </div>
               <label className="metric-toggle-row">
                 <span>🛡️ Total Firearms</span>
-                <input type="checkbox" checked={statVisibility.firearms} onChange={() => handleToggleStat('firearms')} />
+                <input
+                  type="checkbox"
+                  checked={statVisibility.firearms}
+                  onChange={() => handleToggleStat('firearms')}
+                />
               </label>
               <label className="metric-toggle-row">
                 <span>🎯 Ammunition Stock</span>
-                <input type="checkbox" checked={statVisibility.ammo} onChange={() => handleToggleStat('ammo')} />
+                <input
+                  type="checkbox"
+                  checked={statVisibility.ammo}
+                  onChange={() => handleToggleStat('ammo')}
+                />
               </label>
               <label className="metric-toggle-row">
                 <span>🔥 Lifetime Rounds</span>
-                <input type="checkbox" checked={statVisibility.rounds} onChange={() => handleToggleStat('rounds')} />
+                <input
+                  type="checkbox"
+                  checked={statVisibility.rounds}
+                  onChange={() => handleToggleStat('rounds')}
+                />
               </label>
               <label className="metric-toggle-row">
                 <span>💵 Vault Valuation</span>
-                <input type="checkbox" checked={statVisibility.valuation} onChange={() => handleToggleStat('valuation')} />
+                <input
+                  type="checkbox"
+                  checked={statVisibility.valuation}
+                  onChange={() => handleToggleStat('valuation')}
+                />
               </label>
               <label className="metric-toggle-row">
                 <span>⚠️ Service Status</span>
-                <input type="checkbox" checked={statVisibility.service} onChange={() => handleToggleStat('service')} />
+                <input
+                  type="checkbox"
+                  checked={statVisibility.service}
+                  onChange={() => handleToggleStat('service')}
+                />
               </label>
             </div>
           )}
@@ -342,18 +403,35 @@ export const Dashboard = () => {
       </div>
 
       {/* Togglable Command Metrics Bar */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '1rem', marginBottom: '1.75rem' }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+          gap: '1rem',
+          marginBottom: '1.75rem',
+        }}
+      >
         {/* Metric 1: Total Firearms */}
         {statVisibility.firearms && (
           <div className="stat-card">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem' }}>
-              <div style={{ background: 'rgba(59, 130, 246, 0.12)', border: '1px solid rgba(59, 130, 246, 0.25)', padding: '0.75rem', borderRadius: '12px', color: '#60a5fa' }}>
+              <div
+                style={{
+                  background: 'rgba(59, 130, 246, 0.12)',
+                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                  padding: '0.75rem',
+                  borderRadius: '12px',
+                  color: '#60a5fa',
+                }}
+              >
                 <Target size={22} />
               </div>
               <div>
                 <div className="stat-label">Total Firearms</div>
                 <div className="stat-val">{totalFirearms}</div>
-                <div className="stat-sub">{availableCount} in Safe &bull; {totalFirearms - availableCount} Sold</div>
+                <div className="stat-sub">
+                  {availableCount} in Safe &bull; {totalFirearms - availableCount} Sold
+                </div>
               </div>
             </div>
           </div>
@@ -361,14 +439,34 @@ export const Dashboard = () => {
 
         {/* Metric 2: Live Ammo Stock */}
         {statVisibility.ammo && (
-          <div className="stat-card" onClick={() => navigate('/ammo')} style={{ cursor: 'pointer' }} title="Click to open Ammo Depot">
+          <div
+            className="stat-card"
+            onClick={() => navigate('/ammo')}
+            style={{ cursor: 'pointer' }}
+            title="Click to open Ammo Depot"
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem' }}>
-              <div style={{ background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.25)', padding: '0.75rem', borderRadius: '12px', color: '#34d399' }}>
+              <div
+                style={{
+                  background: 'rgba(16, 185, 129, 0.12)',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  padding: '0.75rem',
+                  borderRadius: '12px',
+                  color: '#34d399',
+                }}
+              >
                 <Package size={22} />
               </div>
               <div>
                 <div className="stat-label">Ammunition Stock</div>
-                <div className="stat-val">{totalAmmoCount.toLocaleString()} <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)' }}>rds</span></div>
+                <div className="stat-val">
+                  {totalAmmoCount.toLocaleString()}{' '}
+                  <span
+                    style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)' }}
+                  >
+                    rds
+                  </span>
+                </div>
                 <div className="stat-sub">{ammoList.length} Caliber Profiles</div>
               </div>
             </div>
@@ -379,13 +477,23 @@ export const Dashboard = () => {
         {statVisibility.rounds && (
           <div className="stat-card">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem' }}>
-              <div style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.25)', padding: '0.75rem', borderRadius: '12px', color: '#f87171' }}>
+              <div
+                style={{
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                  padding: '0.75rem',
+                  borderRadius: '12px',
+                  color: '#f87171',
+                }}
+              >
                 <Flame size={22} />
               </div>
               <div>
                 <div className="stat-label">Lifetime Rounds</div>
                 <div className="stat-val">{totalLifetimeRounds.toLocaleString()}</div>
-                <div className="stat-sub" style={{ color: '#f87171' }}>Cumulative Telemetry</div>
+                <div className="stat-sub" style={{ color: '#f87171' }}>
+                  Cumulative Telemetry
+                </div>
               </div>
             </div>
           </div>
@@ -395,17 +503,30 @@ export const Dashboard = () => {
         {statVisibility.valuation && (
           <div className="stat-card">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem' }}>
-              <div style={{ background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.25)', padding: '0.75rem', borderRadius: '12px', color: '#fbbf24' }}>
+              <div
+                style={{
+                  background: 'rgba(245, 158, 11, 0.12)',
+                  border: '1px solid rgba(245, 158, 11, 0.25)',
+                  padding: '0.75rem',
+                  borderRadius: '12px',
+                  color: '#fbbf24',
+                }}
+              >
                 <DollarSign size={22} />
               </div>
               <div>
                 <div className="stat-label">Total Invested</div>
                 <div className="stat-val" style={{ fontSize: '1.4rem' }}>
-                  ${totalInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  $
+                  {totalInvested.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
                 </div>
                 {totalSoldValue > 0 ? (
                   <div className="stat-sub" style={{ color: 'var(--text-muted)' }}>
-                    +${totalSoldValue.toLocaleString(undefined, { maximumFractionDigits: 0 })} Disposed
+                    +${totalSoldValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}{' '}
+                    Disposed
                   </div>
                 ) : (
                   <div className="stat-sub">Insurance Baseline</div>
@@ -417,31 +538,41 @@ export const Dashboard = () => {
 
         {/* Metric 5: Service Status Alert Card */}
         {statVisibility.service && (
-          <div 
-            className="stat-card" 
+          <div
+            className="stat-card"
             onClick={() => setCategoryChip(categoryChip === 'service_due' ? 'all' : 'service_due')}
-            style={{ 
+            style={{
               cursor: 'pointer',
-              borderLeft: serviceDueCount > 0 ? '4px solid var(--danger)' : '1px solid var(--border-subtle)'
+              borderLeft:
+                serviceDueCount > 0 ? '4px solid var(--danger)' : '1px solid var(--border-subtle)',
             }}
             title="Click to filter firearms due for service"
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem' }}>
-              <div style={{ 
-                background: serviceDueCount > 0 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.12)', 
-                border: `1px solid ${serviceDueCount > 0 ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.25)'}`, 
-                padding: '0.75rem', 
-                borderRadius: '12px', 
-                color: serviceDueCount > 0 ? '#ef4444' : '#10b981' 
-              }}>
+              <div
+                style={{
+                  background:
+                    serviceDueCount > 0 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.12)',
+                  border: `1px solid ${serviceDueCount > 0 ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.25)'}`,
+                  padding: '0.75rem',
+                  borderRadius: '12px',
+                  color: serviceDueCount > 0 ? '#ef4444' : '#10b981',
+                }}
+              >
                 {serviceDueCount > 0 ? <AlertTriangle size={22} /> : <CheckCircle2 size={22} />}
               </div>
               <div>
                 <div className="stat-label">Service Status</div>
-                <div className="stat-val" style={{ color: serviceDueCount > 0 ? '#ef4444' : '#10b981' }}>
+                <div
+                  className="stat-val"
+                  style={{ color: serviceDueCount > 0 ? '#ef4444' : '#10b981' }}
+                >
                   {serviceDueCount > 0 ? `${serviceDueCount} Due` : '100% Ready'}
                 </div>
-                <div className="stat-sub" style={{ color: serviceDueCount > 0 ? '#f87171' : '#34d399' }}>
+                <div
+                  className="stat-sub"
+                  style={{ color: serviceDueCount > 0 ? '#f87171' : '#34d399' }}
+                >
                   {serviceDueCount > 0 ? 'Click to filter due items' : 'All maintenance current'}
                 </div>
               </div>
@@ -452,71 +583,259 @@ export const Dashboard = () => {
 
       {/* Optional Collection Value Analytics Breakdown Card */}
       {showCollectionAnalytics && grandTotalVal > 0 && (
-        <div className="card" style={{ padding: '1.25rem 1.5rem', marginBottom: '1.75rem', border: '1px solid var(--border-highlight)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.6rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <div
+          className="card"
+          style={{
+            padding: '1.25rem 1.5rem',
+            marginBottom: '1.75rem',
+            border: '1px solid var(--border-highlight)',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '1rem',
+              borderBottom: '1px solid var(--border-subtle)',
+              paddingBottom: '0.6rem',
+              flexWrap: 'wrap',
+              gap: '0.5rem',
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <PieChart size={18} style={{ color: 'var(--accent)' }} />
               <h3 style={{ margin: 0, fontSize: '1rem' }}>Collection Value & Asset Breakdown</h3>
             </div>
             <div style={{ fontSize: '1rem', fontWeight: 'bold', color: 'var(--success)' }}>
-              Total Vault Net Worth: ${grandTotalVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              Total Vault Net Worth: $
+              {grandTotalVal.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.85rem' }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gap: '0.85rem',
+            }}
+          >
             {/* Firearms */}
-            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                <span>Firearms ({firearms.filter(f => !f.is_sold).length})</span>
-                <span style={{ fontWeight: 600, color: '#60a5fa' }}>{Math.round((firearmsVal / grandTotalVal) * 100)}%</span>
+            <div
+              style={{
+                background: 'rgba(255,255,255,0.02)',
+                padding: '0.75rem',
+                borderRadius: '8px',
+                border: '1px solid rgba(59, 130, 246, 0.2)',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  fontSize: '0.8rem',
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                <span>Firearms ({firearms.filter((f) => !f.is_sold).length})</span>
+                <span style={{ fontWeight: 600, color: '#60a5fa' }}>
+                  {Math.round((firearmsVal / grandTotalVal) * 100)}%
+                </span>
               </div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 'bold', margin: '0.2rem 0', color: '#fff' }}>
-                ${firearmsVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <div
+                style={{
+                  fontSize: '1.1rem',
+                  fontWeight: 'bold',
+                  margin: '0.2rem 0',
+                  color: '#fff',
+                }}
+              >
+                $
+                {firearmsVal.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
               </div>
-              <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: '4px', height: '5px', overflow: 'hidden' }}>
-                <div style={{ width: `${(firearmsVal / grandTotalVal) * 100}%`, background: '#60a5fa', height: '100%' }} />
+              <div
+                style={{
+                  background: 'rgba(255,255,255,0.08)',
+                  borderRadius: '4px',
+                  height: '5px',
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    width: `${(firearmsVal / grandTotalVal) * 100}%`,
+                    background: '#60a5fa',
+                    height: '100%',
+                  }}
+                />
               </div>
             </div>
 
             {/* Accessories */}
-            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            <div
+              style={{
+                background: 'rgba(255,255,255,0.02)',
+                padding: '0.75rem',
+                borderRadius: '8px',
+                border: '1px solid rgba(16, 185, 129, 0.2)',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  fontSize: '0.8rem',
+                  color: 'var(--text-secondary)',
+                }}
+              >
                 <span>Optics & Mounted</span>
-                <span style={{ fontWeight: 600, color: '#34d399' }}>{Math.round((accessoriesVal / grandTotalVal) * 100)}%</span>
+                <span style={{ fontWeight: 600, color: '#34d399' }}>
+                  {Math.round((accessoriesVal / grandTotalVal) * 100)}%
+                </span>
               </div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 'bold', margin: '0.2rem 0', color: '#fff' }}>
-                ${accessoriesVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <div
+                style={{
+                  fontSize: '1.1rem',
+                  fontWeight: 'bold',
+                  margin: '0.2rem 0',
+                  color: '#fff',
+                }}
+              >
+                $
+                {accessoriesVal.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
               </div>
-              <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: '4px', height: '5px', overflow: 'hidden' }}>
-                <div style={{ width: `${(accessoriesVal / grandTotalVal) * 100}%`, background: '#34d399', height: '100%' }} />
+              <div
+                style={{
+                  background: 'rgba(255,255,255,0.08)',
+                  borderRadius: '4px',
+                  height: '5px',
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    width: `${(accessoriesVal / grandTotalVal) * 100}%`,
+                    background: '#34d399',
+                    height: '100%',
+                  }}
+                />
               </div>
             </div>
 
             {/* Ammo */}
-            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            <div
+              style={{
+                background: 'rgba(255,255,255,0.02)',
+                padding: '0.75rem',
+                borderRadius: '8px',
+                border: '1px solid rgba(245, 158, 11, 0.2)',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  fontSize: '0.8rem',
+                  color: 'var(--text-secondary)',
+                }}
+              >
                 <span>Ammunition Stock</span>
-                <span style={{ fontWeight: 600, color: '#fbbf24' }}>{Math.round((ammoVal / grandTotalVal) * 100)}%</span>
+                <span style={{ fontWeight: 600, color: '#fbbf24' }}>
+                  {Math.round((ammoVal / grandTotalVal) * 100)}%
+                </span>
               </div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 'bold', margin: '0.2rem 0', color: '#fff' }}>
-                ${ammoVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <div
+                style={{
+                  fontSize: '1.1rem',
+                  fontWeight: 'bold',
+                  margin: '0.2rem 0',
+                  color: '#fff',
+                }}
+              >
+                $
+                {ammoVal.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
               </div>
-              <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: '4px', height: '5px', overflow: 'hidden' }}>
-                <div style={{ width: `${(ammoVal / grandTotalVal) * 100}%`, background: '#fbbf24', height: '100%' }} />
+              <div
+                style={{
+                  background: 'rgba(255,255,255,0.08)',
+                  borderRadius: '4px',
+                  height: '5px',
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    width: `${(ammoVal / grandTotalVal) * 100}%`,
+                    background: '#fbbf24',
+                    height: '100%',
+                  }}
+                />
               </div>
             </div>
 
             {/* Reloading */}
-            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(168, 85, 247, 0.2)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            <div
+              style={{
+                background: 'rgba(255,255,255,0.02)',
+                padding: '0.75rem',
+                borderRadius: '8px',
+                border: '1px solid rgba(168, 85, 247, 0.2)',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  fontSize: '0.8rem',
+                  color: 'var(--text-secondary)',
+                }}
+              >
                 <span>Reloading Supplies</span>
-                <span style={{ fontWeight: 600, color: '#c084fc' }}>{Math.round((componentsVal / grandTotalVal) * 100)}%</span>
+                <span style={{ fontWeight: 600, color: '#c084fc' }}>
+                  {Math.round((componentsVal / grandTotalVal) * 100)}%
+                </span>
               </div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 'bold', margin: '0.2rem 0', color: '#fff' }}>
-                ${componentsVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <div
+                style={{
+                  fontSize: '1.1rem',
+                  fontWeight: 'bold',
+                  margin: '0.2rem 0',
+                  color: '#fff',
+                }}
+              >
+                $
+                {componentsVal.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
               </div>
-              <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: '4px', height: '5px', overflow: 'hidden' }}>
-                <div style={{ width: `${(componentsVal / grandTotalVal) * 100}%`, background: '#c084fc', height: '100%' }} />
+              <div
+                style={{
+                  background: 'rgba(255,255,255,0.08)',
+                  borderRadius: '4px',
+                  height: '5px',
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    width: `${(componentsVal / grandTotalVal) * 100}%`,
+                    background: '#c084fc',
+                    height: '100%',
+                  }}
+                />
               </div>
             </div>
           </div>
@@ -527,7 +846,7 @@ export const Dashboard = () => {
       <div className="dashboard-control-deck">
         {/* Left: Category Filter Chips */}
         <div className="filter-chips-bar">
-          <button 
+          <button
             className={`filter-chip ${categoryChip === 'all' ? 'active' : ''}`}
             onClick={() => setCategoryChip('all')}
           >
@@ -535,7 +854,7 @@ export const Dashboard = () => {
             <span className="filter-chip-count">{categoryCounts.all}</span>
           </button>
 
-          <button 
+          <button
             className={`filter-chip ${categoryChip === 'handgun' ? 'active' : ''}`}
             onClick={() => setCategoryChip('handgun')}
           >
@@ -543,7 +862,7 @@ export const Dashboard = () => {
             <span className="filter-chip-count">{categoryCounts.handgun}</span>
           </button>
 
-          <button 
+          <button
             className={`filter-chip ${categoryChip === 'rifle' ? 'active' : ''}`}
             onClick={() => setCategoryChip('rifle')}
           >
@@ -551,7 +870,7 @@ export const Dashboard = () => {
             <span className="filter-chip-count">{categoryCounts.rifle}</span>
           </button>
 
-          <button 
+          <button
             className={`filter-chip ${categoryChip === 'shotgun' ? 'active' : ''}`}
             onClick={() => setCategoryChip('shotgun')}
           >
@@ -559,7 +878,7 @@ export const Dashboard = () => {
             <span className="filter-chip-count">{categoryCounts.shotgun}</span>
           </button>
 
-          <button 
+          <button
             className={`filter-chip ${categoryChip === 'vintage' ? 'active' : ''}`}
             onClick={() => setCategoryChip('vintage')}
           >
@@ -568,7 +887,7 @@ export const Dashboard = () => {
           </button>
 
           {categoryCounts.nfa > 0 && (
-            <button 
+            <button
               className={`filter-chip ${categoryChip === 'nfa' ? 'active' : ''}`}
               onClick={() => setCategoryChip('nfa')}
             >
@@ -577,16 +896,21 @@ export const Dashboard = () => {
             </button>
           )}
 
-          <button 
+          <button
             className={`filter-chip ${categoryChip === 'service_due' ? 'active' : ''}`}
             onClick={() => setCategoryChip('service_due')}
             style={{
               borderColor: categoryCounts.service_due > 0 ? 'rgba(239, 68, 68, 0.5)' : undefined,
-              color: categoryCounts.service_due > 0 ? '#f87171' : undefined
+              color: categoryCounts.service_due > 0 ? '#f87171' : undefined,
             }}
           >
             <span>⚠️ Service Due</span>
-            <span className="filter-chip-count" style={{ background: categoryCounts.service_due > 0 ? 'rgba(239,68,68,0.3)' : undefined }}>
+            <span
+              className="filter-chip-count"
+              style={{
+                background: categoryCounts.service_due > 0 ? 'rgba(239,68,68,0.3)' : undefined,
+              }}
+            >
               {categoryCounts.service_due}
             </span>
           </button>
@@ -597,16 +921,16 @@ export const Dashboard = () => {
           {/* Search Box */}
           <div className="search-box">
             <Search size={15} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-            <input 
-              type="text" 
-              placeholder="Search make, model, caliber..." 
+            <input
+              type="text"
+              placeholder="Search make, model, caliber..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
             {search && (
-              <button 
-                type="button" 
-                className="search-clear-btn" 
+              <button
+                type="button"
+                className="search-clear-btn"
                 onClick={() => setSearch('')}
                 title="Clear search"
               >
@@ -616,22 +940,30 @@ export const Dashboard = () => {
           </div>
 
           {/* Status Select */}
-          <select value={filterSold} onChange={(e) => setFilterSold(e.target.value as any)} className="select-box">
-            <option value="all">All Status</option>
-            <option value="available">In Safe Only</option>
-            <option value="sold">Sold Only</option>
-          </select>
+          <div style={{ minWidth: '150px' }}>
+            <AutocompleteInput
+              mode="select"
+              name="filterSold"
+              value={filterSold}
+              onChange={(e) => setFilterSold(e.target.value as any)}
+              options={[
+                { value: 'all', label: 'All Status' },
+                { value: 'available', label: 'In Safe Only' },
+                { value: 'sold', label: 'Sold Only' },
+              ]}
+            />
+          </div>
 
           {/* View Mode Switcher */}
           <div className="view-mode-toggle">
-            <button 
+            <button
               className={`view-mode-btn ${viewMode === 'grid' ? 'active' : ''}`}
               onClick={() => handleToggleViewMode('grid')}
               title="Tactical Card Grid View"
             >
               <LayoutGrid size={15} />
             </button>
-            <button 
+            <button
               className={`view-mode-btn ${viewMode === 'table' ? 'active' : ''}`}
               onClick={() => handleToggleViewMode('table')}
               title="Compact Ledger Table View"
@@ -646,7 +978,7 @@ export const Dashboard = () => {
       {viewMode === 'grid' ? (
         /* Tactical Card View */
         <div className="tactical-grid">
-          {sorted.map(f => {
+          {sorted.map((f) => {
             const lifetimeRounds = getLifetimeRounds(f);
             const dirtyRounds = getDirtyRounds(f);
             const threshold = f.maintenance_round_threshold || 500;
@@ -657,8 +989,8 @@ export const Dashboard = () => {
             const isVintage = isVintageFirearm(f);
 
             return (
-              <div 
-                key={f.id} 
+              <div
+                key={f.id}
                 className="tactical-card"
                 onClick={() => navigate(`/details/${f.id}`)}
               >
@@ -680,12 +1012,26 @@ export const Dashboard = () => {
                     </span>
                     <div style={{ display: 'flex', gap: '0.35rem' }}>
                       {f.is_nfa && (
-                        <span className="status-badge" style={{ background: 'rgba(234, 179, 8, 0.25)', color: '#eab308', border: '1px solid rgba(234, 179, 8, 0.5)' }}>
+                        <span
+                          className="status-badge"
+                          style={{
+                            background: 'rgba(234, 179, 8, 0.25)',
+                            color: '#eab308',
+                            border: '1px solid rgba(234, 179, 8, 0.5)',
+                          }}
+                        >
                           NFA
                         </span>
                       )}
                       {isVintage && (
-                        <span className="status-badge" style={{ background: 'rgba(168, 85, 247, 0.25)', color: '#c084fc', border: '1px solid rgba(168, 85, 247, 0.5)' }}>
+                        <span
+                          className="status-badge"
+                          style={{
+                            background: 'rgba(168, 85, 247, 0.25)',
+                            color: '#c084fc',
+                            border: '1px solid rgba(168, 85, 247, 0.5)',
+                          }}
+                        >
                           C&R
                         </span>
                       )}
@@ -695,22 +1041,40 @@ export const Dashboard = () => {
 
                 {/* Card Body */}
                 <div className="tactical-card-body">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
                     <span className="tactical-card-make">{f.make}</span>
                     <span className="inventory-caliber-badge">{f.caliber}</span>
                   </div>
 
                   <div className="tactical-card-title">{f.model}</div>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                    <span>SN: <strong className="mono" style={{ color: 'var(--text-primary)' }}>{f.serial_number}</strong></span>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '0.8rem',
+                      color: 'var(--text-secondary)',
+                    }}
+                  >
+                    <span>
+                      SN:{' '}
+                      <strong className="mono" style={{ color: 'var(--text-primary)' }}>
+                        {f.serial_number}
+                      </strong>
+                    </span>
                     {f.condition && <span>{f.condition}</span>}
                   </div>
 
                   {/* Mounted Accessories Tag Cloud */}
                   {mountedAccs.length > 0 && (
                     <div className="tactical-accessories-cloud">
-                      {mountedAccs.slice(0, 3).map(a => (
+                      {mountedAccs.slice(0, 3).map((a) => (
                         <span key={a.id} className="accessory-pill-tag">
                           ⚡ {a.model || a.manufacturer || 'Optic/Accessory'}
                         </span>
@@ -725,29 +1089,56 @@ export const Dashboard = () => {
                   {!f.is_sold && (
                     <div className="wear-gauge-block">
                       <div className="wear-gauge-header">
-                        <span>Wear: {dirtyRounds} / {threshold} rds</span>
-                        <span style={{ 
-                          fontWeight: 700, 
-                          color: isDue ? '#ef4444' : wearPct > 70 ? '#fbbf24' : '#10b981' 
-                        }}>
+                        <span>
+                          Wear: {dirtyRounds} / {threshold} rds
+                        </span>
+                        <span
+                          style={{
+                            fontWeight: 700,
+                            color: isDue ? '#ef4444' : wearPct > 70 ? '#fbbf24' : '#10b981',
+                          }}
+                        >
                           {isDue ? '⚠️ Service Due' : `${wearPct}%`}
                         </span>
                       </div>
                       <div className="wear-bar-track">
-                        <div 
-                          className="wear-bar-fill" 
-                          style={{ 
-                            width: `${wearPct}%`, 
-                            background: isDue ? '#ef4444' : wearPct > 70 ? '#fbbf24' : '#10b981' 
-                          }} 
+                        <div
+                          className="wear-bar-fill"
+                          style={{
+                            width: `${wearPct}%`,
+                            background: isDue ? '#ef4444' : wearPct > 70 ? '#fbbf24' : '#10b981',
+                          }}
                         />
                       </div>
                     </div>
                   )}
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.2rem', paddingTop: '0.4rem', borderTop: '1px solid var(--border-subtle)', fontSize: '0.775rem', color: 'var(--text-muted)' }}>
-                    <span>Lifetime: <strong style={{ color: 'var(--text-primary)' }}>{lifetimeRounds.toLocaleString()} rds</strong></span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', color: 'var(--accent)' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginTop: '0.2rem',
+                      paddingTop: '0.4rem',
+                      borderTop: '1px solid var(--border-subtle)',
+                      fontSize: '0.775rem',
+                      color: 'var(--text-muted)',
+                    }}
+                  >
+                    <span>
+                      Lifetime:{' '}
+                      <strong style={{ color: 'var(--text-primary)' }}>
+                        {lifetimeRounds.toLocaleString()} rds
+                      </strong>
+                    </span>
+                    <span
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.2rem',
+                        color: 'var(--accent)',
+                      }}
+                    >
                       Details <ChevronRight size={14} />
                     </span>
                   </div>
@@ -757,13 +1148,28 @@ export const Dashboard = () => {
           })}
 
           {sorted.length === 0 && (
-            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '4rem 1rem', background: 'var(--bg-surface)', borderRadius: '14px', border: '1px dashed var(--border-light)' }}>
+            <div
+              style={{
+                gridColumn: '1 / -1',
+                textAlign: 'center',
+                padding: '4rem 1rem',
+                background: 'var(--bg-surface)',
+                borderRadius: '14px',
+                border: '1px dashed var(--border-light)',
+              }}
+            >
               <Target size={40} opacity={0.3} style={{ marginBottom: '1rem' }} />
               <h3>No Firearms Match Current Filters</h3>
-              <p style={{ marginTop: '0.5rem', fontSize: '0.9rem' }}>Try clearing search terms or selecting "All Firearms".</p>
-              <button 
-                className="btn-secondary btn-sm" 
-                onClick={() => { setSearch(''); setCategoryChip('all'); setFilterSold('all'); }} 
+              <p style={{ marginTop: '0.5rem', fontSize: '0.9rem' }}>
+                Try clearing search terms or selecting "All Firearms".
+              </p>
+              <button
+                className="btn-secondary btn-sm"
+                onClick={() => {
+                  setSearch('');
+                  setCategoryChip('all');
+                  setFilterSold('all');
+                }}
                 style={{ marginTop: '1.25rem' }}
               >
                 Reset All Filters
@@ -778,23 +1184,53 @@ export const Dashboard = () => {
             <thead>
               <tr>
                 <th style={{ width: '50px' }}></th>
-                <th onClick={() => handleSort('make')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center' }}>Make <SortIcon column="make" /></span>
+                <th
+                  onClick={() => handleSort('make')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                    Make <SortIcon column="make" />
+                  </span>
                 </th>
-                <th onClick={() => handleSort('model')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center' }}>Model <SortIcon column="model" /></span>
+                <th
+                  onClick={() => handleSort('model')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                    Model <SortIcon column="model" />
+                  </span>
                 </th>
-                <th onClick={() => handleSort('caliber')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center' }}>Caliber <SortIcon column="caliber" /></span>
+                <th
+                  onClick={() => handleSort('caliber')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                    Caliber <SortIcon column="caliber" />
+                  </span>
                 </th>
-                <th onClick={() => handleSort('serial_number')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center' }}>Serial Number <SortIcon column="serial_number" /></span>
+                <th
+                  onClick={() => handleSort('serial_number')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                    Serial Number <SortIcon column="serial_number" />
+                  </span>
                 </th>
-                <th onClick={() => handleSort('rounds')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center' }}>Lifetime Rounds <SortIcon column="rounds" /></span>
+                <th
+                  onClick={() => handleSort('rounds')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                    Lifetime Rounds <SortIcon column="rounds" />
+                  </span>
                 </th>
-                <th onClick={() => handleSort('status')} style={{ cursor: 'pointer', userSelect: 'none' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center' }}>Status / Service <SortIcon column="status" /></span>
+                <th
+                  onClick={() => handleSort('status')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                    Status / Service <SortIcon column="status" />
+                  </span>
                 </th>
               </tr>
             </thead>
@@ -806,8 +1242,8 @@ export const Dashboard = () => {
                 const imageSrc = getFirearmImageSrc(f);
 
                 return (
-                  <tr 
-                    key={f.id} 
+                  <tr
+                    key={f.id}
                     className={f.is_sold ? 'row-sold clickable-row' : 'clickable-row'}
                     onClick={() => navigate(`/details/${f.id}`)}
                   >
@@ -815,33 +1251,82 @@ export const Dashboard = () => {
                       {imageSrc ? (
                         <img src={imageSrc} alt="" className="table-thumbnail" />
                       ) : (
-                        <div className="table-thumbnail" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                        <div
+                          className="table-thumbnail"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'var(--text-muted)',
+                          }}
+                        >
                           <Camera size={14} />
                         </div>
                       )}
                     </td>
                     <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{f.make}</td>
                     <td>{f.model}</td>
-                    <td style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>{f.caliber}</td>
-                    <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>{f.serial_number}</td>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{lifetimeRounds.toLocaleString()} rds</td>
+                    <td style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>
+                      {f.caliber}
+                    </td>
+                    <td
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        color: 'var(--text-secondary)',
+                        letterSpacing: '0.05em',
+                      }}
+                    >
+                      {f.serial_number}
+                    </td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                      {lifetimeRounds.toLocaleString()} rds
+                    </td>
                     <td>
-                      <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          gap: '0.4rem',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                        }}
+                      >
                         <span className={`status-badge ${f.is_sold ? 'sold' : 'available'}`}>
                           {f.is_sold ? 'Sold' : 'In Safe'}
                         </span>
                         {f.is_nfa && (
-                          <span className="status-badge" style={{ background: 'rgba(234, 179, 8, 0.2)', color: '#eab308', border: '1px solid rgba(234, 179, 8, 0.5)' }}>
+                          <span
+                            className="status-badge"
+                            style={{
+                              background: 'rgba(234, 179, 8, 0.2)',
+                              color: '#eab308',
+                              border: '1px solid rgba(234, 179, 8, 0.5)',
+                            }}
+                          >
                             NFA
                           </span>
                         )}
                         {!f.is_sold && isDue && (
-                          <span className="status-badge" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.4)', fontWeight: 600 }}>
+                          <span
+                            className="status-badge"
+                            style={{
+                              background: 'rgba(239, 68, 68, 0.15)',
+                              color: '#f87171',
+                              border: '1px solid rgba(239, 68, 68, 0.4)',
+                              fontWeight: 600,
+                            }}
+                          >
                             ⚠️ Service Due
                           </span>
                         )}
                         {!f.is_sold && !isDue && dirtyRounds >= 250 && (
-                          <span className="status-badge" style={{ background: 'rgba(245, 158, 11, 0.1)', color: 'var(--warning)', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                          <span
+                            className="status-badge"
+                            style={{
+                              background: 'rgba(245, 158, 11, 0.1)',
+                              color: 'var(--warning)',
+                              border: '1px solid rgba(245, 158, 11, 0.3)',
+                            }}
+                          >
                             Dirty ({dirtyRounds} rds)
                           </span>
                         )}
@@ -852,7 +1337,11 @@ export const Dashboard = () => {
               })}
               {sorted.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="empty-state" style={{ textAlign: 'center', padding: '3rem' }}>
+                  <td
+                    colSpan={7}
+                    className="empty-state"
+                    style={{ textAlign: 'center', padding: '3rem' }}
+                  >
                     No firearms found matching your criteria.
                   </td>
                 </tr>

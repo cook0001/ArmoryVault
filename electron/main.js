@@ -14,7 +14,10 @@ autoUpdater.logger.transports.file.level = 'info';
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { secure: true, standard: true } },
-  { scheme: 'local-file', privileges: { secure: true, standard: true, supportFetchAPI: true, bypassCSP: true } }
+  {
+    scheme: 'local-file',
+    privileges: { secure: true, standard: true, supportFetchAPI: true, bypassCSP: true },
+  },
 ]);
 
 let mainWindow;
@@ -27,10 +30,10 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
-      nodeIntegration: false
-    }
+      nodeIntegration: false,
+    },
   };
-  
+
   if (fs.existsSync(iconPath)) {
     windowConfig.icon = iconPath;
   }
@@ -57,19 +60,19 @@ app.whenReady().then(() => {
   });
 
   protocol.registerFileProtocol('local-file', (request, callback) => {
-    console.log("LOCAL-FILE REQUEST:", request.url);
+    console.log('LOCAL-FILE REQUEST:', request.url);
     let url = request.url;
     // Strip local-file:// or local-file:///
     url = url.replace(/^local-file:\/+/, '');
     // Strip file:// or file:/// or file/// (browser sometimes strips the colon)
     url = url.replace(/^(file:\/+)|(file\/+)/, '');
-    
+
     // Ensure absolute path
     if (!url.startsWith('/')) {
       url = '/' + url;
     }
-    
-    console.log("LOCAL-FILE RESOLVED URL:", url);
+
+    console.log('LOCAL-FILE RESOLVED URL:', url);
     try {
       return callback({ path: decodeURIComponent(url) });
     } catch (err) {
@@ -95,20 +98,26 @@ app.whenReady().then(() => {
     }
   });
 
-  session.defaultSession.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
-    if (permission === 'media') {
-      return true;
+  session.defaultSession.setPermissionCheckHandler(
+    (webContents, permission, requestingOrigin, details) => {
+      if (permission === 'media') {
+        return true;
+      }
+      return false;
     }
-    return false;
-  });
+  );
 
   ipcMain.handle('is-vault-setup', () => db.isVaultSetup());
   ipcMain.handle('is-vault-locked', () => db.isLocked());
   ipcMain.handle('setup-vault', (_, password) => db.setupVault(password));
   ipcMain.handle('unlock-vault', (_, password) => db.unlockVault(password));
   ipcMain.handle('unlock-with-recovery-code', (_, code) => db.unlockWithRecoveryCode(code));
-  ipcMain.handle('change-password', (_, { currentPassword, newPassword, regenerateRecoveryKey }) => db.changePassword(currentPassword, newPassword, regenerateRecoveryKey));
-  ipcMain.handle('regenerate-recovery-key', (_, { currentPassword }) => db.regenerateRecoveryKey(currentPassword));
+  ipcMain.handle('change-password', (_, { currentPassword, newPassword, regenerateRecoveryKey }) =>
+    db.changePassword(currentPassword, newPassword, regenerateRecoveryKey)
+  );
+  ipcMain.handle('regenerate-recovery-key', (_, { currentPassword }) =>
+    db.regenerateRecoveryKey(currentPassword)
+  );
   ipcMain.handle('get-recovery-code', () => db.getRecoveryCode());
   ipcMain.handle('lock-vault', () => db.lockVault());
 
@@ -116,7 +125,7 @@ app.whenReady().then(() => {
   ipcMain.handle('add-firearm', (_, firearm) => db.addFirearm(firearm));
   ipcMain.handle('update-firearm', (_, id, firearm) => db.updateFirearm(id, firearm));
   ipcMain.handle('delete-firearm', (_, id) => db.deleteFirearm(id));
-  
+
   ipcMain.handle('get-ammo', () => db.getAmmo());
   ipcMain.handle('add-ammo', (_, ammo) => db.addAmmo(ammo));
   ipcMain.handle('update-ammo', (_, id, ammo) => db.updateAmmo(id, ammo));
@@ -133,7 +142,10 @@ app.whenReady().then(() => {
   ipcMain.handle('delete-component', (_, id) => db.deleteComponent(id));
 
   ipcMain.handle('get-skus', () => db.getSkus());
-  ipcMain.handle('save-skus', (_, skus) => { db.saveSkus(skus); return true; });
+  ipcMain.handle('save-skus', (_, skus) => {
+    db.saveSkus(skus);
+    return true;
+  });
   ipcMain.handle('delete-sku', (_, skuId) => db.deleteSku(skuId));
 
   ipcMain.handle('get-sync-queue', () => db.getSyncQueue());
@@ -142,10 +154,10 @@ app.whenReady().then(() => {
     if (mainWindow) mainWindow.webContents.send('sync-received');
     return res;
   });
-  ipcMain.handle('clear-sync-queue', () => { 
-    db.clearSyncQueue(); 
+  ipcMain.handle('clear-sync-queue', () => {
+    db.clearSyncQueue();
     if (mainWindow) mainWindow.webContents.send('sync-received');
-    return true; 
+    return true;
   });
 
   ipcMain.handle('log-range-session', (_, data) => {
@@ -161,7 +173,9 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('get-custom-schedule-presets', () => db.getCustomSchedulePresets());
-  ipcMain.handle('save-custom-schedule-presets', (_, presets) => db.saveCustomSchedulePresets(presets));
+  ipcMain.handle('save-custom-schedule-presets', (_, presets) =>
+    db.saveCustomSchedulePresets(presets)
+  );
   ipcMain.handle('manufacture-handload-batch', (_, ammoId, quantity, deductions) => {
     const res = db.manufactureHandloadBatch(ammoId, quantity, deductions);
     if (mainWindow) mainWindow.webContents.send('sync-received');
@@ -171,19 +185,21 @@ app.whenReady().then(() => {
   ipcMain.handle('save-photo', (_, sourcePath, filename) => db.savePhoto(sourcePath, filename));
   ipcMain.handle('save-base64-photo', (_, base64Data, filename) => {
     try {
-      const base64Image = base64Data.replace(/^data:image\/\w+;base64,/, "");
+      const base64Image = base64Data.replace(/^data:image\/\w+;base64,/, '');
       const fs = require('fs');
       const path = require('path');
       const destPath = path.join(db.photoDir, filename);
-      fs.writeFileSync(destPath, base64Image, {encoding: 'base64'});
+      fs.writeFileSync(destPath, base64Image, { encoding: 'base64' });
       return destPath;
     } catch (e) {
       console.error(e);
       return null;
     }
   });
-  ipcMain.handle('save-document', (_, sourcePath, filename) => db.saveDocument(sourcePath, filename));
-  
+  ipcMain.handle('save-document', (_, sourcePath, filename) =>
+    db.saveDocument(sourcePath, filename)
+  );
+
   ipcMain.handle('get-backup-folder', () => db.getBackupPath());
   ipcMain.handle('create-zip-backup', async () => {
     try {
@@ -191,13 +207,13 @@ app.whenReady().then(() => {
       const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
         title: 'Save Full Backup Archive (.zip)',
         defaultPath: `ArmoryVault_Full_Backup_${defaultDate}.zip`,
-        filters: [{ name: 'Zip Archives (*.zip)', extensions: ['zip'] }]
+        filters: [{ name: 'Zip Archives (*.zip)', extensions: ['zip'] }],
       });
-      
+
       if (canceled || !filePath) {
         return { success: false, canceled: true };
       }
-      
+
       db.createZipBackup(filePath);
       return { success: true, filePath };
     } catch (e) {
@@ -208,7 +224,7 @@ app.whenReady().then(() => {
   ipcMain.handle('select-backup-folder', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
       properties: ['openDirectory'],
-      title: 'Select Backup Folder'
+      title: 'Select Backup Folder',
     });
     if (!canceled && filePaths.length > 0) {
       db.setBackupPath(filePaths[0]);
@@ -224,8 +240,8 @@ app.whenReady().then(() => {
       filters: [
         { name: 'ArmoryVault Backups (*.enc, *.zip)', extensions: ['enc', 'zip'] },
         { name: 'Encrypted Vault (*.enc)', extensions: ['enc'] },
-        { name: 'Full Zip Archive (*.zip)', extensions: ['zip'] }
-      ]
+        { name: 'Full Zip Archive (*.zip)', extensions: ['zip'] },
+      ],
     });
     if (canceled || !filePaths || filePaths.length === 0) {
       return { canceled: true };
@@ -244,7 +260,7 @@ app.whenReady().then(() => {
     const config = db.getConfig();
     return config[key];
   });
-  
+
   ipcMain.handle('set-config', (_, key, value) => {
     db.setConfig(key, value);
   });
@@ -253,7 +269,7 @@ app.whenReady().then(() => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
       title: 'Select Document',
       properties: ['openFile'],
-      filters: [{ name: 'Documents', extensions: ['pdf', 'jpg', 'jpeg', 'png'] }]
+      filters: [{ name: 'Documents', extensions: ['pdf', 'jpg', 'jpeg', 'png'] }],
     });
     if (!canceled && filePaths.length > 0) {
       const sourcePath = filePaths[0];
@@ -273,7 +289,7 @@ app.whenReady().then(() => {
       const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
         title: 'Select Photo',
         properties: ['openFile', 'multiSelections'],
-        filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif'] }]
+        filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif'] }],
       });
       console.log('Dialog result:', { canceled, filePaths });
       if (!canceled && filePaths.length > 0) {
@@ -300,10 +316,10 @@ app.whenReady().then(() => {
       const { filePath } = await dialog.showSaveDialog({
         title: 'Save QR Code',
         defaultPath: `QR_${itemName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.png`,
-        filters: [{ name: 'Images', extensions: ['png'] }]
+        filters: [{ name: 'Images', extensions: ['png'] }],
       });
       if (filePath) {
-        const base64Data = qrDataUrl.replace(/^data:image\/png;base64,/, "");
+        const base64Data = qrDataUrl.replace(/^data:image\/png;base64,/, '');
         require('fs').writeFileSync(filePath, base64Data, 'base64');
         return true;
       }
@@ -320,7 +336,7 @@ app.whenReady().then(() => {
       if (!response.ok) return null;
       return await response.json();
     } catch (e) {
-      console.error("UPC fetch error", e);
+      console.error('UPC fetch error', e);
       return null;
     }
   });
@@ -336,7 +352,8 @@ app.whenReady().then(() => {
 
   ipcMain.handle('export-data', async (_, dataString, filename) => {
     try {
-      const ext = filename && filename.includes('.') ? filename.split('.').pop().toLowerCase() : 'csv';
+      const ext =
+        filename && filename.includes('.') ? filename.split('.').pop().toLowerCase() : 'csv';
       let filterName = 'CSV Spreadsheet (*.csv)';
       if (ext === 'json') filterName = 'JSON Document (*.json)';
       else if (ext === 'txt') filterName = 'Text Document (*.txt)';
@@ -348,8 +365,8 @@ app.whenReady().then(() => {
         defaultPath: filename || 'export.csv',
         filters: [
           { name: filterName, extensions: [ext] },
-          { name: 'All Files', extensions: ['*'] }
-        ]
+          { name: 'All Files', extensions: ['*'] },
+        ],
       });
       if (!canceled && filePath) {
         require('fs').writeFileSync(filePath, dataString, 'utf-8');
@@ -367,7 +384,9 @@ app.whenReady().then(() => {
       const fs = require('fs');
       let targetPath = filePath;
       if (filePath.startsWith('file://')) targetPath = filePath.substring(7);
-      try { targetPath = decodeURI(targetPath); } catch(e) {}
+      try {
+        targetPath = decodeURI(targetPath);
+      } catch (e) {}
       if (fs.existsSync(targetPath)) {
         return fs.readFileSync(targetPath); // Returns a Buffer (Uint8Array) directly over IPC
       }
@@ -384,7 +403,9 @@ app.whenReady().then(() => {
       const fs = require('fs');
       let targetPath = filePath;
       if (filePath.startsWith('file://')) targetPath = filePath.substring(7);
-      try { targetPath = decodeURI(targetPath); } catch(e) {}
+      try {
+        targetPath = decodeURI(targetPath);
+      } catch (e) {}
       console.log('Target path:', targetPath);
       if (fs.existsSync(targetPath)) {
         const data = fs.readFileSync(targetPath, 'base64');
@@ -425,55 +446,62 @@ app.whenReady().then(() => {
         </body>
         </html>
       `;
-      
-      win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`).then(() => {
-        setTimeout(() => {
-          win.webContents.print({ silent: false, printBackground: true }, async (success, errorType) => {
-            if (!success) {
-              console.log('Print failed', errorType);
-              const { response } = await dialog.showMessageBox({
-                type: 'warning',
-                buttons: ['Save as PDF', 'Cancel'],
-                title: 'Print Failed',
-                message: 'Failed to print the QR label. Would you like to save it as a PDF instead?',
-              });
-              
-              if (response === 0) {
-                const fs = require('fs');
-                const pdfPath = await dialog.showSaveDialog({
-                  title: 'Save QR Label as PDF',
-                  defaultPath: `QR_Label_${itemName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`,
-                  filters: [{ name: 'PDF', extensions: ['pdf'] }]
-                });
-                if (!pdfPath.canceled && pdfPath.filePath) {
-                  try {
-                    const pdfData = await win.webContents.printToPDF({
-                      printBackground: true,
-                      pageSize: 'Letter'
+
+      win
+        .loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+        .then(() => {
+          setTimeout(() => {
+            win.webContents.print(
+              { silent: false, printBackground: true },
+              async (success, errorType) => {
+                if (!success) {
+                  console.log('Print failed', errorType);
+                  const { response } = await dialog.showMessageBox({
+                    type: 'warning',
+                    buttons: ['Save as PDF', 'Cancel'],
+                    title: 'Print Failed',
+                    message:
+                      'Failed to print the QR label. Would you like to save it as a PDF instead?',
+                  });
+
+                  if (response === 0) {
+                    const fs = require('fs');
+                    const pdfPath = await dialog.showSaveDialog({
+                      title: 'Save QR Label as PDF',
+                      defaultPath: `QR_Label_${itemName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`,
+                      filters: [{ name: 'PDF', extensions: ['pdf'] }],
                     });
-                    fs.writeFileSync(pdfPath.filePath, pdfData);
-                    resolve(true);
-                  } catch (e) {
-                    console.error('Failed to save PDF', e);
+                    if (!pdfPath.canceled && pdfPath.filePath) {
+                      try {
+                        const pdfData = await win.webContents.printToPDF({
+                          printBackground: true,
+                          pageSize: 'Letter',
+                        });
+                        fs.writeFileSync(pdfPath.filePath, pdfData);
+                        resolve(true);
+                      } catch (e) {
+                        console.error('Failed to save PDF', e);
+                        resolve(false);
+                      }
+                    } else {
+                      resolve(false);
+                    }
+                  } else {
                     resolve(false);
                   }
                 } else {
-                  resolve(false);
+                  resolve(true);
                 }
-              } else {
-                resolve(false);
+                win.close();
               }
-            } else {
-              resolve(true);
-            }
-            win.close();
-          });
-        }, 500);
-      }).catch(err => {
-        console.error('Failed to load QR html', err);
-        resolve(false);
-        win.close();
-      });
+            );
+          }, 500);
+        })
+        .catch((err) => {
+          console.error('Failed to load QR html', err);
+          resolve(false);
+          win.close();
+        });
     });
   });
 
@@ -482,14 +510,16 @@ app.whenReady().then(() => {
       const { filePath } = await dialog.showSaveDialog({
         title: 'Save Insurance Report PDF',
         defaultPath: `Armory_Vault_Insurance_Report.pdf`,
-        filters: [{ name: 'PDFs', extensions: ['pdf'] }]
+        filters: [{ name: 'PDFs', extensions: ['pdf'] }],
       });
 
       if (!filePath) return null;
 
       const fs = require('fs');
 
-      const firearmRows = (data.firearms || []).map(f => `
+      const firearmRows = (data.firearms || [])
+        .map(
+          (f) => `
         <tr>
           <td>${f.make} ${f.model}</td>
           <td>${f.caliber || '-'}</td>
@@ -497,9 +527,13 @@ app.whenReady().then(() => {
           <td>${f.is_nfa ? f.nfa_type || 'Yes' : '-'}</td>
           <td>$${f.purchase_price ? Number(f.purchase_price).toFixed(2) : '0.00'}</td>
         </tr>
-      `).join('');
+      `
+        )
+        .join('');
 
-      const accessoryRows = (data.accessories || []).map(a => `
+      const accessoryRows = (data.accessories || [])
+        .map(
+          (a) => `
         <tr>
           <td>${a.manufacturer} ${a.model} (${a.type})</td>
           <td>-</td>
@@ -507,7 +541,9 @@ app.whenReady().then(() => {
           <td>${a.is_nfa ? a.nfa_type || 'Yes' : '-'}</td>
           <td>$${a.value ? (Number(a.value) * (a.quantity || 1)).toFixed(2) : '0.00'}</td>
         </tr>
-      `).join('');
+      `
+        )
+        .join('');
 
       const htmlContent = `
         <html>
@@ -565,12 +601,15 @@ app.whenReady().then(() => {
         </html>
       `;
 
-      const pdfWindow = new BrowserWindow({ show: false, webPreferences: { nodeIntegration: false } });
+      const pdfWindow = new BrowserWindow({
+        show: false,
+        webPreferences: { nodeIntegration: false },
+      });
       await pdfWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
 
       const pdfData = await pdfWindow.webContents.printToPDF({
         printBackground: true,
-        pageSize: 'Letter'
+        pageSize: 'Letter',
       });
 
       fs.writeFileSync(filePath, pdfData);
@@ -588,7 +627,7 @@ app.whenReady().then(() => {
       const { filePath } = await dialog.showSaveDialog({
         title: 'Save Bill of Sale PDF',
         defaultPath: `Bill_of_Sale_${data.make}_${data.model}.pdf`.replace(/\s+/g, '_'),
-        filters: [{ name: 'PDFs', extensions: ['pdf'] }]
+        filters: [{ name: 'PDFs', extensions: ['pdf'] }],
       });
 
       if (!filePath) return null; // Cancelled
@@ -669,18 +708,21 @@ app.whenReady().then(() => {
 
       const win = new BrowserWindow({ show: false });
       await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent));
-      
+
       const pdfBuffer = await win.webContents.printToPDF({
         printBackground: true,
         pageSize: 'Letter',
-        margins: { top: 0, bottom: 0, left: 0, right: 0 }
+        margins: { top: 0, bottom: 0, left: 0, right: 0 },
       });
 
       // Write to external file selected by user
       fs.writeFileSync(filePath, pdfBuffer);
 
       // Also save to the vault!
-      const vaultFilename = `Bill_of_Sale_${data.make}_${data.model}_${Date.now()}.pdf`.replace(/\s+/g, '_');
+      const vaultFilename = `Bill_of_Sale_${data.make}_${data.model}_${Date.now()}.pdf`.replace(
+        /\s+/g,
+        '_'
+      );
       const vaultDestPath = path.join(db.docDir, vaultFilename);
       fs.writeFileSync(vaultDestPath, pdfBuffer);
 
@@ -715,10 +757,50 @@ app.whenReady().then(() => {
     expressApp.use(express.json({ limit: '50mb' }));
 
     expressApp.get('/api/ping', (req, res) => {
-      res.json({ 
-        status: 'ok', 
+      const userAgent = req.headers['user-agent'] || '';
+      const deviceName =
+        req.query?.device ||
+        (userAgent.includes('iPhone')
+          ? 'iPhone'
+          : userAgent.includes('Android')
+            ? 'Android Device'
+            : 'Mobile Companion');
+      console.log('Received ping from companion client:', deviceName);
+      if (mainWindow) {
+        mainWindow.webContents.send('device-paired', { deviceName, timestamp: Date.now() });
+      }
+      res.json({
+        status: 'ok',
         device: os.hostname(),
-        isLocked: db.isLocked() 
+        isLocked: db.isLocked(),
+      });
+    });
+
+    expressApp.post('/api/pair', (req, res) => {
+      const deviceName = req.body?.deviceName || req.body?.device || 'Mobile Companion App';
+      console.log('Received device pairing request from:', deviceName);
+      if (mainWindow) {
+        mainWindow.webContents.send('device-paired', { deviceName, timestamp: Date.now() });
+      }
+      res.json({
+        success: true,
+        vaultName: 'ArmoryVault',
+        host: os.hostname(),
+        isLocked: db.isLocked(),
+      });
+    });
+
+    expressApp.get('/api/pair', (req, res) => {
+      const deviceName = req.query?.device || req.query?.deviceName || 'Mobile Companion App';
+      console.log('Received device pairing ping from:', deviceName);
+      if (mainWindow) {
+        mainWindow.webContents.send('device-paired', { deviceName, timestamp: Date.now() });
+      }
+      res.json({
+        success: true,
+        vaultName: 'ArmoryVault',
+        host: os.hostname(),
+        isLocked: db.isLocked(),
       });
     });
 
@@ -751,6 +833,18 @@ app.whenReady().then(() => {
 
     expressApp.get('/api/inventory/summary', (req, res) => {
       try {
+        const userAgent = req.headers['user-agent'] || '';
+        const deviceName =
+          req.query?.device ||
+          (userAgent.includes('iPhone')
+            ? 'iPhone'
+            : userAgent.includes('Android')
+              ? 'Android Device'
+              : 'Mobile Companion');
+        if (mainWindow) {
+          mainWindow.webContents.send('device-paired', { deviceName, timestamp: Date.now() });
+        }
+
         if (db.isLocked()) {
           return res.json({
             success: false,
@@ -758,7 +852,7 @@ app.whenReady().then(() => {
             firearms: 0,
             ammo: 0,
             components: 0,
-            error: 'Vault is locked'
+            error: 'Vault is locked',
           });
         }
         const firearms = db.getFirearms() || [];
@@ -769,16 +863,28 @@ app.whenReady().then(() => {
           isLocked: false,
           firearms: firearms.length,
           ammo: ammo.reduce((acc, a) => acc + (Number(a.count) || 0), 0),
-          components: components.length
+          components: components.length,
         });
       } catch (e) {
-        console.error("Summary error:", e);
+        console.error('Summary error:', e);
         res.status(500).json({ success: false, error: e.message });
       }
     });
 
     expressApp.get('/api/inventory/cache', (req, res) => {
       try {
+        const userAgent = req.headers['user-agent'] || '';
+        const deviceName =
+          req.query?.device ||
+          (userAgent.includes('iPhone')
+            ? 'iPhone'
+            : userAgent.includes('Android')
+              ? 'Android Device'
+              : 'Mobile Companion');
+        if (mainWindow) {
+          mainWindow.webContents.send('device-paired', { deviceName, timestamp: Date.now() });
+        }
+
         if (db.isLocked()) {
           return res.json({
             success: false,
@@ -787,7 +893,7 @@ app.whenReady().then(() => {
             ammo: [],
             components: [],
             skus: {},
-            error: 'Vault is locked'
+            error: 'Vault is locked',
           });
         }
         const firearms = db.getFirearms() || [];
@@ -797,15 +903,17 @@ app.whenReady().then(() => {
         res.json({
           success: true,
           isLocked: false,
-          firearms: firearms.map(f => ({
+          firearms: firearms.map((f) => ({
             id: f.id,
             make: f.make,
             model: f.model,
             caliber: f.caliber,
             serial_number: f.serial_number,
-            total_rounds: (f.logs || []).filter(l => l.type === 'Range').reduce((sum, l) => sum + (l.rounds_fired || 0), 0)
+            total_rounds: (f.logs || [])
+              .filter((l) => l.type === 'Range')
+              .reduce((sum, l) => sum + (l.rounds_fired || 0), 0),
           })),
-          ammo: ammo.map(a => ({
+          ammo: ammo.map((a) => ({
             id: a.id,
             caliber: a.caliber,
             type: a.type,
@@ -813,39 +921,49 @@ app.whenReady().then(() => {
             manufacturer: a.manufacturer,
             grain: a.grain,
             projectile: a.projectile,
-            upc_code: a.upc_code
+            upc_code: a.upc_code,
           })),
-          components: components.map(c => ({
+          components: components.map((c) => ({
             id: c.id,
             type: c.type,
             manufacturer: c.manufacturer,
             name: c.name,
             quantity: c.quantity,
-            caliber: c.caliber
+            caliber: c.caliber,
           })),
-          skus
+          skus,
         });
       } catch (e) {
-        console.error("Inventory cache error:", e);
+        console.error('Inventory cache error:', e);
         res.status(500).json({ success: false, error: e.message });
       }
     });
 
     expressApp.post('/api/sync', (req, res) => {
-      console.log("Received sync payload from mobile:", req.body);
+      console.log('Received sync payload from mobile:', req.body);
       try {
         const items = req.body.items || [];
         for (const item of items) {
           db.addSyncItem(item);
         }
-        
-        // Let the renderer know data has changed
+
+        const userAgent = req.headers['user-agent'] || '';
+        const deviceName =
+          req.body?.device ||
+          (userAgent.includes('iPhone')
+            ? 'iPhone'
+            : userAgent.includes('Android')
+              ? 'Android Device'
+              : 'Mobile Companion');
+
+        // Let the renderer know data has changed and device is active
         if (mainWindow) {
+          mainWindow.webContents.send('device-paired', { deviceName, timestamp: Date.now() });
           mainWindow.webContents.send('sync-received');
         }
         res.json({ success: true, processed: items.length });
       } catch (e) {
-        console.error("Sync error:", e);
+        console.error('Sync error:', e);
         res.status(500).json({ success: false, error: e.message });
       }
     });
@@ -871,11 +989,11 @@ app.whenReady().then(() => {
       mainWindow.webContents.send('updater-event', { type: 'update-available', data: info });
     }
   });
-  
+
   autoUpdater.on('download-progress', (progressObj) => {
     mainWindow.webContents.send('updater-event', { type: 'download-progress', data: progressObj });
   });
-  
+
   autoUpdater.on('update-downloaded', (info) => {
     mainWindow.webContents.send('updater-event', { type: 'update-downloaded', data: info });
   });

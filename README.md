@@ -67,6 +67,14 @@ To run ArmoryVault locally on your machine for development:
    npm run electron:dev
    ```
 
+4. **Run Linter & Tests:**
+   ```bash
+   npm run lint        # Fast Biome code quality check
+   npm test            # Vitest automated test suite
+   ```
+
+> 📖 **Full Developer & Release Guide**: See [WORKFLOW.md](WORKFLOW.md) for detailed guidelines on branching, ATF Bound Book compliance, pre-commit hooks, and the release pipeline.
+
 ## 📦 Building for Production & Release Channels
 
 ArmoryVault uses `electron-builder` with dedicated output separation between **Stable** and **Nightly / Preview** release channels:
@@ -85,10 +93,14 @@ ArmoryVault uses `electron-builder` with dedicated output separation between **S
 
 ### Automated CI/CD Pipeline
 You do not need to manually compile the application on your local machine. The repository is configured with GitHub Actions workflows:
+- **Continuous Integration (`.github/workflows/ci.yml`)**: Automatically lints, builds, and runs unit tests on every Pull Request and push.
 - **Desktop Releases (`.github/workflows/release.yml`)**: Compiles multi-platform installers (macOS Apple Silicon/Intel, Windows, Linux) and automatically detects whether the tag is a pre-release (`*nightly*`, `*beta*`, etc.) to publish to the proper release channel.
 - **Website Portal (`.github/workflows/website.yml`)**: The official website source lives in `website/` and automatically deploys to [GitHub Pages](https://cook0001.github.io/ArmoryVault/) upon push to `main`.
 
 To trigger a new production build:
-1. Run `npm run release:prep` to bump your version (`major`, `minor`, `patch`, or `nightly`).
-2. Commit your changes and push a git tag matching the version (e.g., `git tag v2.8.0` or `git tag v2.8.0-nightly.2` && `git push origin --tags`).
-3. GitHub Actions handles multi-platform compilation and uploads all installers automatically!
+1. Run `npm run verify:preflight` to execute the automated 7-point health check.
+2. Run `npm run release:prep` to bump your version (`major`, `minor`, `patch`, or `nightly`).
+3. Run `npm run changelog:draft` to extract commit notes and update `CHANGELOG.md`.
+4. Commit your changes and push a git tag matching the version (e.g., `git tag v2.8.0` or `git tag v2.8.0-nightly.2` && `git push origin --tags`).
+5. GitHub Actions handles multi-platform compilation and uploads all installers automatically!
+

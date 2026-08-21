@@ -6,23 +6,26 @@ contextBridge.exposeInMainWorld('api', {
   setupVault: (password) => ipcRenderer.invoke('setup-vault', password),
   unlockVault: (password) => ipcRenderer.invoke('unlock-vault', password),
   unlockWithRecoveryCode: (code) => ipcRenderer.invoke('unlock-with-recovery-code', code),
-  changePassword: (currentPassword, newPassword, regenerateRecoveryKey = false) => ipcRenderer.invoke('change-password', { currentPassword, newPassword, regenerateRecoveryKey }),
-  regenerateRecoveryKey: (currentPassword) => ipcRenderer.invoke('regenerate-recovery-key', { currentPassword }),
+  changePassword: (currentPassword, newPassword, regenerateRecoveryKey = false) =>
+    ipcRenderer.invoke('change-password', { currentPassword, newPassword, regenerateRecoveryKey }),
+  regenerateRecoveryKey: (currentPassword) =>
+    ipcRenderer.invoke('regenerate-recovery-key', { currentPassword }),
   getRecoveryCode: () => ipcRenderer.invoke('get-recovery-code'),
   lockVault: () => ipcRenderer.invoke('lock-vault'),
-  
+
   getFirearms: () => ipcRenderer.invoke('get-firearms'),
   addFirearm: (firearm) => ipcRenderer.invoke('add-firearm', firearm),
   updateFirearm: (id, firearm) => ipcRenderer.invoke('update-firearm', id, firearm),
   deleteFirearm: (id) => ipcRenderer.invoke('delete-firearm', id),
   logRangeSession: (data) => ipcRenderer.invoke('log-range-session', data),
-  completeMaintenanceTask: (firearmId, taskId, logData) => ipcRenderer.invoke('complete-maintenance-task', firearmId, taskId, logData),
-  
+  completeMaintenanceTask: (firearmId, taskId, logData) =>
+    ipcRenderer.invoke('complete-maintenance-task', firearmId, taskId, logData),
+
   getAmmo: () => ipcRenderer.invoke('get-ammo'),
   addAmmo: (ammo) => ipcRenderer.invoke('add-ammo', ammo),
   updateAmmo: (id, ammo) => ipcRenderer.invoke('update-ammo', id, ammo),
   deleteAmmo: (id) => ipcRenderer.invoke('delete-ammo', id),
-  
+
   getAccessories: () => ipcRenderer.invoke('get-accessories'),
   addAccessory: (acc) => ipcRenderer.invoke('add-accessory', acc),
   updateAccessory: (id, acc) => ipcRenderer.invoke('update-accessory', id, acc),
@@ -36,22 +39,25 @@ contextBridge.exposeInMainWorld('api', {
   getSkus: () => ipcRenderer.invoke('get-skus'),
   saveSkus: (skus) => ipcRenderer.invoke('save-skus', skus),
   deleteSku: (skuId) => ipcRenderer.invoke('delete-sku', skuId),
-  
+
   getCustomSchedulePresets: () => ipcRenderer.invoke('get-custom-schedule-presets'),
-  saveCustomSchedulePresets: (presets) => ipcRenderer.invoke('save-custom-schedule-presets', presets),
-  manufactureHandloadBatch: (ammoId, quantity, deductions) => ipcRenderer.invoke('manufacture-handload-batch', ammoId, quantity, deductions),
-  
+  saveCustomSchedulePresets: (presets) =>
+    ipcRenderer.invoke('save-custom-schedule-presets', presets),
+  manufactureHandloadBatch: (ammoId, quantity, deductions) =>
+    ipcRenderer.invoke('manufacture-handload-batch', ammoId, quantity, deductions),
+
   savePhoto: (sourcePath, filename) => ipcRenderer.invoke('save-photo', sourcePath, filename),
-  saveBase64Photo: (base64Data, filename) => ipcRenderer.invoke('save-base64-photo', base64Data, filename),
+  saveBase64Photo: (base64Data, filename) =>
+    ipcRenderer.invoke('save-base64-photo', base64Data, filename),
   saveDocument: (sourcePath, filename) => ipcRenderer.invoke('save-document', sourcePath, filename),
-  
+
   getBackupFolder: () => ipcRenderer.invoke('get-backup-folder'),
   createZipBackup: () => ipcRenderer.invoke('create-zip-backup'),
   restoreBackup: () => ipcRenderer.invoke('restore-backup'),
   selectBackupFolder: () => ipcRenderer.invoke('select-backup-folder'),
   getConfig: (key) => ipcRenderer.invoke('get-config', key),
   setConfig: (key, value) => ipcRenderer.invoke('set-config', key, value),
-  
+
   selectAndSaveDocument: () => ipcRenderer.invoke('select-and-save-document'),
   selectAndSavePhoto: () => ipcRenderer.invoke('select-and-save-photo'),
   openExternalFile: (filePath) => ipcRenderer.invoke('open-external-file', filePath),
@@ -63,7 +69,7 @@ contextBridge.exposeInMainWorld('api', {
   readFileBase64: (filePath) => ipcRenderer.invoke('read-file-base64', filePath),
   readFileBuffer: (filePath) => ipcRenderer.invoke('read-file-buffer', filePath),
   lookupUPC: (upc) => ipcRenderer.invoke('lookup-upc', upc),
-  
+
   exportData: (dataString, filename) => ipcRenderer.invoke('export-data', dataString, filename),
   onUpdateMessage: (callback) => {
     const subscription = (_, data) => callback(data);
@@ -72,13 +78,18 @@ contextBridge.exposeInMainWorld('api', {
   },
   restartApp: () => ipcRenderer.send('restart-app'),
   getPlatform: () => process.platform,
-  
+
   // Mobile Sync API
   getLocalIp: () => ipcRenderer.invoke('get-local-ip'),
   onSyncReceived: (callback) => {
     const subscription = () => callback();
     ipcRenderer.on('sync-received', subscription);
     return () => ipcRenderer.removeListener('sync-received', subscription);
+  },
+  onDevicePaired: (callback) => {
+    const subscription = (_, data) => callback(data || {});
+    ipcRenderer.on('device-paired', subscription);
+    return () => ipcRenderer.removeListener('device-paired', subscription);
   },
   onVaultLocked: (callback) => {
     const subscription = () => callback();
@@ -87,5 +98,5 @@ contextBridge.exposeInMainWorld('api', {
   },
   getSyncQueue: () => ipcRenderer.invoke('get-sync-queue'),
   removeSyncItem: (id) => ipcRenderer.invoke('remove-sync-item', id),
-  clearSyncQueue: () => ipcRenderer.invoke('clear-sync-queue')
+  clearSyncQueue: () => ipcRenderer.invoke('clear-sync-queue'),
 });

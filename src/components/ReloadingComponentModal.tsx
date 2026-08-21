@@ -1,9 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import { Scale, X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { ReloadingComponent } from '../types';
 import { parseBarcodeData } from '../utils/BarcodeEngine';
 import { COMPREHENSIVE_BULLET_TYPES } from '../utils/caliberHelpers';
-import { X } from 'lucide-react';
+import { CALIBER_OPTIONS } from '../utils/formOptions';
+import { calcCostPerGrain, formatPowderMultiUnit } from '../utils/powderUnits';
+import { AutocompleteInput } from './AutocompleteInput';
 
 interface ReloadingComponentModalProps {
   isOpen: boolean;
@@ -31,12 +35,19 @@ const defaultFormData: Partial<ReloadingComponent> = {
   grain: undefined,
 };
 
-
-
-export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = ({ isOpen, onClose, onSave, editingId, initialData }) => {
+export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = ({
+  isOpen,
+  onClose,
+  onSave,
+  editingId,
+  initialData,
+}) => {
   const [formData, setFormData] = useState<Partial<ReloadingComponent>>(defaultFormData);
   const [isLookingUp, setIsLookingUp] = useState(false);
-  const [lookupStatus, setLookupStatus] = useState<{message: string, type: 'error' | 'success'} | null>(null);
+  const [lookupStatus, setLookupStatus] = useState<{
+    message: string;
+    type: 'error' | 'success';
+  } | null>(null);
   const navigate = useNavigate();
 
   const lookupUPC = async (upc: string) => {
@@ -50,17 +61,28 @@ export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = (
         const parsed = parseBarcodeData(item);
 
         if (parsed.category === 'ammo') {
-          if (window.confirm("This looks like loaded Ammunition. Would you like to redirect to the Ammo tab?")) {
+          if (
+            window.confirm(
+              'This looks like loaded Ammunition. Would you like to redirect to the Ammo tab?'
+            )
+          ) {
             navigate('/ammo', { state: { openAddModal: true, upc: upc } });
             return;
           }
         } else if (parsed.category === 'accessory') {
-          if (window.confirm("This looks like an Accessory. Would you like to redirect to the Accessories tab?")) {
+          if (
+            window.confirm(
+              'This looks like an Accessory. Would you like to redirect to the Accessories tab?'
+            )
+          ) {
             navigate('/accessories', { state: { openAddModal: true, upc: upc } });
             return;
           }
         } else if (parsed.category === 'unknown') {
-          const typeChoice = window.prompt("Is this Ammo, Component, or Accessory? (Type 'ammo', 'component', or 'accessory')", "component");
+          const typeChoice = window.prompt(
+            "Is this Ammo, Component, or Accessory? (Type 'ammo', 'component', or 'accessory')",
+            'component'
+          );
           if (typeChoice && typeChoice.toLowerCase() === 'ammo') {
             navigate('/ammo', { state: { openAddModal: true, upc: upc } });
             return;
@@ -70,7 +92,7 @@ export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = (
           }
         }
 
-        setFormData(prev => {
+        setFormData((prev) => {
           const newType = parsed.parsedComponent?.type || prev.type || 'Powder';
           return {
             ...prev,
@@ -81,7 +103,10 @@ export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = (
             grain: parsed.parsedComponent?.grain || prev.grain,
             weightUnit: parsed.parsedComponent?.weightUnit || prev.weightUnit,
             primerType: parsed.parsedComponent?.primerType || prev.primerType,
-            isMagnumPrimer: parsed.parsedComponent?.isMagnumPrimer !== undefined ? parsed.parsedComponent.isMagnumPrimer : prev.isMagnumPrimer,
+            isMagnumPrimer:
+              parsed.parsedComponent?.isMagnumPrimer !== undefined
+                ? parsed.parsedComponent.isMagnumPrimer
+                : prev.isMagnumPrimer,
             bulletType: parsed.parsedComponent?.bulletType || prev.bulletType,
             quantity: parsed.parsedComponent?.quantity || prev.quantity,
             cost: parsed.parsedComponent?.cost || prev.cost,
@@ -112,86 +137,129 @@ export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = (
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!window.api || !window.api.addComponent || !window.api.updateComponent) return;
-    
+
     const newComp = { ...formData } as ReloadingComponent;
 
     if (editingId) {
       await window.api.updateComponent(editingId, newComp);
     } else {
       const allComps = await window.api.getComponents();
-      const duplicate = allComps.find((c: any) => 
-        c.type === newComp.type &&
-        c.manufacturer === newComp.manufacturer &&
-        c.name === newComp.name
+      const duplicate = allComps.find(
+        (c: any) =>
+          c.type === newComp.type &&
+          c.manufacturer === newComp.manufacturer &&
+          c.name === newComp.name
       );
-      
+
       let merged = false;
       if (duplicate) {
-        if (window.confirm(`An existing entry for ${duplicate.manufacturer || ''} ${duplicate.name || duplicate.type} was found. Would you like to merge this into the existing entry?`)) {
-           const mergedData = { ...duplicate };
-           mergedData.quantity = (duplicate.quantity || 0) + (newComp.quantity || 0);
-           if (!mergedData.upc_code && newComp.upc_code) {
-             mergedData.upc_code = newComp.upc_code;
-           }
-           await window.api.updateComponent(duplicate.id!, mergedData);
-           merged = true;
+        if (
+          window.confirm(
+            `An existing entry for ${duplicate.manufacturer || ''} ${duplicate.name || duplicate.type} was found. Would you like to merge this into the existing entry?`
+          )
+        ) {
+          const mergedData = { ...duplicate };
+          mergedData.quantity = (duplicate.quantity || 0) + (newComp.quantity || 0);
+          if (!mergedData.upc_code && newComp.upc_code) {
+            mergedData.upc_code = newComp.upc_code;
+          }
+          await window.api.updateComponent(duplicate.id!, mergedData);
+          merged = true;
         }
       }
-      
+
       if (!merged) {
         await window.api.addComponent(newComp);
       }
     }
-    
+
     onSave();
     onClose();
   };
 
-  const toggleUsageTag = (tag: 'Pistol' | 'Rifle' | 'Shotgun') => {
-    const tags = formData.usageTags || [];
-    if (tags.includes(tag)) {
-      setFormData({ ...formData, usageTags: tags.filter(t => t !== tag) });
-    } else {
-      setFormData({ ...formData, usageTags: [...tags, tag] });
-    }
-  };
-
   if (!isOpen) return null;
 
-  return (
-    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '640px' }}>
+  return createPortal(
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 100000 }}>
+      <div
+        className="modal"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          maxWidth: '660px',
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
         <div className="modal-header">
           <h2 style={{ margin: 0 }}>{editingId ? 'Edit Component' : 'Add Component'}</h2>
-          <button 
-            type="button" 
-            className="btn-icon" 
-            onClick={onClose}
-            title="Close modal"
-          >
+          <button type="button" className="btn-icon" onClick={onClose} title="Close modal">
             <X size={18} />
           </button>
         </div>
-        <form onSubmit={handleSave}>
-          <div className="form-group" style={{ background: 'rgba(56, 189, 248, 0.05)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.2)', marginBottom: '1.5rem' }}>
+        <form
+          onSubmit={handleSave}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            overflowY: 'auto',
+            flex: 1,
+            paddingRight: '0.35rem',
+          }}
+        >
+          <div
+            className="form-group"
+            style={{
+              background: 'rgba(56, 189, 248, 0.05)',
+              padding: '0.75rem 1rem',
+              borderRadius: '8px',
+              border: '1px solid rgba(56, 189, 248, 0.2)',
+              marginBottom: '1rem',
+            }}
+          >
             <label>Scan UPC Code (Auto-fill)</label>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <input 
-                type="text" 
-                className="form-input" 
-                style={{ flex: 1 }} 
-                value={formData.upc_code || ''} 
-                onChange={e => setFormData({...formData, upc_code: e.target.value})} 
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); lookupUPC(formData.upc_code || ''); } }} 
-                onBlur={e => lookupUPC(e.target.value)} 
-                placeholder="Scan or type UPC code..." 
+              <input
+                type="text"
+                className="form-input"
+                style={{ flex: 1 }}
+                value={formData.upc_code || ''}
+                onChange={(e) => setFormData({ ...formData, upc_code: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    lookupUPC(formData.upc_code || '');
+                  }
+                }}
+                onBlur={(e) => lookupUPC(e.target.value)}
+                placeholder="Scan or type UPC code..."
               />
-              <button type="button" className="btn-secondary" style={{ padding: '0.5rem 1rem' }} onClick={() => lookupUPC(formData.upc_code || '')} disabled={isLookingUp}>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ padding: '0.5rem 1rem' }}
+                onClick={() => lookupUPC(formData.upc_code || '')}
+                disabled={isLookingUp}
+              >
                 {isLookingUp ? 'Searching...' : 'Lookup'}
               </button>
             </div>
             {lookupStatus && (
-              <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', padding: '0.5rem', borderRadius: '4px', background: lookupStatus.type === 'success' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: lookupStatus.type === 'success' ? '#4ade80' : '#f87171', border: `1px solid ${lookupStatus.type === 'success' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'}` }}>
+              <div
+                style={{
+                  marginTop: '0.5rem',
+                  fontSize: '0.85rem',
+                  padding: '0.5rem',
+                  borderRadius: '4px',
+                  background:
+                    lookupStatus.type === 'success'
+                      ? 'rgba(34, 197, 94, 0.1)'
+                      : 'rgba(239, 68, 68, 0.1)',
+                  color: lookupStatus.type === 'success' ? '#4ade80' : '#f87171',
+                  border: `1px solid ${lookupStatus.type === 'success' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
+                }}
+              >
                 {lookupStatus.message}
               </div>
             )}
@@ -199,28 +267,51 @@ export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = (
 
           <div className="form-group">
             <label>Component Type</label>
-            <select 
-              className="form-input" 
-              value={formData.type} 
-              onChange={e => setFormData({...formData, type: e.target.value as any})}
+            <AutocompleteInput
+              mode="select"
+              name="type"
+              value={formData.type || 'Powder'}
+              onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+              options={[
+                { value: 'Powder', label: 'Powder' },
+                { value: 'Brass', label: 'Brass / Hulls' },
+                { value: 'Bullet', label: 'Bullets / Projectiles' },
+                { value: 'Primer', label: 'Primers' },
+              ]}
               disabled={!!editingId}
-            >
-              <option value="Powder">Powder</option>
-              <option value="Brass">Brass / Hulls</option>
-              <option value="Bullet">Bullets / Projectiles</option>
-              <option value="Primer">Primers</option>
-            </select>
+            />
           </div>
-          
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div className="form-group">
               <label>Manufacturer</label>
-              <input required type="text" className="form-input" value={formData.manufacturer || ''} onChange={e => setFormData({...formData, manufacturer: e.target.value})} />
+              <input
+                required
+                type="text"
+                className="form-input"
+                value={formData.manufacturer || ''}
+                onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
+              />
             </div>
-            {(formData.type === 'Powder' || formData.type === 'Primer' || formData.type === 'Bullet') && (
+            {(formData.type === 'Powder' ||
+              formData.type === 'Primer' ||
+              formData.type === 'Bullet') && (
               <div className="form-group">
                 <label>Name</label>
-                <input required type="text" className="form-input" placeholder={formData.type === 'Powder' ? 'e.g. Varget' : formData.type === 'Primer' ? 'e.g. #400' : 'e.g. XTP'} value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} />
+                <input
+                  required
+                  type="text"
+                  className="form-input"
+                  placeholder={
+                    formData.type === 'Powder'
+                      ? 'e.g. Varget'
+                      : formData.type === 'Primer'
+                        ? 'e.g. #400'
+                        : 'e.g. XTP'
+                  }
+                  value={formData.name || ''}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                />
               </div>
             )}
           </div>
@@ -228,7 +319,14 @@ export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = (
           {(formData.type === 'Brass' || formData.type === 'Bullet') && (
             <div className="form-group">
               <label>Caliber</label>
-              <input required type="text" className="form-input" placeholder="e.g. .308 Win" value={formData.caliber || ''} onChange={e => setFormData({...formData, caliber: e.target.value})} />
+              <AutocompleteInput
+                required
+                name="caliber"
+                value={formData.caliber || ''}
+                onChange={(e) => setFormData({ ...formData, caliber: e.target.value })}
+                options={CALIBER_OPTIONS}
+                placeholder="e.g. .308 Win, 9mm Luger"
+              />
             </div>
           )}
 
@@ -236,19 +334,31 @@ export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div className="form-group">
                 <label>Bullet Type</label>
-                <input
+                <AutocompleteInput
                   required
-                  type="text"
-                  list="reloading-bullet-types-list"
-                  className="form-input"
-                  placeholder="e.g. FMJ, MatchKing, ELD-X, TSX, Gold Dot"
+                  name="bulletType"
                   value={formData.bulletType || ''}
-                  onChange={e => setFormData({...formData, bulletType: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, bulletType: e.target.value })}
+                  options={COMPREHENSIVE_BULLET_TYPES}
+                  placeholder="e.g. FMJ, MatchKing, ELD-X, TSX, Gold Dot"
                 />
               </div>
               <div className="form-group">
                 <label>Bullet Weight (grains)</label>
-                <input required type="number" min="0" step="0.1" className="form-input" value={formData.grain === undefined ? '' : formData.grain} onChange={e => setFormData({...formData, grain: e.target.value === '' ? undefined : parseFloat(e.target.value)})} />
+                <input
+                  required
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  className="form-input"
+                  value={formData.grain === undefined ? '' : formData.grain}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      grain: e.target.value === '' ? undefined : parseFloat(e.target.value),
+                    })
+                  }
+                />
               </div>
             </div>
           )}
@@ -257,17 +367,38 @@ export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div className="form-group">
                 <label>Primer Type</label>
-                <select className="form-input" value={formData.primerType || ''} onChange={e => setFormData({...formData, primerType: e.target.value})}>
-                  <option value="Small Rifle">Small Rifle</option>
-                  <option value="Large Rifle">Large Rifle</option>
-                  <option value="Small Pistol">Small Pistol</option>
-                  <option value="Large Pistol">Large Pistol</option>
-                  <option value="209 Shotgun">209 Shotgun</option>
-                </select>
+                <AutocompleteInput
+                  mode="select"
+                  name="primerType"
+                  value={formData.primerType || 'Small Rifle'}
+                  onChange={(e) => setFormData({ ...formData, primerType: e.target.value })}
+                  options={[
+                    'Small Rifle',
+                    'Large Rifle',
+                    'Small Pistol',
+                    'Large Pistol',
+                    '209 Shotgun',
+                  ]}
+                />
               </div>
-              <div className="form-group" style={{ display: 'flex', alignItems: 'center', marginTop: '1.5rem' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={formData.isMagnumPrimer || false} onChange={e => setFormData({...formData, isMagnumPrimer: e.target.checked})} style={{ width: '1.2rem', height: '1.2rem' }} />
+              <div
+                className="form-group"
+                style={{ display: 'flex', alignItems: 'center', marginTop: '1.5rem' }}
+              >
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={formData.isMagnumPrimer || false}
+                    onChange={(e) => setFormData({ ...formData, isMagnumPrimer: e.target.checked })}
+                    style={{ width: '1.2rem', height: '1.2rem' }}
+                  />
                   <span style={{ fontWeight: 'bold' }}>Magnum Primer</span>
                 </label>
               </div>
@@ -277,98 +408,272 @@ export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = (
           {formData.type === 'Brass' && (
             <div className="form-group">
               <label>Preparation Stage</label>
-              <select className="form-input" value={formData.prepStage || ''} onChange={e => setFormData({...formData, prepStage: e.target.value as any})}>
-                <option value="Fired / Dirty">Fired / Dirty</option>
-                <option value="Cleaned">Cleaned</option>
-                <option value="Deprimed">Deprimed</option>
-                <option value="Sized">Sized</option>
-                <option value="Trimmed">Trimmed</option>
-                <option value="Primed">Primed</option>
-                <option value="Ready to Load">Ready to Load</option>
-              </select>
+              <AutocompleteInput
+                mode="select"
+                name="prepStage"
+                value={formData.prepStage || 'Fired / Dirty'}
+                onChange={(e) => setFormData({ ...formData, prepStage: e.target.value as any })}
+                options={[
+                  'Fired / Dirty',
+                  'Cleaned',
+                  'Deprimed',
+                  'Sized',
+                  'Trimmed',
+                  'Primed',
+                  'Ready to Load',
+                ]}
+              />
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
-            <div className="form-group">
-              <label>{formData.type === 'Powder' ? 'Amount' : 'Quantity'} *</label>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <input required type="number" min="0" step={formData.type === 'Powder' ? '0.01' : '1'} className="form-input" style={{ flex: 1 }} value={formData.quantity === undefined || formData.quantity === null ? '' : formData.quantity} onChange={e => setFormData({...formData, quantity: e.target.value === '' ? ('' as any) : parseFloat(e.target.value)})} />
-                {formData.type === 'Powder' && (
-                  <select className="form-input" style={{ width: '80px' }} value={formData.weightUnit || 'lbs'} onChange={e => setFormData({...formData, weightUnit: e.target.value as any})}>
-                    <option value="lbs">lbs</option>
-                    <option value="oz">oz</option>
-                  </select>
-                )}
+          {/* Quantity & Unit Row */}
+          {formData.type === 'Powder' ? (
+            <div
+              style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0.75rem' }}
+            >
+              <div className="form-group">
+                <label>Amount *</label>
+                <input
+                  required
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="form-input"
+                  placeholder="e.g. 1"
+                  value={
+                    formData.quantity === undefined || formData.quantity === null
+                      ? ''
+                      : formData.quantity
+                  }
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      quantity: e.target.value === '' ? ('' as any) : parseFloat(e.target.value),
+                    })
+                  }
+                />
+              </div>
+              <div className="form-group">
+                <label>Weight Unit *</label>
+                <AutocompleteInput
+                  mode="select"
+                  name="weightUnit"
+                  value={formData.weightUnit || 'lbs'}
+                  onChange={(e) => setFormData({ ...formData, weightUnit: e.target.value as any })}
+                  options={[
+                    { value: 'lbs', label: 'lbs (Pounds)' },
+                    { value: 'oz', label: 'oz (Ounces)' },
+                    { value: 'grains', label: 'gr (Grains)' },
+                  ]}
+                />
+              </div>
+              <div className="form-group">
+                <label>Low-Stock Alert</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  className="form-input"
+                  placeholder="e.g. 1 (lb)"
+                  value={
+                    formData.min_threshold === undefined || formData.min_threshold === null
+                      ? ''
+                      : formData.min_threshold
+                  }
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      min_threshold: e.target.value === '' ? undefined : parseFloat(e.target.value),
+                    })
+                  }
+                />
+              </div>
+              <div className="form-group">
+                <label>Cost / Value ($)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="form-input"
+                  placeholder="e.g. 39.99"
+                  value={formData.cost === undefined || formData.cost === null ? '' : formData.cost}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      cost: e.target.value === '' ? undefined : parseFloat(e.target.value),
+                    })
+                  }
+                />
               </div>
             </div>
-            <div className="form-group">
-              <label>Low-Stock Alert</label>
-              <input type="number" min="0" step={formData.type === 'Powder' ? '0.1' : '1'} className="form-input" placeholder={formData.type === 'Powder' ? 'e.g. 1 (lb)' : 'e.g. 200'} value={formData.min_threshold === undefined || formData.min_threshold === null ? '' : formData.min_threshold} onChange={e => setFormData({...formData, min_threshold: e.target.value === '' ? undefined : parseFloat(e.target.value)})} />
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '0.75rem' }}>
+              <div className="form-group">
+                <label>Quantity *</label>
+                <input
+                  required
+                  type="number"
+                  min="0"
+                  step="1"
+                  className="form-input"
+                  placeholder="e.g. 500"
+                  value={
+                    formData.quantity === undefined || formData.quantity === null
+                      ? ''
+                      : formData.quantity
+                  }
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      quantity: e.target.value === '' ? ('' as any) : parseFloat(e.target.value),
+                    })
+                  }
+                />
+              </div>
+              <div className="form-group">
+                <label>Low-Stock Alert</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  className="form-input"
+                  placeholder="e.g. 100"
+                  value={
+                    formData.min_threshold === undefined || formData.min_threshold === null
+                      ? ''
+                      : formData.min_threshold
+                  }
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      min_threshold: e.target.value === '' ? undefined : parseFloat(e.target.value),
+                    })
+                  }
+                />
+              </div>
+              <div className="form-group">
+                <label>Cost / Value ($)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="form-input"
+                  placeholder="e.g. 45.00"
+                  value={formData.cost === undefined || formData.cost === null ? '' : formData.cost}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      cost: e.target.value === '' ? undefined : parseFloat(e.target.value),
+                    })
+                  }
+                />
+              </div>
             </div>
-            <div className="form-group">
-              <label>Cost / Value ($)</label>
-              <input type="number" step="0.01" className="form-input" value={formData.cost === undefined || formData.cost === null ? '' : formData.cost} onChange={e => setFormData({...formData, cost: e.target.value === '' ? undefined : parseFloat(e.target.value)})} />
-              {formData.cost !== undefined && formData.cost !== null && formData.quantity !== undefined && formData.quantity > 0 && (
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.4rem' }}>
-                  {formData.type === 'Powder' ? (
-                    `≈ $${(formData.cost / (formData.quantity * (formData.weightUnit === 'lbs' ? 7000 : 437.5))).toFixed(4)}/gr`
-                  ) : (
-                    `≈ $${(formData.cost / formData.quantity).toFixed(3)}/ea`
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
+          )}
 
-          {formData.type === 'Powder' && (
-            <div className="form-group">
-              <label>Usage Tags</label>
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                {['Pistol', 'Rifle', 'Shotgun'].map(tag => (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => toggleUsageTag(tag as any)}
+          {/* Live Unit Equivalents Banner for Powder */}
+          {formData.type === 'Powder' &&
+            formData.quantity !== undefined &&
+            Number(formData.quantity) > 0 &&
+            (() => {
+              const breakdown = formatPowderMultiUnit(
+                Number(formData.quantity),
+                formData.weightUnit || 'lbs'
+              );
+              const costVal = Number(formData.cost) || 0;
+              const costPerGr =
+                costVal > 0
+                  ? calcCostPerGrain(
+                      costVal,
+                      Number(formData.quantity),
+                      formData.weightUnit || 'lbs'
+                    )
+                  : 0;
+              return (
+                <div
+                  style={{
+                    background: 'rgba(56, 189, 248, 0.08)',
+                    border: '1px solid rgba(56, 189, 248, 0.25)',
+                    borderRadius: '8px',
+                    padding: '0.65rem 0.95rem',
+                    margin: '0.25rem 0 1rem',
+                    fontSize: '0.85rem',
+                  }}
+                >
+                  <div
                     style={{
-                      padding: '0.4rem 0.8rem',
-                      borderRadius: '16px',
-                      border: '1px solid var(--border-light)',
-                      background: formData.usageTags?.includes(tag as any) ? 'var(--accent)' : 'transparent',
-                      color: formData.usageTags?.includes(tag as any) ? '#fff' : 'var(--text-primary)',
-                      cursor: 'pointer',
-                      fontSize: '0.85rem'
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '0.5rem',
                     }}
                   >
-                    {tag}
-                  </button>
-                ))}
-              </div>
+                    <div
+                      style={{
+                        color: 'var(--text-primary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                      }}
+                    >
+                      <Scale size={15} style={{ color: 'var(--accent)' }} />
+                      <span style={{ fontWeight: 600, color: 'var(--accent)' }}>
+                        Live Unit Equivalents:
+                      </span>
+                      <strong>{breakdown.summary}</strong>
+                    </div>
+                    {costVal > 0 && (
+                      <div style={{ color: '#4ade80', fontWeight: 600 }}>
+                        ≈ ${costPerGr.toFixed(4)} / grain
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
+            <div className="form-group">
+              <label>Purchase Date</label>
+              <input
+                type="date"
+                className="form-input"
+                value={formData.purchaseDate || ''}
+                onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
+              />
             </div>
-          )}
-
-          <div className="form-group">
-            <label>Purchase Date</label>
-            <input type="date" className="form-input" value={formData.purchaseDate || ''} onChange={e => setFormData({...formData, purchaseDate: e.target.value})} />
+            <div className="form-group">
+              <label>Notes</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="e.g. Lot #, storage container..."
+                value={formData.notes || ''}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              />
+            </div>
           </div>
 
-          <div className="form-group">
-            <label>Notes</label>
-            <textarea className="form-input" rows={2} value={formData.notes || ''} onChange={e => setFormData({...formData, notes: e.target.value})}></textarea>
-          </div>
-
-          <div className="modal-actions" style={{ marginTop: '1.5rem' }}>
-            <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn-primary">Save Component</button>
+          <div
+            className="modal-actions"
+            style={{
+              marginTop: 'auto',
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-subtle)',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '0.75rem',
+            }}
+          >
+            <button type="button" className="btn-secondary" onClick={onClose}>
+              Cancel
+            </button>
+            <button type="submit" className="btn-primary">
+              Save Component
+            </button>
           </div>
         </form>
-
-        <datalist id="reloading-bullet-types-list">
-          {COMPREHENSIVE_BULLET_TYPES.map((bt, idx) => (
-            <option key={idx} value={bt} />
-          ))}
-        </datalist>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

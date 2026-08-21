@@ -1,16 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import { AlertCircle, Edit, Package, PlusCircle, Scale, Search, Trash2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { ReloadingComponent } from '../types';
-import { PlusCircle, Search, Edit, Trash2, AlertCircle, Package } from 'lucide-react';
 import { ReloadingComponentModal } from '../components/ReloadingComponentModal';
+import { ReloadingComponent } from '../types';
+import { calcCostPerGrain, formatPowderMultiUnit, toGrains } from '../utils/powderUnits';
 
 export const ReloadingComponents = () => {
   const [components, setComponents] = useState<ReloadingComponent[]>([]);
   const [search, setSearch] = useState('');
-  
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  
+
   const [formData, setFormData] = useState<Partial<ReloadingComponent>>({});
   const [pendingSyncId, setPendingSyncId] = useState<number | null>(null);
   const [onlyLowStock, setOnlyLowStock] = useState(false);
@@ -27,7 +28,7 @@ export const ReloadingComponents = () => {
         upc_code: state.upc || '',
         quantity: state.count || 0,
         type: state.parsedData?.type || 'Powder',
-        ...(state.parsedData || {})
+        ...(state.parsedData || {}),
       });
       if (state.syncItemId) {
         setPendingSyncId(state.syncItemId);
@@ -55,17 +56,20 @@ export const ReloadingComponents = () => {
     }
   };
 
-  const lowStockCount = components.filter(c => c.min_threshold !== undefined && c.min_threshold > 0 && c.quantity <= c.min_threshold).length;
+  const lowStockCount = components.filter(
+    (c) => c.min_threshold !== undefined && c.min_threshold > 0 && c.quantity <= c.min_threshold
+  ).length;
 
-  const filteredComponents = components.filter(c => {
+  const filteredComponents = components.filter((c) => {
     const term = search.toLowerCase();
-    const matchesSearch = (
+    const matchesSearch =
       c.manufacturer.toLowerCase().includes(term) ||
       (c.name && c.name.toLowerCase().includes(term)) ||
       c.type.toLowerCase().includes(term) ||
-      (c.caliber && c.caliber.toLowerCase().includes(term))
-    );
-    const matchesLowStock = !onlyLowStock || (c.min_threshold !== undefined && c.min_threshold > 0 && c.quantity <= c.min_threshold);
+      (c.caliber && c.caliber.toLowerCase().includes(term));
+    const matchesLowStock =
+      !onlyLowStock ||
+      (c.min_threshold !== undefined && c.min_threshold > 0 && c.quantity <= c.min_threshold);
     return matchesSearch && matchesLowStock;
   });
 
@@ -76,7 +80,7 @@ export const ReloadingComponents = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm("Are you sure you want to delete this component?")) {
+    if (window.confirm('Are you sure you want to delete this component?')) {
       if (window.api && window.api.deleteComponent) {
         await window.api.deleteComponent(id);
         loadData();
@@ -93,24 +97,67 @@ export const ReloadingComponents = () => {
   const totalValue = components.reduce((sum, c) => sum + (c.cost || 0), 0);
 
   // Group components by type
-  const grouped = filteredComponents.reduce((acc, comp) => {
-    if (!acc[comp.type]) acc[comp.type] = [];
-    acc[comp.type].push(comp);
-    return acc;
-  }, {} as Record<string, ReloadingComponent[]>);
+  const grouped = filteredComponents.reduce(
+    (acc, comp) => {
+      if (!acc[comp.type]) acc[comp.type] = [];
+      acc[comp.type].push(comp);
+      return acc;
+    },
+    {} as Record<string, ReloadingComponent[]>
+  );
 
   const renderComponentDetails = (c: ReloadingComponent) => {
     if (c.type === 'Powder') {
+      const breakdown = formatPowderMultiUnit(c.quantity || 0, c.weightUnit);
       return (
         <>
-          <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.3rem' }}>
-            {c.quantity} {c.weightUnit}
+          <div
+            style={{
+              color: 'var(--text-secondary)',
+              fontSize: '0.85rem',
+              marginBottom: '0.4rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+            }}
+          >
+            <Scale size={14} style={{ color: 'var(--accent)' }} />
+            <strong style={{ color: 'var(--text-primary)' }}>{breakdown.summary}</strong>
           </div>
           {c.usageTags && c.usageTags.length > 0 && (
-            <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
-              {c.usageTags.map(tag => (
-                <span key={tag} style={{ background: 'rgba(56, 189, 248, 0.1)', color: 'var(--accent)', padding: '0.1rem 0.5rem', borderRadius: '12px', fontSize: '0.75rem' }}>{tag}</span>
+            <div
+              style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginBottom: '0.4rem' }}
+            >
+              {c.usageTags.map((tag) => (
+                <span
+                  key={tag}
+                  style={{
+                    background: 'rgba(56, 189, 248, 0.1)',
+                    color: 'var(--accent)',
+                    padding: '0.1rem 0.5rem',
+                    borderRadius: '12px',
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  {tag}
+                </span>
               ))}
+            </div>
+          )}
+          {c.quantity !== undefined && c.quantity > 0 && (
+            <div
+              style={{
+                fontSize: '0.72rem',
+                color: 'var(--text-muted)',
+                background: 'rgba(255,255,255,0.03)',
+                padding: '0.25rem 0.5rem',
+                borderRadius: '4px',
+                border: '1px solid rgba(255,255,255,0.05)',
+              }}
+            >
+              ⚡ Yield: ~{Math.floor(breakdown.grains / 41.5).toLocaleString()} rds (.308 @ 41.5gr)
+              • ~{Math.floor(breakdown.grains / 24.5).toLocaleString()} rds (5.56 @ 24.5gr) • ~
+              {Math.floor(breakdown.grains / 4.5).toLocaleString()} rds (9mm @ 4.5gr)
             </div>
           )}
         </>
@@ -119,10 +166,21 @@ export const ReloadingComponents = () => {
     if (c.type === 'Brass') {
       return (
         <>
-          <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.3rem' }}>
+          <div
+            style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.3rem' }}
+          >
             {c.caliber} • {c.primerType} {c.isMagnumPrimer ? '(Magnum)' : ''}
           </div>
-          <div style={{ background: 'rgba(0,0,0,0.2)', display: 'inline-block', padding: '0.2rem 0.6rem', borderRadius: '4px', fontSize: '0.8rem', color: 'var(--text-primary)' }}>
+          <div
+            style={{
+              background: 'rgba(0,0,0,0.2)',
+              display: 'inline-block',
+              padding: '0.2rem 0.6rem',
+              borderRadius: '4px',
+              fontSize: '0.8rem',
+              color: 'var(--text-primary)',
+            }}
+          >
             Stage: {c.prepStage}
           </div>
         </>
@@ -131,7 +189,8 @@ export const ReloadingComponents = () => {
     if (c.type === 'Bullet') {
       return (
         <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-          {c.caliber} • {c.grain ? `${c.grain}gr ` : ''}{c.bulletType}
+          {c.caliber} • {c.grain ? `${c.grain}gr ` : ''}
+          {c.bulletType}
         </div>
       );
     }
@@ -150,20 +209,40 @@ export const ReloadingComponents = () => {
       <div className="page-header">
         <div>
           <h1>Reloading Supplies</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>Track powder, brass, primers, and projectiles.</p>
+          <p style={{ color: 'var(--text-secondary)' }}>
+            Track powder, brass, primers, and projectiles.
+          </p>
         </div>
         <button className="btn-primary" onClick={openNewModal}>
           <PlusCircle size={20} /> Add Component
         </button>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1, maxWidth: '600px', flexWrap: 'wrap' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '2rem',
+          flexWrap: 'wrap',
+          gap: '1rem',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            gap: '1rem',
+            alignItems: 'center',
+            flex: 1,
+            maxWidth: '600px',
+            flexWrap: 'wrap',
+          }}
+        >
           <div className="search-bar" style={{ flex: 1, minWidth: '240px' }}>
             <Search size={20} color="var(--text-secondary)" />
-            <input 
-              type="text" 
-              placeholder="Search components..." 
+            <input
+              type="text"
+              placeholder="Search components..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -172,99 +251,278 @@ export const ReloadingComponents = () => {
             <button
               className={onlyLowStock ? 'btn-danger' : 'btn-secondary'}
               onClick={() => setOnlyLowStock(!onlyLowStock)}
-              style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}
+              style={{
+                padding: '0.6rem 1rem',
+                fontSize: '0.85rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                whiteSpace: 'nowrap',
+              }}
             >
               ⚠️ Low Stock ({lowStockCount})
             </button>
           )}
         </div>
-        <div style={{ background: 'var(--bg-card)', padding: '0.8rem 1.5rem', borderRadius: '8px', border: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Total Value</div>
-            <div style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--accent)' }}>
-              ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          {(() => {
+            const totalPowderGrains = components
+              .filter((c) => c.type === 'Powder')
+              .reduce((sum, c) => sum + toGrains(c.quantity || 0, c.weightUnit), 0);
+            if (totalPowderGrains <= 0) return null;
+            const totalPowderLbs = Number((totalPowderGrains / 7000).toFixed(2));
+            const totalPowderOz = Number((totalPowderGrains / 437.5).toFixed(1));
+
+            return (
+              <div
+                style={{
+                  background: 'var(--bg-card)',
+                  padding: '0.8rem 1.5rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-light)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '1rem',
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    Total Powder in Stock
+                  </div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--accent)' }}>
+                    {totalPowderLbs} lbs{' '}
+                    <span
+                      style={{
+                        fontSize: '0.8rem',
+                        color: 'var(--text-secondary)',
+                        fontWeight: 400,
+                      }}
+                    >
+                      ({totalPowderOz} oz / {totalPowderGrains.toLocaleString()} gr)
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+          <div
+            style={{
+              background: 'var(--bg-card)',
+              padding: '0.8rem 1.5rem',
+              borderRadius: '8px',
+              border: '1px solid var(--border-light)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+            }}
+          >
+            <div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Total Value</div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--accent)' }}>
+                $
+                {totalValue.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {filteredComponents.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-light)' }}>
+        <div
+          style={{
+            textAlign: 'center',
+            padding: '4rem 2rem',
+            background: 'var(--bg-card)',
+            borderRadius: '12px',
+            border: '1px solid var(--border-light)',
+          }}
+        >
           <div style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>
             <AlertCircle size={48} style={{ margin: '0 auto', opacity: 0.5 }} />
           </div>
           <h3>No reloading components found</h3>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>Add your first powder, brass, primer, or bullet to start tracking.</p>
-          <button className="btn-primary" onClick={openNewModal}>Add Component</button>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+            Add your first powder, brass, primer, or bullet to start tracking.
+          </p>
+          <button className="btn-primary" onClick={openNewModal}>
+            Add Component
+          </button>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-          {['Powder', 'Brass', 'Bullet', 'Primer'].map(typeGroup => {
+          {['Powder', 'Brass', 'Bullet', 'Primer'].map((typeGroup) => {
             const groupItems = grouped[typeGroup];
             if (!groupItems || groupItems.length === 0) return null;
-            
+
             return (
               <div key={typeGroup}>
-                <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <h2
+                  style={{
+                    fontSize: '1.2rem',
+                    marginBottom: '1rem',
+                    borderBottom: '1px solid var(--border-light)',
+                    paddingBottom: '0.5rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                  }}
+                >
                   <Package size={20} color="var(--accent)" />
-                  {typeGroup === 'Brass' ? 'Brass & Hulls' : typeGroup === 'Bullet' ? 'Bullets & Projectiles' : typeGroup + 's'}
+                  {typeGroup === 'Brass'
+                    ? 'Brass & Hulls'
+                    : typeGroup === 'Bullet'
+                      ? 'Bullets & Projectiles'
+                      : typeGroup + 's'}
                 </h2>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
-                  {groupItems.map(c => {
-                    const isLow = c.min_threshold !== undefined && c.min_threshold > 0 && c.quantity <= c.min_threshold;
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                    gap: '1rem',
+                  }}
+                >
+                  {groupItems.map((c) => {
+                    const isLow =
+                      c.min_threshold !== undefined &&
+                      c.min_threshold > 0 &&
+                      c.quantity <= c.min_threshold;
                     return (
-                    <div key={c.id} className="card" style={{ display: 'flex', flexDirection: 'column', padding: '1rem', border: isLow ? '1px solid rgba(239, 68, 68, 0.4)' : undefined, background: isLow ? 'rgba(239, 68, 68, 0.04)' : undefined }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                        <div style={{ flex: 1, paddingRight: '1rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.2rem' }}>
-                            <h3 style={{ margin: 0, fontSize: '1.1rem' }}>
-                              {c.manufacturer} {c.name}
-                            </h3>
-                            {isLow && (
-                              <span style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
-                                Low Stock (≤{c.min_threshold})
-                              </span>
-                            )}
-                          </div>
-                          {renderComponentDetails(c)}
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: '1.2rem', fontWeight: 600, color: isLow ? '#f87171' : 'var(--text-primary)' }}>
-                            {c.type === 'Powder' ? '' : c.quantity}
-                          </div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                            {c.type === 'Powder' ? '' : 'Qty'}
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid var(--border-light)' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <div style={{ fontSize: '0.95rem', color: 'var(--success)', fontWeight: 600 }}>
-                            {c.cost ? `$${c.cost.toFixed(2)}` : ''}
-                          </div>
-                          {c.cost !== undefined && c.cost !== null && c.quantity !== undefined && c.quantity > 0 && (
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                              {c.type === 'Powder' ? (
-                                `≈ $${(c.cost / (c.quantity * (c.weightUnit === 'lbs' ? 7000 : 437.5))).toFixed(4)} / grain`
-                              ) : (
-                                `≈ $${(c.cost / c.quantity).toFixed(3)} / ea`
+                      <div
+                        key={c.id}
+                        className="card"
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          padding: '1rem',
+                          border: isLow ? '1px solid rgba(239, 68, 68, 0.4)' : undefined,
+                          background: isLow ? 'rgba(239, 68, 68, 0.04)' : undefined,
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'flex-start',
+                            marginBottom: '0.5rem',
+                          }}
+                        >
+                          <div style={{ flex: 1, paddingRight: '1rem' }}>
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                flexWrap: 'wrap',
+                                marginBottom: '0.2rem',
+                              }}
+                            >
+                              <h3 style={{ margin: 0, fontSize: '1.1rem' }}>
+                                {c.manufacturer} {c.name}
+                              </h3>
+                              {isLow && (
+                                <span
+                                  style={{
+                                    background: 'rgba(239, 68, 68, 0.15)',
+                                    color: '#f87171',
+                                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                                    padding: '0.1rem 0.4rem',
+                                    borderRadius: '4px',
+                                    fontSize: '0.7rem',
+                                    fontWeight: 'bold',
+                                  }}
+                                >
+                                  Low Stock (≤{c.min_threshold})
+                                </span>
                               )}
                             </div>
-                          )}
+                            {renderComponentDetails(c)}
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div
+                              style={{
+                                fontSize: '1.2rem',
+                                fontWeight: 600,
+                                color: isLow ? '#f87171' : 'var(--text-primary)',
+                              }}
+                            >
+                              {c.type === 'Powder'
+                                ? `${c.quantity} ${c.weightUnit || 'lbs'}`
+                                : c.quantity}
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                              {c.type === 'Powder'
+                                ? `${toGrains(c.quantity || 0, c.weightUnit).toLocaleString()} gr`
+                                : 'Qty'}
+                            </div>
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button onClick={() => handleEdit(c)} className="btn-icon" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)', padding: '0.4rem', borderRadius: '6px' }}>
-                            <Edit size={16} />
-                          </button>
-                          <button onClick={() => handleDelete(c.id!)} className="btn-icon" style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', padding: '0.4rem', borderRadius: '6px' }}>
-                            <Trash2 size={16} />
-                          </button>
+
+                        <div
+                          style={{
+                            marginTop: 'auto',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            paddingTop: '1rem',
+                            borderTop: '1px solid var(--border-light)',
+                          }}
+                        >
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <div
+                              style={{
+                                fontSize: '0.95rem',
+                                color: 'var(--success)',
+                                fontWeight: 600,
+                              }}
+                            >
+                              {c.cost ? `$${c.cost.toFixed(2)}` : ''}
+                            </div>
+                            {c.cost !== undefined &&
+                              c.cost !== null &&
+                              c.quantity !== undefined &&
+                              c.quantity > 0 && (
+                                <div
+                                  style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}
+                                >
+                                  {c.type === 'Powder'
+                                    ? `≈ $${calcCostPerGrain(c.cost, c.quantity, c.weightUnit).toFixed(4)} / grain`
+                                    : `≈ $${(c.cost / c.quantity).toFixed(3)} / ea`}
+                                </div>
+                              )}
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button
+                              onClick={() => handleEdit(c)}
+                              className="btn-icon"
+                              style={{
+                                background: 'rgba(255,255,255,0.05)',
+                                color: 'var(--text-primary)',
+                                padding: '0.4rem',
+                                borderRadius: '6px',
+                              }}
+                            >
+                              <Edit size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(c.id!)}
+                              className="btn-icon"
+                              style={{
+                                background: 'rgba(239, 68, 68, 0.1)',
+                                color: 'var(--danger)',
+                                padding: '0.4rem',
+                                borderRadius: '6px',
+                              }}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -272,7 +530,7 @@ export const ReloadingComponents = () => {
         </div>
       )}
 
-      <ReloadingComponentModal 
+      <ReloadingComponentModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSave={handleSave}

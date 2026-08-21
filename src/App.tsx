@@ -1,17 +1,17 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { HashRouter, Routes, Route } from 'react-router-dom';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { HashRouter, Route, Routes } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Layout } from './components/Layout';
-import { Dashboard } from './pages/Dashboard';
-import { FirearmForm } from './pages/FirearmForm';
-import { FirearmDetails } from './pages/FirearmDetails';
-import { BoundBook } from './pages/BoundBook';
-import { VaultLogin } from './pages/VaultLogin';
-import { AmmoDashboard } from './pages/AmmoDashboard';
 import { Accessories } from './pages/Accessories';
+import { AmmoDashboard } from './pages/AmmoDashboard';
+import { BoundBook } from './pages/BoundBook';
+import { Dashboard } from './pages/Dashboard';
+import { FirearmDetails } from './pages/FirearmDetails';
+import { FirearmForm } from './pages/FirearmForm';
 import { MaintenanceDashboard } from './pages/MaintenanceDashboard';
-import { SyncInbox } from './pages/SyncInbox';
 import { ReloadingComponents } from './pages/ReloadingComponents';
+import { SyncInbox } from './pages/SyncInbox';
+import { VaultLogin } from './pages/VaultLogin';
 
 const AUTO_LOCK_MS = 15 * 60 * 1000; // 15 minutes of inactivity
 
@@ -69,16 +69,28 @@ function App() {
     // Start the timer and listen for user activity
     resetAutoLock();
     const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'];
-    events.forEach(e => window.addEventListener(e, resetAutoLock));
+    events.forEach((e) => window.addEventListener(e, resetAutoLock));
 
     return () => {
-      events.forEach(e => window.removeEventListener(e, resetAutoLock));
+      events.forEach((e) => window.removeEventListener(e, resetAutoLock));
       if (autoLockTimer.current) clearTimeout(autoLockTimer.current);
     };
   }, [isLocked, resetAutoLock]);
 
   if (loading) {
-    return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>Loading Secure Vault...</div>;
+    return (
+      <div
+        style={{
+          height: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--text-secondary)',
+        }}
+      >
+        Loading Secure Vault...
+      </div>
+    );
   }
 
   if (isLocked) {
@@ -88,20 +100,21 @@ function App() {
   return (
     <HashRouter>
       <ErrorBoundary>
-      <Routes>
-        <Route path="/" element={<Layout onLockVault={lockVault} />}>
-          <Route index element={<Dashboard />} />
-          <Route path="add" element={<FirearmForm />} />
-          <Route path="edit/:id" element={<FirearmForm />} />
-          <Route path="details/:id" element={<FirearmDetails />} />
-          <Route path="bound-book" element={<BoundBook />} />
-          <Route path="ammo" element={<AmmoDashboard />} />
-          <Route path="components" element={<ReloadingComponents />} />
-          <Route path="accessories" element={<Accessories />} />
-          <Route path="maintenance" element={<MaintenanceDashboard />} />
-          <Route path="sync" element={<SyncInbox />} />
-        </Route>
-      </Routes>
+        <Routes>
+          <Route path="/" element={<Layout onLockVault={lockVault} />}>
+            <Route index element={<Dashboard />} />
+            <Route path="add" element={<FirearmForm />} />
+            <Route path="edit/:id" element={<FirearmForm />} />
+            <Route path="details/:id" element={<FirearmDetails />} />
+            <Route path="firearms/:id" element={<FirearmDetails />} />
+            <Route path="bound-book" element={<BoundBook />} />
+            <Route path="ammo" element={<AmmoDashboard />} />
+            <Route path="components" element={<ReloadingComponents />} />
+            <Route path="accessories" element={<Accessories />} />
+            <Route path="maintenance" element={<MaintenanceDashboard />} />
+            <Route path="sync" element={<SyncInbox />} />
+          </Route>
+        </Routes>
       </ErrorBoundary>
     </HashRouter>
   );

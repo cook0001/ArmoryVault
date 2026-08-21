@@ -1,0 +1,4 @@
+{
+  "*.{ts,tsx}": ["biome check --write --no-errors-on-unmatched", "vitest related --run"],
+  "*.{js,mjs,cjs,json,css,md}": ["biome check --write --no-errors-on-unmatched"]
+}

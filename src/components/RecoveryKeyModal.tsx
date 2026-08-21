@@ -1,5 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { ShieldAlert, Copy, Check, Download, Key, RefreshCw, AlertTriangle, CheckCircle2, Lock, Eye, EyeOff } from 'lucide-react';
+import {
+  AlertTriangle,
+  Check,
+  CheckCircle2,
+  Copy,
+  Download,
+  Eye,
+  EyeOff,
+  Key,
+  Lock,
+  RefreshCw,
+  ShieldAlert,
+} from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface RecoveryKeyModalProps {
   isOpen: boolean;
@@ -118,57 +131,74 @@ INSTRUCTIONS:
     }
   };
 
-  return (
-    <div className="modal-overlay" style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.75)',
-      backdropFilter: 'blur(4px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1200,
-      padding: '1rem'
-    }}>
-      <div className="modal" style={{
-        maxWidth: '560px',
-        width: '100%',
-        maxHeight: '90vh',
+  if (!isOpen) return null;
+
+  return createPortal(
+    <div
+      className="modal-overlay"
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.82)',
+        backdropFilter: 'blur(16px)',
         display: 'flex',
-        flexDirection: 'column',
-        backgroundColor: '#1e293b',
-        borderRadius: '16px',
-        border: '1px solid #334155',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-        overflow: 'hidden'
-      }}>
-        {/* Header */}
-        <div style={{
-          padding: '1.25rem 1.5rem',
-          borderBottom: '1px solid #334155',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 100100,
+        padding: '1rem',
+      }}
+    >
+      <div
+        className="modal"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          maxWidth: '560px',
+          width: '100%',
+          maxHeight: '90vh',
           display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          background: 'linear-gradient(to right, rgba(30, 41, 59, 1), rgba(15, 23, 42, 1))'
-        }}>
+          flexDirection: 'column',
+          backgroundColor: '#1e293b',
+          borderRadius: '16px',
+          border: '1px solid #334155',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            padding: '1.25rem 1.5rem',
+            borderBottom: '1px solid #334155',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            background: 'linear-gradient(to right, rgba(30, 41, 59, 1), rgba(15, 23, 42, 1))',
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              backgroundColor: 'rgba(245, 158, 11, 0.15)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: '1px solid rgba(245, 158, 11, 0.3)'
-            }}>
+            <div
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '10px',
+                backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
+              }}
+            >
               <ShieldAlert size={20} style={{ color: '#fbbf24' }} />
             </div>
             <div>
-              <h2 style={{ margin: 0, fontSize: '1.2rem', color: '#f8fafc', fontWeight: 600 }}>Emergency Recovery Key</h2>
+              <h2 style={{ margin: 0, fontSize: '1.2rem', color: '#f8fafc', fontWeight: 600 }}>
+                Emergency Recovery Key
+              </h2>
               <p style={{ margin: '0.15rem 0 0', color: '#94a3b8', fontSize: '0.8rem' }}>
                 Master cryptographic unlock key for your local encrypted database
               </p>
@@ -184,7 +214,7 @@ INSTRUCTIONS:
               color: '#94a3b8',
               fontSize: '1.5rem',
               cursor: 'pointer',
-              lineHeight: 1
+              lineHeight: 1,
             }}
           >
             ×
@@ -194,59 +224,100 @@ INSTRUCTIONS:
         {/* Modal Body */}
         <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
           {newKeyGenerated && (
-            <div style={{
-              backgroundColor: 'rgba(16, 185, 129, 0.15)',
-              border: '1px solid rgba(16, 185, 129, 0.4)',
-              borderRadius: '10px',
-              padding: '1rem',
-              marginBottom: '1.25rem',
-              display: 'flex',
-              gap: '0.75rem',
-              alignItems: 'flex-start'
-            }}>
-              <CheckCircle2 size={20} style={{ color: '#34d399', flexShrink: 0, marginTop: '2px' }} />
+            <div
+              style={{
+                backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                border: '1px solid rgba(16, 185, 129, 0.4)',
+                borderRadius: '10px',
+                padding: '1rem',
+                marginBottom: '1.25rem',
+                display: 'flex',
+                gap: '0.75rem',
+                alignItems: 'flex-start',
+              }}
+            >
+              <CheckCircle2
+                size={20}
+                style={{ color: '#34d399', flexShrink: 0, marginTop: '2px' }}
+              />
               <div>
-                <strong style={{ color: '#6ee7b7', display: 'block', fontSize: '0.9rem', marginBottom: '0.2rem' }}>
+                <strong
+                  style={{
+                    color: '#6ee7b7',
+                    display: 'block',
+                    fontSize: '0.9rem',
+                    marginBottom: '0.2rem',
+                  }}
+                >
                   Vault Re-Keyed Successfully!
                 </strong>
                 <span style={{ color: '#a7f3d0', fontSize: '0.8rem', lineHeight: 1.4 }}>
-                  All database records have been re-encrypted with your new Master Key. Your old recovery code is now obsolete. Please save the new key below!
+                  All database records have been re-encrypted with your new Master Key. Your old
+                  recovery code is now obsolete. Please save the new key below!
                 </span>
               </div>
             </div>
           )}
 
           {/* Key Display Card */}
-          <div style={{
-            backgroundColor: '#090d16',
-            border: '1px solid #334155',
-            borderRadius: '12px',
-            padding: '1.25rem',
-            marginBottom: '1.25rem'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          <div
+            style={{
+              backgroundColor: '#090d16',
+              border: '1px solid #334155',
+              borderRadius: '12px',
+              padding: '1.25rem',
+              marginBottom: '1.25rem',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '0.75rem',
+              }}
+            >
+              <span
+                style={{
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  color: '#94a3b8',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                }}
+              >
                 Active 64-Character Key
               </span>
-              <span style={{ fontSize: '0.75rem', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#34d399', padding: '0.15rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+              <span
+                style={{
+                  fontSize: '0.75rem',
+                  backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                  color: '#34d399',
+                  padding: '0.15rem 0.5rem',
+                  borderRadius: '4px',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                }}
+              >
                 AES-256 Master
               </span>
             </div>
 
-            <div style={{
-              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-              fontSize: '0.85rem',
-              color: '#38bdf8',
-              backgroundColor: '#030712',
-              padding: '0.85rem 1rem',
-              borderRadius: '8px',
-              border: '1px solid #1e293b',
-              wordBreak: 'break-all',
-              lineHeight: 1.6,
-              userSelect: 'all',
-              marginBottom: '1rem',
-              letterSpacing: '0.5px'
-            }}>
+            <div
+              style={{
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                fontSize: '0.85rem',
+                color: '#38bdf8',
+                backgroundColor: '#030712',
+                padding: '0.85rem 1rem',
+                borderRadius: '8px',
+                border: '1px solid #1e293b',
+                wordBreak: 'break-all',
+                lineHeight: 1.6,
+                userSelect: 'all',
+                marginBottom: '1rem',
+                letterSpacing: '0.5px',
+              }}
+            >
               {recoveryCode || 'Loading recovery key...'}
             </div>
 
@@ -263,7 +334,7 @@ INSTRUCTIONS:
                   gap: '0.5rem',
                   padding: '0.65rem 1rem',
                   fontSize: '0.85rem',
-                  backgroundColor: copied ? '#059669' : '#2563eb'
+                  backgroundColor: copied ? '#059669' : '#2563eb',
                 }}
               >
                 {copied ? <Check size={16} /> : <Copy size={16} />}
@@ -282,7 +353,7 @@ INSTRUCTIONS:
                   padding: '0.65rem 1rem',
                   fontSize: '0.85rem',
                   color: downloaded ? '#34d399' : '#e2e8f0',
-                  borderColor: downloaded ? '#059669' : '#475569'
+                  borderColor: downloaded ? '#059669' : '#475569',
                 }}
               >
                 {downloaded ? <Check size={16} /> : <Download size={16} />}
@@ -292,33 +363,40 @@ INSTRUCTIONS:
           </div>
 
           {/* Explanation Banner */}
-          <div style={{
-            backgroundColor: 'rgba(255, 255, 255, 0.02)',
-            border: '1px solid #334155',
-            borderRadius: '10px',
-            padding: '1rem',
-            marginBottom: '1.25rem',
-            fontSize: '0.8rem',
-            color: '#94a3b8',
-            lineHeight: 1.5
-          }}>
+          <div
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.02)',
+              border: '1px solid #334155',
+              borderRadius: '10px',
+              padding: '1rem',
+              marginBottom: '1.25rem',
+              fontSize: '0.8rem',
+              color: '#94a3b8',
+              lineHeight: 1.5,
+            }}
+          >
             <p style={{ margin: '0 0 0.5rem', color: '#e2e8f0', fontWeight: 600 }}>
               💡 What is the Recovery Key?
             </p>
             <p style={{ margin: 0 }}>
-              This key is the raw cryptographic Master Key that encrypts your vault. If you ever forget your master password, clicking <strong>"Forgot Password? Use Recovery Code"</strong> on the login screen and entering this key will immediately restore access to all your firearms, ammunition, and logs.
+              This key is the raw cryptographic Master Key that encrypts your vault. If you ever
+              forget your master password, clicking{' '}
+              <strong>"Forgot Password? Use Recovery Code"</strong> on the login screen and entering
+              this key will immediately restore access to all your firearms, ammunition, and logs.
             </p>
           </div>
 
           {/* Regenerate Key Section */}
           {!isRegenerating ? (
-            <div style={{
-              borderTop: '1px solid #334155',
-              paddingTop: '1rem',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
+            <div
+              style={{
+                borderTop: '1px solid #334155',
+                paddingTop: '1rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
               <div>
                 <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f8fafc' }}>
                   Lost or Compromised Key?
@@ -330,13 +408,16 @@ INSTRUCTIONS:
               <button
                 type="button"
                 className="btn-secondary"
-                onClick={() => { setIsRegenerating(true); setError(null); }}
+                onClick={() => {
+                  setIsRegenerating(true);
+                  setError(null);
+                }}
                 style={{
                   color: '#f59e0b',
                   borderColor: 'rgba(245, 158, 11, 0.4)',
                   fontSize: '0.8rem',
                   padding: '0.5rem 0.85rem',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
                 }}
               >
                 <RefreshCw size={14} style={{ marginRight: '0.4rem', verticalAlign: 'middle' }} />
@@ -344,40 +425,68 @@ INSTRUCTIONS:
               </button>
             </div>
           ) : (
-            <div style={{
-              backgroundColor: 'rgba(245, 158, 11, 0.08)',
-              border: '1px solid rgba(245, 158, 11, 0.3)',
-              borderRadius: '10px',
-              padding: '1.25rem',
-              marginTop: '0.5rem'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+            <div
+              style={{
+                backgroundColor: 'rgba(245, 158, 11, 0.08)',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
+                borderRadius: '10px',
+                padding: '1.25rem',
+                marginTop: '0.5rem',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  marginBottom: '0.5rem',
+                }}
+              >
                 <AlertTriangle size={18} style={{ color: '#f59e0b' }} />
                 <h4 style={{ margin: 0, fontSize: '0.95rem', color: '#fbbf24', fontWeight: 600 }}>
                   Confirm Vault Re-Keying
                 </h4>
               </div>
-              <p style={{ fontSize: '0.75rem', color: '#fcd34d', margin: '0 0 1rem', lineHeight: 1.4 }}>
-                This will generate a brand new 64-character recovery key and re-encrypt your entire database. Any previously printed or saved recovery keys will permanently stop working.
+              <p
+                style={{
+                  fontSize: '0.75rem',
+                  color: '#fcd34d',
+                  margin: '0 0 1rem',
+                  lineHeight: 1.4,
+                }}
+              >
+                This will generate a brand new 64-character recovery key and re-encrypt your entire
+                database. Any previously printed or saved recovery keys will permanently stop
+                working.
               </p>
 
               {error && (
-                <div style={{
-                  backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                  border: '1px solid rgba(239, 68, 68, 0.4)',
-                  borderRadius: '6px',
-                  padding: '0.65rem 0.85rem',
-                  marginBottom: '0.75rem',
-                  color: '#fca5a5',
-                  fontSize: '0.8rem'
-                }}>
+                <div
+                  style={{
+                    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                    border: '1px solid rgba(239, 68, 68, 0.4)',
+                    borderRadius: '6px',
+                    padding: '0.65rem 0.85rem',
+                    marginBottom: '0.75rem',
+                    color: '#fca5a5',
+                    fontSize: '0.8rem',
+                  }}
+                >
                   {error}
                 </div>
               )}
 
               <form onSubmit={handleRegenerateKey}>
                 <div className="form-group" style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '0.35rem' }}>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      color: '#e2e8f0',
+                      marginBottom: '0.35rem',
+                    }}
+                  >
                     Enter Current Master Password to Confirm *
                   </label>
                   <div style={{ position: 'relative' }}>
@@ -391,7 +500,7 @@ INSTRUCTIONS:
                         border: '1px solid #475569',
                         borderRadius: '6px',
                         color: '#f8fafc',
-                        fontSize: '0.9rem'
+                        fontSize: '0.9rem',
                       }}
                       placeholder="Master Password"
                       value={confirmPassword}
@@ -410,7 +519,7 @@ INSTRUCTIONS:
                         background: 'transparent',
                         border: 'none',
                         color: '#64748b',
-                        cursor: 'pointer'
+                        cursor: 'pointer',
                       }}
                     >
                       {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -422,7 +531,10 @@ INSTRUCTIONS:
                   <button
                     type="button"
                     className="btn-secondary"
-                    onClick={() => { setIsRegenerating(false); setConfirmPassword(''); }}
+                    onClick={() => {
+                      setIsRegenerating(false);
+                      setConfirmPassword('');
+                    }}
                     disabled={loading}
                     style={{ fontSize: '0.8rem', padding: '0.5rem 1rem' }}
                   >
@@ -436,7 +548,7 @@ INSTRUCTIONS:
                       fontSize: '0.8rem',
                       padding: '0.5rem 1.25rem',
                       backgroundColor: '#d97706',
-                      borderColor: '#b45309'
+                      borderColor: '#b45309',
                     }}
                   >
                     {loading ? 'Re-Keying Vault...' : 'Confirm & Re-Key'}
@@ -448,13 +560,15 @@ INSTRUCTIONS:
         </div>
 
         {/* Footer */}
-        <div style={{
-          padding: '1rem 1.5rem',
-          borderTop: '1px solid #334155',
-          display: 'flex',
-          justifyContent: 'flex-end',
-          background: 'rgba(15, 23, 42, 0.6)'
-        }}>
+        <div
+          style={{
+            padding: '1rem 1.5rem',
+            borderTop: '1px solid #334155',
+            display: 'flex',
+            justifyContent: 'flex-end',
+            background: 'rgba(15, 23, 42, 0.6)',
+          }}
+        >
           <button
             type="button"
             className="btn-primary"
@@ -465,6 +579,7 @@ INSTRUCTIONS:
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

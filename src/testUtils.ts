@@ -30,7 +30,9 @@ export const mockWindowApi = () => {
     addFirearm: vi.fn().mockResolvedValue(2),
     updateFirearm: vi.fn().mockResolvedValue(1),
     deleteFirearm: vi.fn().mockResolvedValue(1),
-    logRangeSession: vi.fn().mockResolvedValue({ success: true, firearm_rounds: 50, ammo_remaining: 150 }),
+    logRangeSession: vi
+      .fn()
+      .mockResolvedValue({ success: true, firearm_rounds: 50, ammo_remaining: 150 }),
     completeMaintenanceTask: vi.fn().mockResolvedValue(true),
     savePhoto: vi.fn().mockResolvedValue('/path/to/mock_photo.jpg'),
     getAmmo: vi.fn().mockResolvedValue([]),
@@ -43,6 +45,7 @@ export const mockWindowApi = () => {
     restoreBackup: vi.fn().mockResolvedValue({ success: true }),
     getSyncQueue: vi.fn().mockResolvedValue([]),
     onSyncReceived: vi.fn().mockReturnValue(() => {}),
+    onDevicePaired: vi.fn().mockReturnValue(() => {}),
     onUpdateMessage: vi.fn().mockReturnValue(() => {}),
     getPlatform: vi.fn().mockReturnValue('browser'),
     selectAndSavePhoto: vi.fn().mockResolvedValue(null),

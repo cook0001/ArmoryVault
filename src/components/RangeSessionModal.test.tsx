@@ -1,19 +1,15 @@
 /**
  * @vitest-environment jsdom
  */
+
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { describe, expect, test, vi } from 'vitest';
 import { RangeSessionModal } from './RangeSessionModal';
-import { expect, test, describe, vi } from 'vitest';
 
 describe('RangeSessionModal Component', () => {
   test('renders modal when open', async () => {
-    render(
-      <RangeSessionModal
-        isOpen={true}
-        onClose={() => {}}
-      />
-    );
+    render(<RangeSessionModal isOpen={true} onClose={() => {}} />);
     expect(screen.getByText('Log Range Session')).toBeDefined();
     expect(screen.getByText('Save & Log Range Trip')).toBeDefined();
   });
@@ -22,17 +18,11 @@ describe('RangeSessionModal Component', () => {
     const onSavedMock = vi.fn();
     const onCloseMock = vi.fn();
 
-    render(
-      <RangeSessionModal
-        isOpen={true}
-        onClose={onCloseMock}
-        onSaved={onSavedMock}
-      />
-    );
+    render(<RangeSessionModal isOpen={true} onClose={onCloseMock} onSaved={onSavedMock} />);
 
     // Wait for firearm options to load
     await waitFor(() => {
-      expect(screen.getByText(/Glock/i)).toBeDefined();
+      expect(screen.getByDisplayValue(/Glock/i)).toBeDefined();
     });
 
     const submitBtn = screen.getByText('Save & Log Range Trip');

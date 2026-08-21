@@ -1,0 +1,40 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [main, master, dev]
+    paths-ignore:
+      - 'website/**'
+      - '*.md'
+  pull_request:
+    branches: [main, master, dev]
+    paths-ignore:
+      - 'website/**'
+      - '*.md'
+
+jobs:
+  validate:
+    name: Lint, Typecheck & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci || npm install --legacy-peer-deps
+
+      - name: Run Linter (Biome)
+        run: npm run lint
+
+      - name: TypeScript Build & Vite Bundle
+        run: npm run build
+
+      - name: Run Unit Tests (Vitest)
+        run: npm test
