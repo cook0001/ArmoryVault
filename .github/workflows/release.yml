@@ -67,6 +67,9 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, windows-latest, ubuntu-latest]
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Check out Git repository
