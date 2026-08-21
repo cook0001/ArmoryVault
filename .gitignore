@@ -17,6 +17,9 @@ release
 out
 *.local
 *.tsbuildinfo
+vite.config.js
+vite.config.d.ts
+vite.config.js.map
 
 # Editor directories and files
 .vscode/*
