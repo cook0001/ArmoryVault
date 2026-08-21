@@ -18,6 +18,9 @@ on:
 permissions:
   contents: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   # Step 1: Create a single Draft release first to avoid matrix race conditions (422 already_exists)
   prepare-release:

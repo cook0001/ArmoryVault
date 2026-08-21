@@ -12,6 +12,9 @@ on:
       - 'website/**'
       - '*.md'
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   validate:
     name: Lint, Typecheck & Test
