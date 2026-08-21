@@ -19,6 +19,11 @@
 - **Interactive PayPal Custom Donation Amount Deck**: Added selectable preset amount chips ($5, $15, $25, $50, $100) and custom numeric dollar input with dynamic deep-link generation (`paypal.me/ArmoryVault/[amount]USD`) directly in the website support section.
 - **Website Performance & Asset Optimization (Phase 1)**: Compressed master branding assets (`icon.png` from 1.84 MB to 114 KB, `mobile-icon.png` from 1.43 MB to 144 KB, plus lean 37 KB / 50 KB WebP formats) yielding a 97.3% payload reduction. Removed render-blocking CSS `@import` fonts in favor of `<link rel="preconnect">` and asynchronous font stylesheets. Added 15-minute `localStorage` release caching (`fetchWithCache`) to eliminate GitHub API 60 req/hr rate limits.
 - **Website UI & Interactivity Overhaul (Phase 2)**: Added Smart 1-Click Hero OS Download CTA with automatic system architecture detection (macOS Apple Silicon/Intel, Windows, Linux, Android APK), in-frame Glassmorphic modal simulator for `+ Firearm` and ATF Bound Book print previews (replacing browser alerts), tactile muzzle-flash recoil spark animation with real-time stock decrements on the Range Simulator, and a floating glassmorphic Back-to-Top quick navigation button.
+- **Dependency Modernization & Package Pruning**:
+  - Removed 180 obsolete packages (~150 MB disk savings) by eliminating legacy `archiver` (superseded by in-memory `adm-zip`), unused `cross-env`, conflicting `@types/jest`, and redundant ESLint/Prettier dependencies completely replaced by high-performance **Biome** (`@biomejs/biome: 2.5.9`).
+  - Relocated `@types/qrcode` from runtime dependencies to devDependencies.
+  - Upgraded core build tools and utilities: `lucide-react` (1.33.0), `vite` (8.2.2), `@vitejs/plugin-react` (6.1.0), `vitest` (4.1.11), `electron` (43.4.1), `concurrently` (10.0.5), and `@testing-library/user-event` (14.6.5).
+  - Maintained 0 vulnerabilities across all dependencies (`npm audit`).
 - **Accessibility & Contrast Polish (Phase 3)**: Upgraded muted typography contrast (`--text-muted: #94a3b8`) for WCAG AAA compliance and implemented high-visibility `:focus-visible` outline rings for keyboard accessibility.
 
 ## [2.8.0-nightly.3]

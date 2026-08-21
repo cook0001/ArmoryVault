@@ -1,8 +1,0 @@
-dist
-dist-electron
-build
-node_modules
-*.tsbuildinfo
-coverage
-package-lock.json
-website
