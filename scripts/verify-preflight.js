@@ -7,6 +7,7 @@ const rootDir = path.resolve(__dirname, '..');
 const pkgPath = path.join(rootDir, 'package.json');
 const changelogPath = path.join(rootDir, 'CHANGELOG.md');
 const iconPath = path.join(rootDir, 'build', 'icon.png');
+const workflowsDir = path.join(rootDir, '.github', 'workflows');
 
 console.log('\n🔍 ========================================================');
 console.log('       ArmoryVault Pre-Flight Release Verification');
@@ -50,7 +51,6 @@ runStep('Application Icon asset (build/icon.png)', () => {
 runStep('CHANGELOG.md version documentation', () => {
   if (!fs.existsSync(changelogPath)) throw new Error('CHANGELOG.md not found');
   const changelog = fs.readFileSync(changelogPath, 'utf8');
-  const cleanVersion = pkg.version.replace('-nightly.', '');
   const hasVersionHeader =
     changelog.includes(`[${pkg.version}]`) || changelog.includes(pkg.version);
   if (!hasVersionHeader) {
@@ -61,32 +61,49 @@ runStep('CHANGELOG.md version documentation', () => {
   return `Checked`;
 });
 
-// 4. Git status check
-runStep('Git working tree status', () => {
-  const status = execSync('git status --porcelain', { cwd: rootDir, encoding: 'utf8' }).trim();
-  if (status) {
-    console.warn(
-      `\n   ⚠️  Notice: Uncommitted changes present:\n   ${status.split('\n').join('\n   ')}`
-    );
+// 4. GitHub Workflows Node.js alignment check
+runStep('GitHub Actions Node.js version alignment', () => {
+  if (fs.existsSync(workflowsDir)) {
+    const files = fs
+      .readdirSync(workflowsDir)
+      .filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'));
+    for (const file of files) {
+      const content = fs.readFileSync(path.join(workflowsDir, file), 'utf8');
+      if (content.includes('node-version: 20') || content.includes("node-version: '20'")) {
+        throw new Error(`Workflow ${file} is using outdated Node 20. Align to node-version: 22.`);
+      }
+    }
   }
-  return status ? 'Working tree has modifications' : 'Clean';
+  return 'Node 22 LTS verified across workflows';
 });
 
-// 5. Code Quality & Linter
+// 5. Git status & build output hygiene
+runStep('Git working tree & build artifacts hygiene', () => {
+  const staleFiles = ['vite.config.js', 'vite.config.d.ts', 'vite.config.js.map'];
+  for (const f of staleFiles) {
+    if (fs.existsSync(path.join(rootDir, f))) {
+      fs.unlinkSync(path.join(rootDir, f));
+    }
+  }
+  const status = execSync('git status --porcelain', { cwd: rootDir, encoding: 'utf8' }).trim();
+  return status ? 'Working tree modified' : 'Clean';
+});
+
+// 6. Code Quality & Linter
 runStep('Biome code quality & syntax check', () => {
   execSync('npx @biomejs/biome lint src/', { cwd: rootDir, stdio: 'pipe' });
   return 'Clean';
 });
 
-// 6. TypeScript Compilation & Vite Build
+// 7. TypeScript Compilation & Vite Build
 runStep('TypeScript compile & Vite production bundle', () => {
   execSync('npm run build', { cwd: rootDir, stdio: 'pipe' });
   return 'dist/ generated';
 });
 
-// 7. Vitest Test Suite
-runStep('Vitest automated test suite', () => {
-  execSync('npm test', { cwd: rootDir, stdio: 'pipe' });
+// 8. Vitest Automated Test Suite (Simulating CI)
+runStep('Vitest automated test suite (CI simulation)', () => {
+  execSync('CI=true npm test', { cwd: rootDir, stdio: 'pipe' });
   return 'All tests passed';
 });
 
@@ -98,6 +115,5 @@ if (failedSteps === 0) {
   process.exit(0);
 } else {
   console.log(`❌ \x1b[31m${failedSteps} CHECK(S) FAILED.\x1b[0m Fix issues before releasing.`);
-  console.log('========================================================\n');
   process.exit(1);
 }

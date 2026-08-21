@@ -31,6 +31,7 @@
     "release:stable": "npm run build && node scripts/build-stable.js --publish always",
     "release:nightly": "npm run build && node scripts/build-nightly.js --publish always",
     "release:prep": "node scripts/prepare-release.js",
+    "release:tag": "node scripts/tag-release.js",
     "verify:preflight": "node scripts/verify-preflight.js",
     "changelog:draft": "node scripts/generate-changelog-draft.js",
     "clean:fresh": "node scripts/clean-fresh.js",

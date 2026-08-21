@@ -1,11 +1,14 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
 echo "==========================================="
-echo "Running Pre-Push TypeScript Checks..."
+echo "Running Pre-Push Pre-Flight Release Checks..."
 echo "==========================================="
 
-npm run build
+npm run verify:preflight
 
 if [ $? -ne 0 ]; then
-  echo "❌ Push blocked! TypeScript compilation failed."
+  echo "❌ Push blocked! Pre-flight checks failed."
   echo "Please fix the errors above before pushing to GitHub."
   exit 1
 fi
