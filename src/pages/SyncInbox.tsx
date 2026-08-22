@@ -24,6 +24,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { ScopeIcon } from '../components/CustomIcons';
 import { Ammo, Firearm, ReloadingComponent, SyncItem } from '../types';
 import { parseBarcodeData } from '../utils/BarcodeEngine';
+import { assignItemToStorage, saveStorageLocations } from '../utils/StorageSync';
 
 export const SyncInbox = () => {
   const [activeTab, setActiveTab] = useState<'inbox' | 'pair'>('inbox');
@@ -578,7 +579,7 @@ export const SyncInbox = () => {
         if (savedPath) savedPhotos.push(savedPath);
       }
 
-      if (existing) {
+      if (existing && existing.id !== undefined) {
         const updated = {
           ...existing,
           ...data,
@@ -636,7 +637,7 @@ export const SyncInbox = () => {
             f.serial_number.trim().toLowerCase() === serial_number.trim().toLowerCase())
       );
 
-      if (firearm) {
+      if (firearm && firearm.id !== undefined) {
         const savedPhotos: string[] = [];
         if (data.photosBase64 && Array.isArray(data.photosBase64)) {
           for (let i = 0; i < data.photosBase64.length; i++) {

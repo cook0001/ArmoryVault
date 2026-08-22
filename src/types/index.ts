@@ -616,6 +616,8 @@ export interface SyncItem {
     | 'accessory_adjustment'
     | 'firearm_log'
     | 'firearm_photo'
+    | 'new_firearm'
+    | 'firearm_update'
     | 'universal_scan'
     | 'range_session'
     | 'firearm_maintenance'
@@ -629,6 +631,7 @@ export interface SyncItem {
   measurement?: 'rds' | 'boxes' | 'lbs' | 'brick';
   timestamp: string;
   firearm_id?: number;
+  firearmId?: number;
   ammo_id?: number;
   rounds_fired?: number;
   date?: string;
@@ -636,6 +639,8 @@ export interface SyncItem {
   cost?: number;
   photo_data?: string;
   photoBase64?: string;
+  photosBase64?: string[];
+  data?: Record<string, any>;
   log_type?: string;
   group_metrics?: any;
   malfunctions?: MalfunctionEntry[];
@@ -652,4 +657,5 @@ export interface SyncItem {
   chrono_data?: ChronoString;
   // Target analysis sync fields
   target_data?: TargetAnalysis;
+  [key: string]: any;
 }
