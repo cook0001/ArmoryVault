@@ -332,6 +332,8 @@ export function setupMockBackend() {
       getPlatform: () => 'browser',
       saveBase64Photo: async (base64Data: string, filename: string) => null,
       getLocalIp: async () => '192.168.1.100',
+      getPairingToken: async () => 'mock-pairing-token-1234567890abcdef',
+      revokePairingToken: async () => true,
       onSyncReceived: (callback: () => void) => () => {},
       onDevicePaired:
         (callback: (data: { deviceName?: string; timestamp?: number }) => void) => () => {},

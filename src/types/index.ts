@@ -426,6 +426,8 @@ declare global {
       restartApp: () => void;
       getPlatform: () => string;
       getLocalIp: () => Promise<string>;
+      getPairingToken?: () => Promise<string | null>;
+      revokePairingToken?: () => Promise<boolean>;
       onSyncReceived: (callback: () => void) => () => void;
       onDevicePaired?: (
         callback: (data: { deviceName?: string; timestamp?: number }) => void

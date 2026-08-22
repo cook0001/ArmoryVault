@@ -157,8 +157,13 @@ export const SyncInbox = () => {
   const generateQr = async () => {
     if (window.api) {
       const ip = await window.api.getLocalIp();
+      let token = '';
+      if (window.api.getPairingToken) {
+        token = (await window.api.getPairingToken()) || '';
+      }
       setLocalIp(ip || '127.0.0.1');
-      const qrData = `armoryvault://sync?ip=${ip}&port=3456`;
+      const tokenParam = token ? `&token=${encodeURIComponent(token)}` : '';
+      const qrData = `armoryvault://sync?ip=${ip}&port=3456${tokenParam}`;
       const QRCode = (await import('qrcode')).default;
       const url = await QRCode.toDataURL(qrData, {
         width: 320,

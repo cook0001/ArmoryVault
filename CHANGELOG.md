@@ -8,6 +8,7 @@
   - Resolved critical P0 handload batch manufacturing bug by ensuring component deduction targets `data.components` (Powder, Primer, Brass, Bullet).
 - **Security Hardening & P2P Companion API**:
   - Implemented cryptographically secure 32-byte pairing token authentication (`crypto.timingSafeEqual`) on local Wi-Fi Companion API endpoints with token revocation capabilities.
+  - Embedded pairing authorization tokens directly into QR codes generated in Sync Inbox for 1-tap instant mobile pairing without 403 authorization rejections.
   - Enforced Express API rate limiting (60 reads/min, 30 writes/min) and input validation with automatic sync queue deduplication (`timestamp + type + upcOrId`).
   - Restricted CORS origin validation strictly to local private network ranges (`127.0.0.1`, `localhost`, `192.168.x.x`, `10.x.x.x`, `172.16-31.x.x`) and standardized on stable Express v4 LTS.
 - **Global Command Palette (Cmd+K / Ctrl+K)**:

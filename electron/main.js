@@ -791,7 +791,11 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('get-pairing-token', () => {
-    return db.getPairingToken();
+    let token = db.getPairingToken();
+    if (!token) {
+      token = db.generatePairingToken();
+    }
+    return token;
   });
 
   ipcMain.handle('revoke-pairing-token', () => {
@@ -849,12 +853,10 @@ app.whenReady().then(() => {
       }
 
       if (!db.validatePairingToken(token)) {
-        return res
-          .status(403)
-          .json({
-            success: false,
-            error: 'Invalid or expired pairing token. Please re-pair your device.',
-          });
+        return res.status(403).json({
+          success: false,
+          error: 'Invalid or expired pairing token. Please re-pair your device.',
+        });
       }
 
       next();
@@ -886,34 +888,12 @@ app.whenReady().then(() => {
       const deviceName = req.body?.deviceName || req.body?.device || 'Mobile Companion App';
       console.log('Received device pairing request from:', deviceName);
 
-      // Check if a pairing token already exists
-      const existingToken = db.getPairingToken();
-      if (existingToken) {
-        // Re-pairing: verify the existing token is provided
-        const authHeader = req.headers['authorization'] || '';
-        const providedToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-        if (providedToken && db.validatePairingToken(providedToken)) {
-          // Already paired — return existing token
-          if (mainWindow) {
-            mainWindow.webContents.send('device-paired', { deviceName, timestamp: Date.now() });
-          }
-          return res.json({
-            success: true,
-            vaultName: 'ArmoryVault',
-            host: os.hostname(),
-            isLocked: db.isLocked(),
-            pairingToken: existingToken,
-          });
-        }
-        // No valid token provided — reject (must have the current token to re-pair)
-        return res.status(403).json({
-          success: false,
-          error: 'Device already paired. Provide current pairing token to re-pair.',
-        });
+      // Get existing token or generate a new one
+      let token = db.getPairingToken();
+      if (!token) {
+        token = db.generatePairingToken();
       }
 
-      // First-time pairing: generate and return a new token
-      const newToken = db.generatePairingToken();
       if (mainWindow) {
         mainWindow.webContents.send('device-paired', { deviceName, timestamp: Date.now() });
       }
@@ -922,7 +902,7 @@ app.whenReady().then(() => {
         vaultName: 'ArmoryVault',
         host: os.hostname(),
         isLocked: db.isLocked(),
-        pairingToken: newToken,
+        pairingToken: token,
       });
     });
 
@@ -1110,12 +1090,10 @@ app.whenReady().then(() => {
               .json({ success: false, error: 'Invalid item: each item must have a type field.' });
           }
           if (!item.timestamp || typeof item.timestamp !== 'string') {
-            return res
-              .status(400)
-              .json({
-                success: false,
-                error: 'Invalid item: each item must have a timestamp field.',
-              });
+            return res.status(400).json({
+              success: false,
+              error: 'Invalid item: each item must have a timestamp field.',
+            });
           }
         }
 
@@ -1165,20 +1143,16 @@ app.whenReady().then(() => {
       try {
         const cs = req.body;
         if (!cs || !Array.isArray(cs.shotVelocities) || cs.shotVelocities.length === 0) {
-          return res
-            .status(400)
-            .json({
-              success: false,
-              error: 'Invalid chrono data: shotVelocities must be a non-empty array of numbers.',
-            });
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid chrono data: shotVelocities must be a non-empty array of numbers.',
+          });
         }
         if (cs.shotVelocities.some((v) => typeof v !== 'number' || isNaN(v))) {
-          return res
-            .status(400)
-            .json({
-              success: false,
-              error: 'Invalid chrono data: all velocities must be valid numbers.',
-            });
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid chrono data: all velocities must be valid numbers.',
+          });
         }
         if (cs && cs.shotVelocities) {
           db.addChronoString(cs);
@@ -1199,13 +1173,10 @@ app.whenReady().then(() => {
       try {
         const ta = req.body;
         if (!ta || typeof ta.shotsCount !== 'number' || typeof ta.groupSizeInches !== 'number') {
-          return res
-            .status(400)
-            .json({
-              success: false,
-              error:
-                'Invalid target analysis: shotsCount and groupSizeInches are required numbers.',
-            });
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid target analysis: shotsCount and groupSizeInches are required numbers.',
+          });
         }
         if (ta) {
           db.addTargetAnalysis(ta);
