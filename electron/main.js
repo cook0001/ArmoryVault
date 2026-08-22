@@ -9,6 +9,14 @@ const log = require('electron-log');
 const isDev = !app.isPackaged;
 const { autoUpdater } = require('electron-updater');
 
+// Prevent EPIPE crashes when stdout/stderr pipe closes (e.g. concurrently dies)
+process.stdout?.on?.('error', (err) => {
+  if (err.code !== 'EPIPE') throw err;
+});
+process.stderr?.on?.('error', (err) => {
+  if (err.code !== 'EPIPE') throw err;
+});
+
 autoUpdater.logger = log;
 autoUpdater.logger.transports.file.level = 'info';
 
@@ -159,6 +167,34 @@ app.whenReady().then(() => {
     if (mainWindow) mainWindow.webContents.send('sync-received');
     return true;
   });
+
+  // ─── Storage Locations ──────────────────────────────────────────────
+  ipcMain.handle('get-storage-locations', () => db.getStorageLocations());
+  ipcMain.handle('add-storage-location', (_, loc) => db.addStorageLocation(loc));
+  ipcMain.handle('update-storage-location', (_, id, loc) => db.updateStorageLocation(id, loc));
+  ipcMain.handle('delete-storage-location', (_, id) => db.deleteStorageLocation(id));
+
+  // ─── Chronograph Strings ────────────────────────────────────────────
+  ipcMain.handle('get-chrono-strings', () => db.getChronoStrings());
+  ipcMain.handle('add-chrono-string', (_, cs) => db.addChronoString(cs));
+  ipcMain.handle('delete-chrono-string', (_, id) => db.deleteChronoString(id));
+
+  // ─── Target Analyses ────────────────────────────────────────────────
+  ipcMain.handle('get-target-analyses', () => db.getTargetAnalyses());
+  ipcMain.handle('add-target-analysis', (_, ta) => db.addTargetAnalysis(ta));
+  ipcMain.handle('delete-target-analysis', (_, id) => db.deleteTargetAnalysis(id));
+
+  // ─── Load Ladder Tests ──────────────────────────────────────────────
+  ipcMain.handle('get-load-ladder-tests', () => db.getLoadLadderTests());
+  ipcMain.handle('add-load-ladder-test', (_, lt) => db.addLoadLadderTest(lt));
+  ipcMain.handle('update-load-ladder-test', (_, id, lt) => db.updateLoadLadderTest(id, lt));
+  ipcMain.handle('delete-load-ladder-test', (_, id) => db.deleteLoadLadderTest(id));
+
+  // ─── Ballistic Profiles ────────────────────────────────────────────
+  ipcMain.handle('get-ballistic-profiles', () => db.getBallisticProfiles());
+  ipcMain.handle('add-ballistic-profile', (_, bp) => db.addBallisticProfile(bp));
+  ipcMain.handle('update-ballistic-profile', (_, id, bp) => db.updateBallisticProfile(id, bp));
+  ipcMain.handle('delete-ballistic-profile', (_, id) => db.deleteBallisticProfile(id));
 
   ipcMain.handle('log-range-session', (_, data) => {
     const res = db.logRangeSession(data);
@@ -964,6 +1000,70 @@ app.whenReady().then(() => {
         res.json({ success: true, processed: items.length });
       } catch (e) {
         console.error('Sync error:', e);
+        res.status(500).json({ success: false, error: e.message });
+      }
+    });
+
+    // ─── Mobile Companion: Chrono String Sync ───────────────────────────
+    expressApp.post('/api/chrono', (req, res) => {
+      console.log('Received chrono string from mobile:', req.body);
+      try {
+        const cs = req.body;
+        if (cs && cs.shotVelocities) {
+          db.addChronoString(cs);
+          if (mainWindow) {
+            mainWindow.webContents.send('sync-received');
+          }
+        }
+        res.json({ success: true });
+      } catch (e) {
+        console.error('Chrono sync error:', e);
+        res.status(500).json({ success: false, error: e.message });
+      }
+    });
+
+    // ─── Mobile Companion: Target Analysis Sync ─────────────────────────
+    expressApp.post('/api/target-analysis', (req, res) => {
+      console.log('Received target analysis from mobile:', req.body);
+      try {
+        const ta = req.body;
+        if (ta) {
+          db.addTargetAnalysis(ta);
+          if (mainWindow) {
+            mainWindow.webContents.send('sync-received');
+          }
+        }
+        res.json({ success: true });
+      } catch (e) {
+        console.error('Target analysis sync error:', e);
+        res.status(500).json({ success: false, error: e.message });
+      }
+    });
+
+    // ─── Mobile Companion: Read Storage Locations ───────────────────────
+    expressApp.get('/api/storage-locations', (req, res) => {
+      try {
+        if (db.isLocked()) {
+          return res.json({ success: false, isLocked: true, locations: [] });
+        }
+        const locations = db.getStorageLocations() || [];
+        res.json({ success: true, locations });
+      } catch (e) {
+        console.error('Storage locations error:', e);
+        res.status(500).json({ success: false, error: e.message });
+      }
+    });
+
+    // ─── Mobile Companion: Read Ballistic Profiles ──────────────────────
+    expressApp.get('/api/ballistic-profiles', (req, res) => {
+      try {
+        if (db.isLocked()) {
+          return res.json({ success: false, isLocked: true, profiles: [] });
+        }
+        const profiles = db.getBallisticProfiles() || [];
+        res.json({ success: true, profiles });
+      } catch (e) {
+        console.error('Ballistic profiles error:', e);
         res.status(500).json({ success: false, error: e.message });
       }
     });

@@ -8,6 +8,7 @@ import {
   Edit,
   Eye,
   Filter,
+  Flame,
   FlaskConical,
   Layers,
   Package,
@@ -30,6 +31,16 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { AmmoCanLabelModal } from '../components/AmmoCanLabelModal';
 import { AutocompleteInput } from '../components/AutocompleteInput';
 import { BatchManufactureModal } from '../components/BatchManufactureModal';
+import {
+  BrassCaseIcon,
+  BulletProjectileIcon,
+  CartridgesIcon,
+  GunpowderIcon,
+  HandgunIcon,
+  PrimerIcon,
+  RifleIcon,
+  ShotgunIcon,
+} from '../components/CustomIcons';
 import { ReloadingComponentModal } from '../components/ReloadingComponentModal';
 import { Ammo, ReloadingComponent } from '../types';
 import { parseBarcodeData } from '../utils/BarcodeEngine';
@@ -38,9 +49,12 @@ import {
   COMPREHENSIVE_BULLET_TYPES,
   escapeRegExp,
   formatCaliber,
+  formatShotgunSpecs,
   generateInternalUPC,
   getAmmoCategory,
+  getBarcodeLabelType,
   getStandardPelletCount,
+  isShotgunAmmo,
 } from '../utils/caliberHelpers';
 import {
   AMMO_MANUFACTURERS,
@@ -254,9 +268,24 @@ export const AmmoDashboard = () => {
         width: 300,
         margin: 1,
       });
+
+      const isShotgun = isShotgunAmmo(ammo);
+      const barcodeType = getBarcodeLabelType(ammo.upc_code);
+      let specs = '';
+      if (isShotgun) {
+        specs = `Specs: ${formatShotgunSpecs(ammo).summary}`;
+      } else {
+        specs = `Bullet: ${ammo.grain ? `${ammo.grain}gr ` : ''}${ammo.projectile || ammo.type}`;
+      }
+
+      let itemDetails = `${specs}\nQuantity: ${ammo.count || 0}`;
+      if (ammo.upc_code) {
+        itemDetails += `\n${barcodeType}: ${ammo.upc_code}`;
+      }
+
       await window.api.printQRLabel({
         itemName: `${ammo.caliber} ${ammo.manufacturer || 'Ammo'}`,
-        itemDetails: `Type: ${ammo.type}\nQuantity: ${ammo.count || 0}`,
+        itemDetails,
         qrDataUrl,
       });
     } catch (err) {
@@ -706,7 +735,10 @@ export const AmmoDashboard = () => {
                   Live Ammunition Cards
                 </div>
                 <label className="metric-toggle-row">
-                  <span>🎯 Total Live Rounds</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <CartridgesIcon size={14} color="var(--accent)" />
+                    <span>Total Live Rounds</span>
+                  </span>
                   <input
                     type="checkbox"
                     checked={metricVisibility.totalRounds}
@@ -714,7 +746,10 @@ export const AmmoDashboard = () => {
                   />
                 </label>
                 <label className="metric-toggle-row">
-                  <span>📦 Caliber Profiles</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <Package size={14} color="#60a5fa" />
+                    <span>Caliber Profiles</span>
+                  </span>
                   <input
                     type="checkbox"
                     checked={metricVisibility.caliberProfiles}
@@ -722,7 +757,10 @@ export const AmmoDashboard = () => {
                   />
                 </label>
                 <label className="metric-toggle-row">
-                  <span>💵 Ammo Inventory Value</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <DollarSign size={14} color="#10b981" />
+                    <span>Ammo Inventory Value</span>
+                  </span>
                   <input
                     type="checkbox"
                     checked={metricVisibility.ammoValue}
@@ -730,7 +768,10 @@ export const AmmoDashboard = () => {
                   />
                 </label>
                 <label className="metric-toggle-row">
-                  <span>⚠️ Ammo Low Stock Health</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <AlertTriangle size={14} color="#f59e0b" />
+                    <span>Ammo Low Stock Health</span>
+                  </span>
                   <input
                     type="checkbox"
                     checked={metricVisibility.lowStockHealth}
@@ -751,7 +792,10 @@ export const AmmoDashboard = () => {
                   Reloading Component Cards
                 </div>
                 <label className="metric-toggle-row">
-                  <span>🧪 Smokeless Powder (lbs)</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <GunpowderIcon size={14} color="#38bdf8" />
+                    <span>Smokeless Powder (lbs)</span>
+                  </span>
                   <input
                     type="checkbox"
                     checked={metricVisibility.powderStock}
@@ -759,7 +803,10 @@ export const AmmoDashboard = () => {
                   />
                 </label>
                 <label className="metric-toggle-row">
-                  <span>⚡ Primers on Hand</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <PrimerIcon size={14} color="#fbbf24" />
+                    <span>Primers on Hand</span>
+                  </span>
                   <input
                     type="checkbox"
                     checked={metricVisibility.primersStock}
@@ -767,7 +814,10 @@ export const AmmoDashboard = () => {
                   />
                 </label>
                 <label className="metric-toggle-row">
-                  <span>🎯 Projectiles / Bullets</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <BulletProjectileIcon size={14} color="#f97316" />
+                    <span>Projectiles / Bullets</span>
+                  </span>
                   <input
                     type="checkbox"
                     checked={metricVisibility.bulletsStock}
@@ -775,7 +825,10 @@ export const AmmoDashboard = () => {
                   />
                 </label>
                 <label className="metric-toggle-row">
-                  <span>🛡️ Brass Casings</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <BrassCaseIcon size={14} color="#eab308" />
+                    <span>Brass Casings</span>
+                  </span>
                   <input
                     type="checkbox"
                     checked={metricVisibility.brassStock}
@@ -1290,7 +1343,8 @@ export const AmmoDashboard = () => {
                 className={`filter-chip ${selectedFilterChip === 'pistol' ? 'active' : ''}`}
                 onClick={() => setSelectedFilterChip('pistol')}
               >
-                <span>🎯 Handguns</span>
+                <HandgunIcon size={14} />
+                <span>Handguns</span>
                 <span className="filter-chip-count">
                   {
                     ammoList.filter(
@@ -1304,7 +1358,8 @@ export const AmmoDashboard = () => {
                 className={`filter-chip ${selectedFilterChip === 'rifle' ? 'active' : ''}`}
                 onClick={() => setSelectedFilterChip('rifle')}
               >
-                <span>🎯 Rifles</span>
+                <RifleIcon size={14} />
+                <span>Rifles</span>
                 <span className="filter-chip-count">
                   {
                     ammoList.filter((a) => getAmmoCategory(a.caliber, customCategories) === 'Rifle')
@@ -1317,7 +1372,8 @@ export const AmmoDashboard = () => {
                 className={`filter-chip ${selectedFilterChip === 'shotgun' ? 'active' : ''}`}
                 onClick={() => setSelectedFilterChip('shotgun')}
               >
-                <span>🎯 Shotguns</span>
+                <ShotgunIcon size={14} />
+                <span>Shotguns</span>
                 <span className="filter-chip-count">
                   {
                     ammoList.filter(
@@ -1331,7 +1387,8 @@ export const AmmoDashboard = () => {
                 className={`filter-chip ${selectedFilterChip === 'handload' ? 'active' : ''}`}
                 onClick={() => setSelectedFilterChip('handload')}
               >
-                <span>🔥 Handloads</span>
+                <Flame size={14} color="#f97316" />
+                <span>Handloads</span>
                 <span className="filter-chip-count">
                   {ammoList.filter((a) => a.type === 'handload').length}
                 </span>
@@ -1345,7 +1402,8 @@ export const AmmoDashboard = () => {
                 className={`filter-chip ${selectedFilterChip === 'powder' ? 'active' : ''}`}
                 onClick={() => setSelectedFilterChip('powder')}
               >
-                <span>🧪 Powder</span>
+                <GunpowderIcon size={14} color="#38bdf8" />
+                <span>Powder</span>
                 <span className="filter-chip-count">
                   {components.filter((c) => c.type === 'Powder').length}
                 </span>
@@ -1355,7 +1413,8 @@ export const AmmoDashboard = () => {
                 className={`filter-chip ${selectedFilterChip === 'primer' ? 'active' : ''}`}
                 onClick={() => setSelectedFilterChip('primer')}
               >
-                <span>⚡ Primers</span>
+                <PrimerIcon size={14} color="#fbbf24" />
+                <span>Primers</span>
                 <span className="filter-chip-count">
                   {components.filter((c) => c.type === 'Primer').length}
                 </span>
@@ -1365,7 +1424,8 @@ export const AmmoDashboard = () => {
                 className={`filter-chip ${selectedFilterChip === 'bullet' ? 'active' : ''}`}
                 onClick={() => setSelectedFilterChip('bullet')}
               >
-                <span>🎯 Bullets</span>
+                <BulletProjectileIcon size={14} color="#f97316" />
+                <span>Bullets</span>
                 <span className="filter-chip-count">
                   {components.filter((c) => c.type === 'Bullet').length}
                 </span>
@@ -1375,7 +1435,8 @@ export const AmmoDashboard = () => {
                 className={`filter-chip ${selectedFilterChip === 'brass' ? 'active' : ''}`}
                 onClick={() => setSelectedFilterChip('brass')}
               >
-                <span>🛡️ Brass</span>
+                <BrassCaseIcon size={14} color="#eab308" />
+                <span>Brass</span>
                 <span className="filter-chip-count">
                   {components.filter((c) => c.type === 'Brass').length}
                 </span>
@@ -1395,7 +1456,8 @@ export const AmmoDashboard = () => {
                 lowAmmoAlerts.length > 0 || lowComponentAlerts.length > 0 ? '#f87171' : undefined,
             }}
           >
-            <span>⚠️ Low Stock</span>
+            <AlertTriangle size={14} style={{ color: '#f87171' }} />
+            <span>Low Stock</span>
             <span
               className="filter-chip-count"
               style={{
@@ -1930,14 +1992,37 @@ export const AmmoDashboard = () => {
                     marginBottom: '1.25rem',
                   }}
                 >
-                  <h3 style={{ fontSize: '1.1rem', margin: 0, color: 'var(--text-primary)' }}>
-                    {type === 'Powder'
-                      ? '🧪 Smokeless Powder'
-                      : type === 'Primer'
-                        ? '⚡ Primers'
-                        : type === 'Bullet'
-                          ? '🎯 Projectiles & Bullets'
-                          : '🛡️ Brass & Casings'}
+                  <h3
+                    style={{
+                      fontSize: '1.1rem',
+                      margin: 0,
+                      color: 'var(--text-primary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                    }}
+                  >
+                    {type === 'Powder' ? (
+                      <>
+                        <GunpowderIcon size={18} color="#38bdf8" />
+                        <span>Smokeless Powder</span>
+                      </>
+                    ) : type === 'Primer' ? (
+                      <>
+                        <PrimerIcon size={18} color="#fbbf24" />
+                        <span>Primers</span>
+                      </>
+                    ) : type === 'Bullet' ? (
+                      <>
+                        <BulletProjectileIcon size={18} color="#f97316" />
+                        <span>Projectiles &amp; Bullets</span>
+                      </>
+                    ) : (
+                      <>
+                        <BrassCaseIcon size={18} color="#eab308" />
+                        <span>Brass &amp; Casings</span>
+                      </>
+                    )}
                   </h3>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                     {typeComps.length} Varieties
@@ -2256,7 +2341,40 @@ export const AmmoDashboard = () => {
                   </h3>
 
                   <div className="form-group">
-                    <label>UPC Barcode (Optional)</label>
+                    <label
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <span>UPC / SKU Barcode (Optional)</span>
+                      {formData.upc_code?.trim() && (
+                        <span
+                          style={{
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            background:
+                              getBarcodeLabelType(formData.upc_code) === 'UPC'
+                                ? 'rgba(56, 189, 248, 0.15)'
+                                : 'rgba(245, 158, 11, 0.15)',
+                            color:
+                              getBarcodeLabelType(formData.upc_code) === 'UPC'
+                                ? '#38bdf8'
+                                : '#fbbf24',
+                            border: `1px solid ${
+                              getBarcodeLabelType(formData.upc_code) === 'UPC'
+                                ? 'rgba(56, 189, 248, 0.3)'
+                                : 'rgba(245, 158, 11, 0.3)'
+                            }`,
+                          }}
+                        >
+                          Detected {getBarcodeLabelType(formData.upc_code)}
+                        </span>
+                      )}
+                    </label>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                       <input
                         type="text"
@@ -2271,7 +2389,7 @@ export const AmmoDashboard = () => {
                           }
                         }}
                         onBlur={(e) => lookupUPC(e.target.value)}
-                        placeholder="Scan or type UPC barcode..."
+                        placeholder="Scan or type UPC barcode or SKU..."
                       />
                       <button
                         type="button"
@@ -3002,13 +3120,26 @@ export const AmmoDashboard = () => {
                   </div>
                   <div>
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                      Bullet Weight &amp; Type
+                      {isShotgunAmmo(inspectingAmmo)
+                        ? 'Shotgun Shell Specs'
+                        : 'Bullet Weight & Type'}
                     </span>
                     <div style={{ fontWeight: 600 }}>
-                      {inspectingAmmo.grain ? `${inspectingAmmo.grain}gr ` : ''}
-                      {inspectingAmmo.projectile || inspectingAmmo.shot_size || 'N/A'}
+                      {isShotgunAmmo(inspectingAmmo)
+                        ? formatShotgunSpecs(inspectingAmmo).summary
+                        : `${inspectingAmmo.grain ? `${inspectingAmmo.grain}gr ` : ''}${inspectingAmmo.projectile || 'N/A'}`}
                     </div>
                   </div>
+                  {inspectingAmmo.upc_code && (
+                    <div>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        {getBarcodeLabelType(inspectingAmmo.upc_code)} Identifier
+                      </span>
+                      <div style={{ fontWeight: 600, fontFamily: 'monospace' }}>
+                        {inspectingAmmo.upc_code}
+                      </div>
+                    </div>
+                  )}
                   {inspectingAmmo.type === 'handload' && (
                     <>
                       <div>
@@ -3032,18 +3163,20 @@ export const AmmoDashboard = () => {
                       </div>
                       <div>
                         <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                          Brass Casing
+                          {isShotgunAmmo(inspectingAmmo) ? 'Hull' : 'Brass Casing'}
                         </span>
                         <div style={{ fontWeight: 600 }}>{inspectingAmmo.brass || 'N/A'}</div>
                       </div>
-                      <div>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                          Overall Length (OAL)
-                        </span>
-                        <div style={{ fontWeight: 600 }}>
-                          {inspectingAmmo.oal ? `${inspectingAmmo.oal}"` : 'N/A'}
+                      {!isShotgunAmmo(inspectingAmmo) && (
+                        <div>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                            Overall Length (OAL)
+                          </span>
+                          <div style={{ fontWeight: 600 }}>
+                            {inspectingAmmo.oal ? `${inspectingAmmo.oal}"` : 'N/A'}
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </>
                   )}
                 </div>

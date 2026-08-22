@@ -339,6 +339,34 @@ export function setupMockBackend() {
       getSyncQueue: async () => [],
       removeSyncItem: async (id: number) => 1,
       clearSyncQueue: async () => true,
+
+      // ── Storage Locations ──
+      getStorageLocations: async () => [],
+      addStorageLocation: async (loc: any) => 1,
+      updateStorageLocation: async (id: number, loc: any) => 1,
+      deleteStorageLocation: async (id: number) => 1,
+
+      // ── Chrono Strings ──
+      getChronoStrings: async () => [],
+      addChronoString: async (cs: any) => 1,
+      deleteChronoString: async (id: number) => 1,
+
+      // ── Target Analyses ──
+      getTargetAnalyses: async () => [],
+      addTargetAnalysis: async (ta: any) => 1,
+      deleteTargetAnalysis: async (id: number) => 1,
+
+      // ── Load Ladder Tests ──
+      getLoadLadderTests: async () => [],
+      addLoadLadderTest: async (test: any) => 1,
+      updateLoadLadderTest: async (id: number, test: any) => 1,
+      deleteLoadLadderTest: async (id: number) => 1,
+
+      // ── Ballistic Profiles ──
+      getBallisticProfiles: async () => [],
+      addBallisticProfile: async (profile: any) => 1,
+      updateBallisticProfile: async (id: number, profile: any) => 1,
+      deleteBallisticProfile: async (id: number) => 1,
     };
   }
 }

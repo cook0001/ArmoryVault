@@ -3,6 +3,7 @@ import QRCode from 'qrcode';
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Ammo } from '../types';
+import { getBarcodeLabelType, isShotgunAmmo } from '../utils/caliberHelpers';
 
 interface AmmoCanLabelModalProps {
   isOpen: boolean;
@@ -40,10 +41,8 @@ export const AmmoCanLabelModal: React.FC<AmmoCanLabelModalProps> = ({ isOpen, on
   };
 
   const isHandload = ammo.type === 'handload';
-  const isShotgun =
-    (ammo.caliber || '').toLowerCase().includes('ga') ||
-    (ammo.caliber || '').toLowerCase().includes('gauge') ||
-    (ammo.caliber || '').includes('.410');
+  const isShotgun = isShotgunAmmo(ammo);
+  const barcodeLabelType = getBarcodeLabelType(ammo.upc_code);
 
   return createPortal(
     <div className="modal-overlay" onClick={onClose}>
@@ -237,17 +236,67 @@ export const AmmoCanLabelModal: React.FC<AmmoCanLabelModalProps> = ({ isOpen, on
                   fontSize: labelFormat === 'compact' ? '0.75rem' : '0.85rem',
                 }}
               >
-                {/* Projectile Info */}
-                <div>
-                  <span style={{ fontWeight: 700 }}>BULLET: </span>
-                  <span>
-                    {ammo.grain ? `${ammo.grain}gr ` : ''}
-                    {ammo.projectile || 'Standard'}{' '}
-                    {ammo.bullet_manufacturer ? `(${ammo.bullet_manufacturer})` : ''}
-                  </span>
-                </div>
+                {/* 1. Projectile Info (Cartridge) vs Dedicated Shotgun Specs */}
+                {isShotgun ? (
+                  <>
+                    {ammo.shell_length && (
+                      <div>
+                        <span style={{ fontWeight: 700 }}>SHELL LENGTH: </span>
+                        <span>{ammo.shell_length}</span>
+                      </div>
+                    )}
+                    {ammo.shot_size && (
+                      <div>
+                        <span style={{ fontWeight: 700 }}>SHOT SIZE: </span>
+                        <span>{ammo.shot_size}</span>
+                      </div>
+                    )}
+                    {(ammo.pellet_count || ammo.oz_payload) && (
+                      <div>
+                        <span style={{ fontWeight: 700 }}>
+                          {ammo.pellet_count ? 'PELLET COUNT: ' : 'PAYLOAD: '}
+                        </span>
+                        <span>
+                          {ammo.pellet_count ? `${ammo.pellet_count} Pellets` : ''}
+                          {ammo.pellet_count && ammo.oz_payload
+                            ? ` (${ammo.oz_payload}${ammo.oz_payload.toLowerCase().includes('oz') ? '' : ' oz'})`
+                            : !ammo.pellet_count && ammo.oz_payload
+                              ? `${ammo.oz_payload}${ammo.oz_payload.toLowerCase().includes('oz') ? '' : ' oz'}`
+                              : ''}
+                        </span>
+                      </div>
+                    )}
+                    {!ammo.shell_length &&
+                      !ammo.shot_size &&
+                      !ammo.pellet_count &&
+                      !ammo.oz_payload &&
+                      ammo.projectile && (
+                        <div>
+                          <span style={{ fontWeight: 700 }}>LOAD: </span>
+                          <span>{ammo.projectile}</span>
+                        </div>
+                      )}
+                  </>
+                ) : (
+                  <div>
+                    <span style={{ fontWeight: 700 }}>BULLET: </span>
+                    <span>
+                      {ammo.grain ? `${ammo.grain}gr ` : ''}
+                      {ammo.projectile || 'Standard'}{' '}
+                      {ammo.bullet_manufacturer ? `(${ammo.bullet_manufacturer})` : ''}
+                    </span>
+                  </div>
+                )}
 
-                {/* Handload Recipe Details */}
+                {/* 2. Barcode Identifier (UPC vs SKU Checker) */}
+                {ammo.upc_code && (
+                  <div>
+                    <span style={{ fontWeight: 700 }}>{barcodeLabelType}: </span>
+                    <span style={{ fontFamily: 'monospace' }}>{ammo.upc_code}</span>
+                  </div>
+                )}
+
+                {/* 3. Handload Recipe Details */}
                 {isHandload && (
                   <>
                     {ammo.powder && (
@@ -266,46 +315,14 @@ export const AmmoCanLabelModal: React.FC<AmmoCanLabelModalProps> = ({ isOpen, on
                     )}
                     {ammo.brass && (
                       <div>
-                        <span style={{ fontWeight: 700 }}>BRASS: </span>
+                        <span style={{ fontWeight: 700 }}>{isShotgun ? 'HULL: ' : 'BRASS: '}</span>
                         <span>{ammo.brass}</span>
                       </div>
                     )}
-                    {ammo.oal && (
+                    {!isShotgun && ammo.oal && (
                       <div>
                         <span style={{ fontWeight: 700 }}>OAL: </span>
                         <span>{ammo.oal}"</span>
-                      </div>
-                    )}
-                    {isShotgun && (
-                      <div>
-                        <span style={{ fontWeight: 700 }}>LOAD: </span>
-                        <span>
-                          {ammo.shell_length ? `${ammo.shell_length} ` : ''}
-                          {ammo.shot_size || ''}
-                          {ammo.oz_payload ? ` (${ammo.oz_payload})` : ''}
-                        </span>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {/* Factory Details */}
-                {!isHandload && (
-                  <>
-                    {ammo.upc_code && (
-                      <div>
-                        <span style={{ fontWeight: 700 }}>UPC: </span>
-                        <span style={{ fontFamily: 'monospace' }}>{ammo.upc_code}</span>
-                      </div>
-                    )}
-                    {isShotgun && (
-                      <div>
-                        <span style={{ fontWeight: 700 }}>SHELL: </span>
-                        <span>
-                          {ammo.shell_length ? `${ammo.shell_length} ` : ''}
-                          {ammo.shot_size || ''}
-                          {ammo.oz_payload ? ` (${ammo.oz_payload})` : ''}
-                        </span>
                       </div>
                     )}
                   </>

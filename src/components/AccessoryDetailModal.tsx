@@ -7,10 +7,12 @@ import {
   DollarSign,
   Edit,
   ExternalLink,
+  Flashlight,
   Info,
   Layers,
   Link as LinkIcon,
   Maximize2,
+  Package,
   Shield,
   Sparkles,
   Tag,
@@ -23,6 +25,14 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Accessory, Firearm } from '../types';
+import {
+  HolsterIcon,
+  MagazineIcon,
+  PicatinnyMountIcon,
+  ScopeIcon,
+  SuppressorIcon,
+  TacticalSlingIcon,
+} from './CustomIcons';
 import { Lightbox } from './Lightbox';
 
 interface AccessoryDetailModalProps {
@@ -170,8 +180,28 @@ export const AccessoryDetailModal: React.FC<AccessoryDetailModalProps> = ({
                   fontWeight: 700,
                   textTransform: 'uppercase',
                   letterSpacing: '0.5px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
                 }}
               >
+                {accessory.type === 'Optic' ? (
+                  <ScopeIcon size={14} color={typeStyle.text} />
+                ) : accessory.type === 'Suppressor' ? (
+                  <SuppressorIcon size={14} color={typeStyle.text} />
+                ) : accessory.type === 'Light' ? (
+                  <Flashlight size={14} />
+                ) : accessory.type === 'Holster' ? (
+                  <HolsterIcon size={14} color={typeStyle.text} />
+                ) : accessory.type === 'Mount' ? (
+                  <PicatinnyMountIcon size={14} color={typeStyle.text} />
+                ) : accessory.type === 'Sling' ? (
+                  <TacticalSlingIcon size={14} color={typeStyle.text} />
+                ) : accessory.type === 'Magazine' ? (
+                  <MagazineIcon size={14} color={typeStyle.text} />
+                ) : (
+                  <Package size={14} />
+                )}
                 {accessory.type}
               </span>
 
@@ -207,10 +237,16 @@ export const AccessoryDetailModal: React.FC<AccessoryDetailModalProps> = ({
                     borderRadius: '6px',
                     fontSize: '0.75rem',
                     fontWeight: 700,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
                   }}
                 >
-                  🛡️ NFA{' '}
-                  {accessory.stamp_status ? accessory.stamp_status.toUpperCase() : 'REGISTERED'}
+                  <Shield size={12} />
+                  <span>
+                    NFA{' '}
+                    {accessory.stamp_status ? accessory.stamp_status.toUpperCase() : 'REGISTERED'}
+                  </span>
                 </span>
               )}
 

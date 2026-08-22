@@ -12,12 +12,15 @@ import {
   Edit,
   Eye,
   FileText,
+  Flashlight,
   PlusCircle,
   Printer,
+  Shield,
   ShieldCheck,
   Sliders,
   Sparkles,
   Star,
+  Target,
   Trash2,
   Upload,
   Wrench,
@@ -28,6 +31,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { AccessoryDetailModal, getAccessoryTypeColor } from '../components/AccessoryDetailModal';
 import { AccessoryModal } from '../components/AccessoryModal';
 import { AutocompleteInput } from '../components/AutocompleteInput';
+import { ScopeIcon } from '../components/CustomIcons';
 import { Lightbox } from '../components/Lightbox';
 import {
   Accessory,
@@ -1093,9 +1097,13 @@ export const FirearmDetails = () => {
                                 borderRadius: '4px',
                                 fontSize: '0.65rem',
                                 fontWeight: 600,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
                               }}
                             >
-                              🎯 {acc.round_count.toLocaleString()} rds
+                              <Target size={10} color="#38bdf8" />
+                              <span>{acc.round_count.toLocaleString()} rds</span>
                             </span>
                           )}
                           {acc.is_nfa && (
@@ -1179,9 +1187,13 @@ export const FirearmDetails = () => {
                             padding: '0.1rem 0.45rem',
                             borderRadius: '4px',
                             fontSize: '0.7rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px',
                           }}
                         >
-                          🔭 {acc.magnification}
+                          <ScopeIcon size={11} color="#38bdf8" />
+                          <span>{acc.magnification}</span>
                         </span>
                       )}
                       {acc.lumens && (
@@ -1193,9 +1205,13 @@ export const FirearmDetails = () => {
                             padding: '0.1rem 0.45rem',
                             borderRadius: '4px',
                             fontSize: '0.7rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px',
                           }}
                         >
-                          ⚡ {acc.lumens.toLocaleString()} lm
+                          <Flashlight size={11} color="#fbbf24" />
+                          <span>{acc.lumens.toLocaleString()} lm</span>
                         </span>
                       )}
                       {acc.ratedCalibers && (
@@ -1207,9 +1223,13 @@ export const FirearmDetails = () => {
                             padding: '0.1rem 0.45rem',
                             borderRadius: '4px',
                             fontSize: '0.7rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px',
                           }}
                         >
-                          🛡️ {acc.ratedCalibers}
+                          <Shield size={11} color="#f59e0b" />
+                          <span>{acc.ratedCalibers}</span>
                         </span>
                       )}
                       {acc.capacity && (

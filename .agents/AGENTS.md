@@ -28,3 +28,6 @@
 ## 6. Upgrade Suggestions & Implementation Plans
 - **Mandatory Implementation Plans for Upgrades**: Anytime the AI agent recommends or suggests upgrades, optimizations, performance improvements, UI enhancements, or architectural modifications, it MUST automatically generate an `implementation_plan.md` artifact detailing the proposed scope, technical breakdown, and verification strategy so the user can review, annotate, and approve the plan before any execution begins.
 
+## 7. Icon System & Emoji Ban (Strict)
+- **Zero Emoji Placeholders**: NEVER use raw emojis (e.g., 🎯, 🛡️, 🤝, 🎖️, ⏳, 🔇, 🔭, 📐, 📍, ℹ️, ✔, ⚠️, 📦, 🏷️, 🔑, etc.) as icon placeholders in UI navigation, filter chips, headers, badges, stat cards, tables, or buttons across both Desktop and Mobile applications.
+- **Custom & Vector Icons Only**: Always use dedicated custom SVG icon components (e.g., from `src/components/CustomIcons.tsx` or `app/components/CustomIcons.tsx`) or standard vector icon libraries (`lucide-react` on Desktop, `@expo/vector-icons` / Ionicons on Mobile). Maintain consistent theme colors, stroke weights, and sizing across all views.

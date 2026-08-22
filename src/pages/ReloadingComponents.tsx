@@ -1,6 +1,22 @@
-import { AlertCircle, Edit, Package, PlusCircle, Scale, Search, Trash2 } from 'lucide-react';
+import {
+  AlertCircle,
+  AlertTriangle,
+  Edit,
+  Package,
+  PlusCircle,
+  Scale,
+  Search,
+  Trash2,
+  Zap,
+} from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import {
+  BrassCaseIcon,
+  BulletProjectileIcon,
+  GunpowderIcon,
+  PrimerIcon,
+} from '../components/CustomIcons';
 import { ReloadingComponentModal } from '../components/ReloadingComponentModal';
 import { ReloadingComponent } from '../types';
 import { calcCostPerGrain, formatPowderMultiUnit, toGrains } from '../utils/powderUnits';
@@ -153,11 +169,17 @@ export const ReloadingComponents = () => {
                 padding: '0.25rem 0.5rem',
                 borderRadius: '4px',
                 border: '1px solid rgba(255,255,255,0.05)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
               }}
             >
-              ⚡ Yield: ~{Math.floor(breakdown.grains / 41.5).toLocaleString()} rds (.308 @ 41.5gr)
-              • ~{Math.floor(breakdown.grains / 24.5).toLocaleString()} rds (5.56 @ 24.5gr) • ~
-              {Math.floor(breakdown.grains / 4.5).toLocaleString()} rds (9mm @ 4.5gr)
+              <Zap size={11} color="#f59e0b" />
+              <span>
+                Yield: ~{Math.floor(breakdown.grains / 41.5).toLocaleString()} rds (.308 @ 41.5gr) •
+                ~{Math.floor(breakdown.grains / 24.5).toLocaleString()} rds (5.56 @ 24.5gr) • ~
+                {Math.floor(breakdown.grains / 4.5).toLocaleString()} rds (9mm @ 4.5gr)
+              </span>
             </div>
           )}
         </>
@@ -165,25 +187,14 @@ export const ReloadingComponents = () => {
     }
     if (c.type === 'Brass') {
       return (
-        <>
-          <div
-            style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.3rem' }}
-          >
-            {c.caliber} • {c.primerType} {c.isMagnumPrimer ? '(Magnum)' : ''}
-          </div>
-          <div
-            style={{
-              background: 'rgba(0,0,0,0.2)',
-              display: 'inline-block',
-              padding: '0.2rem 0.6rem',
-              borderRadius: '4px',
-              fontSize: '0.8rem',
-              color: 'var(--text-primary)',
-            }}
-          >
-            Stage: {c.prepStage}
-          </div>
-        </>
+        <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+          {c.caliber} • {c.primerType} {c.isMagnumPrimer ? '(Magnum)' : ''}
+          {c.prepStage && (
+            <div style={{ marginTop: '0.3rem' }}>
+              <span className="badge">{c.prepStage}</span>
+            </div>
+          )}
+        </div>
       );
     }
     if (c.type === 'Bullet') {
@@ -223,23 +234,14 @@ export const ReloadingComponents = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: '2rem',
-          flexWrap: 'wrap',
           gap: '1rem',
+          marginBottom: '1.5rem',
+          flexWrap: 'wrap',
         }}
       >
-        <div
-          style={{
-            display: 'flex',
-            gap: '1rem',
-            alignItems: 'center',
-            flex: 1,
-            maxWidth: '600px',
-            flexWrap: 'wrap',
-          }}
-        >
-          <div className="search-bar" style={{ flex: 1, minWidth: '240px' }}>
-            <Search size={20} color="var(--text-secondary)" />
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flex: 1 }}>
+          <div className="search-bar" style={{ maxWidth: '350px', width: '100%' }}>
+            <Search size={18} />
             <input
               type="text"
               placeholder="Search components..."
@@ -260,7 +262,7 @@ export const ReloadingComponents = () => {
                 whiteSpace: 'nowrap',
               }}
             >
-              ⚠️ Low Stock ({lowStockCount})
+              <AlertTriangle size={14} /> Low Stock ({lowStockCount})
             </button>
           )}
         </div>
@@ -370,7 +372,15 @@ export const ReloadingComponents = () => {
                     gap: '0.5rem',
                   }}
                 >
-                  <Package size={20} color="var(--accent)" />
+                  {typeGroup === 'Powder' ? (
+                    <GunpowderIcon size={20} color="#f59e0b" />
+                  ) : typeGroup === 'Brass' ? (
+                    <BrassCaseIcon size={20} color="#eab308" />
+                  ) : typeGroup === 'Bullet' ? (
+                    <BulletProjectileIcon size={20} color="#f97316" />
+                  ) : (
+                    <PrimerIcon size={20} color="#fbbf24" />
+                  )}
                   {typeGroup === 'Brass'
                     ? 'Brass & Hulls'
                     : typeGroup === 'Bullet'

@@ -3,23 +3,42 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
+  Award,
   Camera,
   CheckCircle2,
   ChevronRight,
+  Crosshair,
   DollarSign,
   Flame,
+  Flashlight,
   LayoutGrid,
   List,
   Package,
   PieChart,
   Search,
+  Shield,
   SlidersHorizontal,
   Target,
+  Wrench,
   X,
 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getAccessoryTypeColor } from '../components/AccessoryDetailModal';
 import { AutocompleteInput } from '../components/AutocompleteInput';
+import {
+  CartridgesIcon,
+  HandgunIcon,
+  HolsterIcon,
+  MagazineIcon,
+  NfaTrackerNavIcon,
+  PicatinnyMountIcon,
+  RifleIcon,
+  ScopeIcon,
+  ShotgunIcon,
+  SuppressorIcon,
+  TacticalSlingIcon,
+} from '../components/CustomIcons';
 import { Accessory, Ammo, Firearm, ReloadingComponent } from '../types';
 
 type SortKey = 'make' | 'model' | 'caliber' | 'serial_number' | 'rounds' | 'status';
@@ -358,7 +377,10 @@ export const Dashboard = () => {
                 Metric Cards Display
               </div>
               <label className="metric-toggle-row">
-                <span>🛡️ Total Firearms</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <Shield size={14} style={{ color: 'var(--accent)' }} />
+                  <span>Total Firearms</span>
+                </span>
                 <input
                   type="checkbox"
                   checked={statVisibility.firearms}
@@ -366,7 +388,10 @@ export const Dashboard = () => {
                 />
               </label>
               <label className="metric-toggle-row">
-                <span>🎯 Ammunition Stock</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <CartridgesIcon size={14} color="#f59e0b" />
+                  <span>Ammunition Stock</span>
+                </span>
                 <input
                   type="checkbox"
                   checked={statVisibility.ammo}
@@ -374,7 +399,10 @@ export const Dashboard = () => {
                 />
               </label>
               <label className="metric-toggle-row">
-                <span>🔥 Lifetime Rounds</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <Flame size={14} color="#f97316" />
+                  <span>Lifetime Rounds</span>
+                </span>
                 <input
                   type="checkbox"
                   checked={statVisibility.rounds}
@@ -382,7 +410,10 @@ export const Dashboard = () => {
                 />
               </label>
               <label className="metric-toggle-row">
-                <span>💵 Vault Valuation</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <DollarSign size={14} color="#10b981" />
+                  <span>Vault Valuation</span>
+                </span>
                 <input
                   type="checkbox"
                   checked={statVisibility.valuation}
@@ -390,7 +421,10 @@ export const Dashboard = () => {
                 />
               </label>
               <label className="metric-toggle-row">
-                <span>⚠️ Service Status</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <AlertTriangle size={14} color="#f59e0b" />
+                  <span>Service Status</span>
+                </span>
                 <input
                   type="checkbox"
                   checked={statVisibility.service}
@@ -455,7 +489,7 @@ export const Dashboard = () => {
                   color: '#34d399',
                 }}
               >
-                <Package size={22} />
+                <CartridgesIcon size={22} color="#34d399" />
               </div>
               <div>
                 <div className="stat-label">Ammunition Stock</div>
@@ -858,7 +892,8 @@ export const Dashboard = () => {
             className={`filter-chip ${categoryChip === 'handgun' ? 'active' : ''}`}
             onClick={() => setCategoryChip('handgun')}
           >
-            <span>🎯 Handguns</span>
+            <HandgunIcon size={14} />
+            <span>Handguns</span>
             <span className="filter-chip-count">{categoryCounts.handgun}</span>
           </button>
 
@@ -866,7 +901,8 @@ export const Dashboard = () => {
             className={`filter-chip ${categoryChip === 'rifle' ? 'active' : ''}`}
             onClick={() => setCategoryChip('rifle')}
           >
-            <span>🎯 Rifles</span>
+            <RifleIcon size={14} />
+            <span>Rifles</span>
             <span className="filter-chip-count">{categoryCounts.rifle}</span>
           </button>
 
@@ -874,7 +910,8 @@ export const Dashboard = () => {
             className={`filter-chip ${categoryChip === 'shotgun' ? 'active' : ''}`}
             onClick={() => setCategoryChip('shotgun')}
           >
-            <span>🎯 Shotguns</span>
+            <ShotgunIcon size={14} />
+            <span>Shotguns</span>
             <span className="filter-chip-count">{categoryCounts.shotgun}</span>
           </button>
 
@@ -882,7 +919,8 @@ export const Dashboard = () => {
             className={`filter-chip ${categoryChip === 'vintage' ? 'active' : ''}`}
             onClick={() => setCategoryChip('vintage')}
           >
-            <span>🎖️ C&R</span>
+            <Award size={14} style={{ color: '#c084fc' }} />
+            <span>C&amp;R</span>
             <span className="filter-chip-count">{categoryCounts.vintage}</span>
           </button>
 
@@ -891,7 +929,8 @@ export const Dashboard = () => {
               className={`filter-chip ${categoryChip === 'nfa' ? 'active' : ''}`}
               onClick={() => setCategoryChip('nfa')}
             >
-              <span>📜 NFA</span>
+              <NfaTrackerNavIcon size={14} color="#a78bfa" />
+              <span>NFA</span>
               <span className="filter-chip-count">{categoryCounts.nfa}</span>
             </button>
           )}
@@ -904,7 +943,8 @@ export const Dashboard = () => {
               color: categoryCounts.service_due > 0 ? '#f87171' : undefined,
             }}
           >
-            <span>⚠️ Service Due</span>
+            <AlertTriangle size={14} style={{ color: '#f87171' }} />
+            <span>Service Due</span>
             <span
               className="filter-chip-count"
               style={{
@@ -1074,11 +1114,35 @@ export const Dashboard = () => {
                   {/* Mounted Accessories Tag Cloud */}
                   {mountedAccs.length > 0 && (
                     <div className="tactical-accessories-cloud">
-                      {mountedAccs.slice(0, 3).map((a) => (
-                        <span key={a.id} className="accessory-pill-tag">
-                          ⚡ {a.model || a.manufacturer || 'Optic/Accessory'}
-                        </span>
-                      ))}
+                      {mountedAccs.slice(0, 3).map((a) => {
+                        const tc = getAccessoryTypeColor(a.type);
+                        return (
+                          <span
+                            key={a.id}
+                            className="accessory-pill-tag"
+                            style={{ color: tc.text, background: tc.bg, borderColor: tc.border }}
+                          >
+                            {a.type === 'Optic' ? (
+                              <ScopeIcon size={11} color={tc.text} />
+                            ) : a.type === 'Suppressor' ? (
+                              <SuppressorIcon size={11} color={tc.text} />
+                            ) : a.type === 'Light' ? (
+                              <Flashlight size={11} />
+                            ) : a.type === 'Holster' ? (
+                              <HolsterIcon size={11} color={tc.text} />
+                            ) : a.type === 'Mount' ? (
+                              <PicatinnyMountIcon size={11} color={tc.text} />
+                            ) : a.type === 'Sling' ? (
+                              <TacticalSlingIcon size={11} color={tc.text} />
+                            ) : a.type === 'Magazine' ? (
+                              <MagazineIcon size={11} color={tc.text} />
+                            ) : (
+                              <Package size={11} />
+                            )}{' '}
+                            {a.model || a.manufacturer || a.type}
+                          </span>
+                        );
+                      })}
                       {mountedAccs.length > 3 && (
                         <span className="accessory-pill-tag">+{mountedAccs.length - 3} more</span>
                       )}
@@ -1096,9 +1160,19 @@ export const Dashboard = () => {
                           style={{
                             fontWeight: 700,
                             color: isDue ? '#ef4444' : wearPct > 70 ? '#fbbf24' : '#10b981',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 3,
                           }}
                         >
-                          {isDue ? '⚠️ Service Due' : `${wearPct}%`}
+                          {isDue ? (
+                            <>
+                              <AlertTriangle size={12} color="#ef4444" />
+                              <span>Service Due</span>
+                            </>
+                          ) : (
+                            `${wearPct}%`
+                          )}
                         </span>
                       </div>
                       <div className="wear-bar-track">
@@ -1313,9 +1387,13 @@ export const Dashboard = () => {
                               color: '#f87171',
                               border: '1px solid rgba(239, 68, 68, 0.4)',
                               fontWeight: 600,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 3,
                             }}
                           >
-                            ⚠️ Service Due
+                            <AlertTriangle size={11} color="#f87171" />
+                            <span>Service Due</span>
                           </span>
                         )}
                         {!f.is_sold && !isDue && dirtyRounds >= 250 && (

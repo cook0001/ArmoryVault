@@ -2,12 +2,14 @@ import {
   AlertTriangle,
   CheckCircle,
   CheckCircle2,
+  Info,
   PlusCircle,
   Radio,
   RefreshCw,
   Server,
   Smartphone,
   Sparkles,
+  Target,
   Trash2,
   Wifi,
   X,
@@ -15,6 +17,7 @@ import {
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { ScopeIcon } from '../components/CustomIcons';
 import { Ammo, Firearm, ReloadingComponent, SyncItem } from '../types';
 import { parseBarcodeData } from '../utils/BarcodeEngine';
 
@@ -953,10 +956,16 @@ export const SyncInbox = () => {
                     borderRadius: '8px',
                     border: '1px solid var(--border-light)',
                     width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
                   }}
                 >
-                  ℹ️ Once scanned, this window will automatically close and show your paired
-                  confirmation.
+                  <Info size={15} color="#38bdf8" style={{ flexShrink: 0 }} />
+                  <span>
+                    Once scanned, this window will automatically close and show your paired
+                    confirmation.
+                  </span>
                 </div>
               </div>
 
@@ -1797,12 +1806,18 @@ export const SyncInbox = () => {
                                     color: '#34d399',
                                     fontWeight: 'bold',
                                     fontSize: '0.85rem',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
                                   }}
                                 >
-                                  🎯 {item.group_metrics.moa} MOA Group (
-                                  {item.group_metrics.extremeSpreadInches ||
-                                    item.group_metrics.extreme_spread_in}
-                                  ")
+                                  <Target size={13} color="#34d399" />
+                                  <span>
+                                    {item.group_metrics.moa} MOA Group (
+                                    {item.group_metrics.extremeSpreadInches ||
+                                      item.group_metrics.extreme_spread_in}
+                                    ")
+                                  </span>
                                 </span>
                                 <span
                                   style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}
@@ -1823,14 +1838,20 @@ export const SyncInbox = () => {
                                   fontSize: '0.8rem',
                                   marginTop: '0.35rem',
                                   fontWeight: '600',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
                                 }}
                               >
-                                🔭 Scope Zero: Dial{' '}
-                                {item.group_metrics.turretAdjustment.elevationDirection}{' '}
-                                {item.group_metrics.turretAdjustment.elevationClicks} clicks,{' '}
-                                {item.group_metrics.turretAdjustment.windageDirection}{' '}
-                                {item.group_metrics.turretAdjustment.windageClicks} clicks (
-                                {item.group_metrics.turretAdjustment.clickUnitLabel})
+                                <ScopeIcon size={13} color="#38bdf8" />
+                                <span>
+                                  Scope Zero: Dial{' '}
+                                  {item.group_metrics.turretAdjustment.elevationDirection}{' '}
+                                  {item.group_metrics.turretAdjustment.elevationClicks} clicks,{' '}
+                                  {item.group_metrics.turretAdjustment.windageDirection}{' '}
+                                  {item.group_metrics.turretAdjustment.windageClicks} clicks (
+                                  {item.group_metrics.turretAdjustment.clickUnitLabel})
+                                </span>
                               </div>
                             )}
 

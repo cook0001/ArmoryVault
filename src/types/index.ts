@@ -259,9 +259,7 @@ declare global {
         message?: string;
         newRecoveryCode?: string | null;
       }>;
-      regenerateRecoveryKey: (
-        currentPassword: string
-      ) => Promise<{
+      regenerateRecoveryKey: (currentPassword: string) => Promise<{
         success: boolean;
         error?: string;
         message?: string;
@@ -385,8 +383,163 @@ declare global {
       getSyncQueue: () => Promise<SyncItem[]>;
       removeSyncItem: (id: number) => Promise<number>;
       clearSyncQueue: () => Promise<boolean>;
+
+      // New Feature API Methods
+      getStorageLocations: () => Promise<StorageLocation[]>;
+      addStorageLocation: (loc: StorageLocation) => Promise<number>;
+      updateStorageLocation: (id: number, loc: StorageLocation) => Promise<number>;
+      deleteStorageLocation: (id: number) => Promise<number>;
+
+      getChronoStrings: () => Promise<ChronoString[]>;
+      addChronoString: (cs: ChronoString) => Promise<number>;
+      deleteChronoString: (id: number) => Promise<number>;
+
+      getTargetAnalyses: () => Promise<TargetAnalysis[]>;
+      addTargetAnalysis: (ta: TargetAnalysis) => Promise<number>;
+      deleteTargetAnalysis: (id: number) => Promise<number>;
+
+      getLoadLadderTests: () => Promise<LoadLadderTest[]>;
+      addLoadLadderTest: (lt: LoadLadderTest) => Promise<number>;
+      updateLoadLadderTest: (id: number, lt: LoadLadderTest) => Promise<number>;
+      deleteLoadLadderTest: (id: number) => Promise<number>;
+
+      getBallisticProfiles: () => Promise<BallisticProfile[]>;
+      addBallisticProfile: (bp: BallisticProfile) => Promise<number>;
+      updateBallisticProfile: (id: number, bp: BallisticProfile) => Promise<number>;
+      deleteBallisticProfile: (id: number) => Promise<number>;
     };
   }
+}
+
+// ─── Range Session Malfunction Telemetry ────────────────────────────
+export interface MalfunctionEntry {
+  type: 'FTF' | 'FTE' | 'Stovepipe' | 'DoubleFeed' | 'LightStrike' | 'Other';
+  roundNumber?: number;
+  notes?: string;
+}
+
+// ─── Velocity Chronograph String ────────────────────────────────────
+export interface ChronoString {
+  id?: number;
+  firearmId: number;
+  ammoId?: number;
+  ammoLabel?: string;
+  shotVelocities: number[];
+  averageVelocity: number;
+  standardDeviation: number;
+  extremeSpread: number;
+  temperature?: number;
+  distanceYards?: number;
+  date: string;
+  notes?: string;
+}
+
+// ─── Target Analysis Record ─────────────────────────────────────────
+export interface TargetAnalysis {
+  id?: number;
+  firearmId?: number;
+  imagePath?: string;
+  photoBase64?: string;
+  shotsCount: number;
+  groupSizeInches: number;
+  groupSizeMOA: number;
+  distanceYards: number;
+  pointOfImpactOffsetInches?: { x: number; y: number };
+  date: string;
+  notes?: string;
+}
+
+// ─── Storage Location / Safe Item ───────────────────────────────────
+export interface StorageLocation {
+  id?: number;
+  name: string;
+  type: 'Safe' | 'Cabinet' | 'AmmoCan' | 'Case' | 'Vehicle' | 'Other';
+  capacity?: number;
+  notes?: string;
+  firearmIds?: number[];
+  accessoryIds?: number[];
+  ammoIds?: number[];
+}
+
+// ─── Load Development Ladder Test ───────────────────────────────────
+export interface LoadLadderStep {
+  chargeGrains: number;
+  seatingDepthOAL?: number;
+  velocityAvg?: number;
+  velocitySD?: number;
+  velocityES?: number;
+  groupSizeInches?: number;
+  groupSizeMOA?: number;
+  pressureSigns?:
+    | 'None'
+    | 'Flattened Primer'
+    | 'Cratered Primer'
+    | 'Sticky Bolt'
+    | 'Extractor Mark';
+  notes?: string;
+}
+
+export interface LoadLadderTest {
+  id?: number;
+  caliber: string;
+  bulletManufacturer?: string;
+  bulletName?: string;
+  bulletGrain: number;
+  bulletType?: string;
+  powderManufacturer?: string;
+  powderName: string;
+  primerType?: string;
+  brassManufacturer?: string;
+  distanceYards?: number;
+  steps: LoadLadderStep[];
+  date: string;
+  notes?: string;
+}
+
+// ─── Ballistic Profile / DOPE Card ──────────────────────────────────
+export interface BallisticProfile {
+  id?: number;
+  name: string;
+  firearmId?: number;
+  ammoId?: number;
+  caliber: string;
+  bulletWeight: number;
+  ballisticCoefficient: number;
+  dragModel: 'G1' | 'G7';
+  muzzleVelocity: number;
+  zeroRange: number;
+  sightHeight: number;
+  windSpeed?: number;
+  windAngle?: number;
+  temperature?: number;
+  altitude?: number;
+  barrelTwistRate?: number;
+  barrelTwistDirection?: 'Right' | 'Left';
+  notes?: string;
+}
+
+export interface BallisticSolution {
+  range: number;
+  drop: number;
+  dropMOA: number;
+  dropMIL: number;
+  windDrift: number;
+  windDriftMOA: number;
+  windDriftMIL: number;
+  velocity: number;
+  energy: number;
+  timeOfFlight: number;
+}
+
+// ─── Insurance Item Summary ─────────────────────────────────────────
+export interface InsuranceItem {
+  type: 'firearm' | 'accessory' | 'ammo';
+  description: string;
+  serialNumber?: string;
+  purchaseDate?: string;
+  purchasePrice?: number;
+  currentValue?: number;
+  photoPath?: string;
 }
 
 export interface SyncItem {
@@ -400,7 +553,10 @@ export interface SyncItem {
     | 'universal_scan'
     | 'range_session'
     | 'firearm_maintenance'
-    | 'bill_of_sale_transfer';
+    | 'bill_of_sale_transfer'
+    | 'chrono_string'
+    | 'target_analysis'
+    | 'malfunction_report';
   upcOrId?: string;
   action?: 'add' | 'remove';
   count?: number;
@@ -416,7 +572,7 @@ export interface SyncItem {
   photoBase64?: string;
   log_type?: string;
   group_metrics?: any;
-  malfunctions?: any[];
+  malfunctions?: MalfunctionEntry[];
   ammo_compatibility_flag?: any;
   voice_transcript?: string;
   audio_base64?: string;
@@ -426,4 +582,8 @@ export interface SyncItem {
   buyer_dl?: string;
   sale_price?: number;
   pdf_base64?: string;
+  // Chrono sync fields
+  chrono_data?: ChronoString;
+  // Target analysis sync fields
+  target_data?: TargetAnalysis;
 }

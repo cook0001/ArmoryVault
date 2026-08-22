@@ -331,6 +331,11 @@ class Database {
       accessories: [],
       components: [],
       sync_queue: [],
+      storage_locations: [],
+      chrono_strings: [],
+      target_analyses: [],
+      load_ladder_tests: [],
+      ballistic_profiles: [],
     };
     if (this.isLocked()) return emptySchema;
 
@@ -360,17 +365,29 @@ class Database {
         accessories: [],
         components: [],
         sync_queue: [],
+        storage_locations: [],
+        chrono_strings: [],
+        target_analyses: [],
+        load_ladder_tests: [],
+        ballistic_profiles: [],
       };
       if (Array.isArray(parsed)) {
         data.firearms = parsed;
-      } else {
+      } else if (parsed && typeof parsed === 'object') {
         data = {
+          ...data,
+          ...parsed,
           firearms: parsed.firearms || [],
           ammo: parsed.ammo || [],
           skus: parsed.skus || {},
           accessories: parsed.accessories || [],
           components: parsed.components || [],
           sync_queue: parsed.sync_queue || [],
+          storage_locations: parsed.storage_locations || [],
+          chrono_strings: parsed.chrono_strings || [],
+          target_analyses: parsed.target_analyses || [],
+          load_ladder_tests: parsed.load_ladder_tests || [],
+          ballistic_profiles: parsed.ballistic_profiles || [],
         };
       }
 
@@ -668,17 +685,29 @@ class Database {
           accessories: [],
           components: [],
           sync_queue: [],
+          storage_locations: [],
+          chrono_strings: [],
+          target_analyses: [],
+          load_ladder_tests: [],
+          ballistic_profiles: [],
         };
         if (Array.isArray(parsed)) {
           data.firearms = parsed;
-        } else {
+        } else if (parsed && typeof parsed === 'object') {
           data = {
+            ...data,
+            ...parsed,
             firearms: parsed.firearms || [],
             ammo: parsed.ammo || [],
             skus: parsed.skus || {},
             accessories: parsed.accessories || [],
             components: parsed.components || [],
             sync_queue: parsed.sync_queue || [],
+            storage_locations: parsed.storage_locations || [],
+            chrono_strings: parsed.chrono_strings || [],
+            target_analyses: parsed.target_analyses || [],
+            load_ladder_tests: parsed.load_ladder_tests || [],
+            ballistic_profiles: parsed.ballistic_profiles || [],
           };
         }
         this._cache = data;
@@ -1108,6 +1137,171 @@ class Database {
 
   clearSyncQueue() {
     this.saveSyncQueue([]);
+  }
+
+  // ─── Storage Locations ──────────────────────────────────────────────
+  getStorageLocations() {
+    const data = this.getData();
+    return data.storage_locations || [];
+  }
+
+  saveStorageLocations(list) {
+    const data = this.getData();
+    data.storage_locations = list;
+    this.saveData(data);
+  }
+
+  addStorageLocation(loc) {
+    const list = this.getStorageLocations();
+    const newId = list.length > 0 ? Math.max(...list.map((l) => l.id || 0)) + 1 : 1;
+    list.push({ ...loc, id: newId });
+    this.saveStorageLocations(list);
+    return newId;
+  }
+
+  updateStorageLocation(id, loc) {
+    const list = this.getStorageLocations();
+    const index = list.findIndex((l) => l.id === id);
+    if (index !== -1) {
+      list[index] = { ...loc, id };
+      this.saveStorageLocations(list);
+    }
+    return id;
+  }
+
+  deleteStorageLocation(id) {
+    let list = this.getStorageLocations();
+    list = list.filter((l) => l.id !== id);
+    this.saveStorageLocations(list);
+    return id;
+  }
+
+  // ─── Chronograph Strings ────────────────────────────────────────────
+  getChronoStrings() {
+    const data = this.getData();
+    return data.chrono_strings || [];
+  }
+
+  saveChronoStrings(list) {
+    const data = this.getData();
+    data.chrono_strings = list;
+    this.saveData(data);
+  }
+
+  addChronoString(cs) {
+    const list = this.getChronoStrings();
+    const newId = list.length > 0 ? Math.max(...list.map((c) => c.id || 0)) + 1 : 1;
+    list.push({ ...cs, id: newId });
+    this.saveChronoStrings(list);
+    return newId;
+  }
+
+  deleteChronoString(id) {
+    let list = this.getChronoStrings();
+    list = list.filter((c) => c.id !== id);
+    this.saveChronoStrings(list);
+    return id;
+  }
+
+  // ─── Target Analyses ────────────────────────────────────────────────
+  getTargetAnalyses() {
+    const data = this.getData();
+    return data.target_analyses || [];
+  }
+
+  saveTargetAnalyses(list) {
+    const data = this.getData();
+    data.target_analyses = list;
+    this.saveData(data);
+  }
+
+  addTargetAnalysis(ta) {
+    const list = this.getTargetAnalyses();
+    const newId = list.length > 0 ? Math.max(...list.map((t) => t.id || 0)) + 1 : 1;
+    list.push({ ...ta, id: newId });
+    this.saveTargetAnalyses(list);
+    return newId;
+  }
+
+  deleteTargetAnalysis(id) {
+    let list = this.getTargetAnalyses();
+    list = list.filter((t) => t.id !== id);
+    this.saveTargetAnalyses(list);
+    return id;
+  }
+
+  // ─── Load Ladder Tests ──────────────────────────────────────────────
+  getLoadLadderTests() {
+    const data = this.getData();
+    return data.load_ladder_tests || [];
+  }
+
+  saveLoadLadderTests(list) {
+    const data = this.getData();
+    data.load_ladder_tests = list;
+    this.saveData(data);
+  }
+
+  addLoadLadderTest(lt) {
+    const list = this.getLoadLadderTests();
+    const newId = list.length > 0 ? Math.max(...list.map((l) => l.id || 0)) + 1 : 1;
+    list.push({ ...lt, id: newId });
+    this.saveLoadLadderTests(list);
+    return newId;
+  }
+
+  updateLoadLadderTest(id, lt) {
+    const list = this.getLoadLadderTests();
+    const index = list.findIndex((l) => l.id === id);
+    if (index !== -1) {
+      list[index] = { ...lt, id };
+      this.saveLoadLadderTests(list);
+    }
+    return id;
+  }
+
+  deleteLoadLadderTest(id) {
+    let list = this.getLoadLadderTests();
+    list = list.filter((l) => l.id !== id);
+    this.saveLoadLadderTests(list);
+    return id;
+  }
+
+  // ─── Ballistic Profiles ────────────────────────────────────────────
+  getBallisticProfiles() {
+    const data = this.getData();
+    return data.ballistic_profiles || [];
+  }
+
+  saveBallisticProfiles(list) {
+    const data = this.getData();
+    data.ballistic_profiles = list;
+    this.saveData(data);
+  }
+
+  addBallisticProfile(bp) {
+    const list = this.getBallisticProfiles();
+    const newId = list.length > 0 ? Math.max(...list.map((b) => b.id || 0)) + 1 : 1;
+    list.push({ ...bp, id: newId });
+    this.saveBallisticProfiles(list);
+    return newId;
+  }
+
+  updateBallisticProfile(id, bp) {
+    const list = this.getBallisticProfiles();
+    const index = list.findIndex((b) => b.id === id);
+    if (index !== -1) {
+      list[index] = { ...bp, id };
+      this.saveBallisticProfiles(list);
+    }
+    return id;
+  }
+
+  deleteBallisticProfile(id) {
+    let list = this.getBallisticProfiles();
+    list = list.filter((b) => b.id !== id);
+    this.saveBallisticProfiles(list);
+    return id;
   }
 }
 

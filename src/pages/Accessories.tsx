@@ -3,8 +3,10 @@ import {
   Camera,
   Edit,
   Eye,
+  Flashlight,
   Layers,
   Link as LinkIcon,
+  Package,
   PlusCircle,
   Search,
   Shield,
@@ -15,6 +17,14 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AccessoryDetailModal, getAccessoryTypeColor } from '../components/AccessoryDetailModal';
 import { AccessoryModal } from '../components/AccessoryModal';
+import {
+  HolsterIcon,
+  MagazineIcon,
+  PicatinnyMountIcon,
+  ScopeIcon,
+  SuppressorIcon,
+  TacticalSlingIcon,
+} from '../components/CustomIcons';
 import { Accessory, Firearm } from '../types';
 
 export const Accessories = () => {
@@ -290,8 +300,28 @@ export const Accessories = () => {
                           fontWeight: 700,
                           textTransform: 'uppercase',
                           letterSpacing: '0.5px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
                         }}
                       >
+                        {acc.type === 'Optic' ? (
+                          <ScopeIcon size={12} color={typeColor.text} />
+                        ) : acc.type === 'Suppressor' ? (
+                          <SuppressorIcon size={12} color={typeColor.text} />
+                        ) : acc.type === 'Light' ? (
+                          <Flashlight size={12} />
+                        ) : acc.type === 'Holster' ? (
+                          <HolsterIcon size={12} color={typeColor.text} />
+                        ) : acc.type === 'Mount' ? (
+                          <PicatinnyMountIcon size={12} color={typeColor.text} />
+                        ) : acc.type === 'Sling' ? (
+                          <TacticalSlingIcon size={12} color={typeColor.text} />
+                        ) : acc.type === 'Magazine' ? (
+                          <MagazineIcon size={12} color={typeColor.text} />
+                        ) : (
+                          <Package size={12} />
+                        )}
                         {acc.type}
                       </span>
                       {acc.round_count !== undefined && acc.round_count > 0 && (
@@ -304,9 +334,13 @@ export const Accessories = () => {
                             borderRadius: '4px',
                             fontSize: '0.7rem',
                             fontWeight: 600,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px',
                           }}
                         >
-                          🎯 {acc.round_count.toLocaleString()} rds
+                          <Target size={11} color="#38bdf8" />
+                          <span>{acc.round_count.toLocaleString()} rds</span>
                         </span>
                       )}
                       {acc.is_nfa && (
@@ -383,9 +417,13 @@ export const Accessories = () => {
                         borderRadius: '4px',
                         fontSize: '0.75rem',
                         fontWeight: 500,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
                       }}
                     >
-                      🔭 {acc.magnification}
+                      <ScopeIcon size={12} color="#38bdf8" />
+                      <span>{acc.magnification}</span>
                     </span>
                   )}
                   {acc.lumens && (
@@ -398,9 +436,13 @@ export const Accessories = () => {
                         borderRadius: '4px',
                         fontSize: '0.75rem',
                         fontWeight: 500,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
                       }}
                     >
-                      ⚡ {acc.lumens.toLocaleString()} lm
+                      <Flashlight size={12} color="#fbbf24" />
+                      <span>{acc.lumens.toLocaleString()} lm</span>
                     </span>
                   )}
                   {acc.ratedCalibers && (
@@ -413,9 +455,13 @@ export const Accessories = () => {
                         borderRadius: '4px',
                         fontSize: '0.75rem',
                         fontWeight: 500,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
                       }}
                     >
-                      🛡️ {acc.ratedCalibers}
+                      <Shield size={12} color="#f59e0b" />
+                      <span>{acc.ratedCalibers}</span>
                     </span>
                   )}
                   {acc.capacity && (
@@ -539,7 +585,10 @@ export const Accessories = () => {
                       border: '1px dashed rgba(255,255,255,0.08)',
                     }}
                   >
-                    📦 In Storage ({quantity} unmounted)
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <Package size={13} color="var(--text-muted)" />
+                      <span>In Storage ({quantity} unmounted)</span>
+                    </div>
                   </div>
                 )}
 

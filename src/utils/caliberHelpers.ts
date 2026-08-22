@@ -10,7 +10,11 @@ export const escapeRegExp = (string: string): string => {
 /**
  * Returns the standard pellet count for common buckshot loads based on gauge, shell length, and shot size.
  */
-export const getStandardPelletCount = (caliber?: string, shell_length?: string, shot_size?: string): number | '' => {
+export const getStandardPelletCount = (
+  caliber?: string,
+  shell_length?: string,
+  shot_size?: string
+): number | '' => {
   if (!caliber || !shell_length || !shot_size) return '';
   const cal = caliber.toLowerCase();
   const len = shell_length.trim().replace(/"/g, '');
@@ -72,7 +76,7 @@ export const generateInternalUPC = (): string => {
       evenSum += parseInt(upc[i]);
     }
   }
-  const total = (oddSum * 3) + evenSum;
+  const total = oddSum * 3 + evenSum;
   const checkDigit = (10 - (total % 10)) % 10;
   return upc + checkDigit.toString();
 };
@@ -85,8 +89,10 @@ export const formatCaliber = (c: string): string => {
   let val = c.trim();
   if (/^\d/.test(val)) {
     const lower = val.toLowerCase();
-    const isMetric = lower.includes('mm') || lower.includes('x') || 
-                     ['5.56', '7.62', '6.5', '5.7', '5.45'].some(m => lower.startsWith(m));
+    const isMetric =
+      lower.includes('mm') ||
+      lower.includes('x') ||
+      ['5.56', '7.62', '6.5', '5.7', '5.45'].some((m) => lower.startsWith(m));
     const isGauge = lower.includes('gauge') || lower.includes('ga') || lower.includes('bore');
     if (!isMetric && !isGauge) {
       val = '.' + val;
@@ -100,7 +106,7 @@ export const formatCaliber = (c: string): string => {
  */
 export const buildCustomCategories = (ammoList: Ammo[]): Record<string, string> => {
   const map: Record<string, string> = {};
-  ammoList.forEach(a => {
+  ammoList.forEach((a) => {
     if (a.category && a.category !== 'Other' && a.caliber) {
       map[a.caliber.toLowerCase().replace(/\s+/g, '')] = a.category;
     }
@@ -109,12 +115,98 @@ export const buildCustomCategories = (ammoList: Ammo[]): Record<string, string> 
 };
 
 export const pistolCalibers = [
-  '9mm', '45 ACP', '40 S&W', '380 ACP', '380 Auto', '38 Special', '357 Mag', '10mm', '44 Mag', '44 Special', '45 Colt', '25 ACP', '32 ACP', '5.7x28', '5.7', '9x19', '32 Auto', '25 Auto',
-  '7.62x25', '7.62x38', '9x18', '7.63x25', '7.65x21', '455 Webley', '38 S&W', '38/200', '32 S&W', '38-40', '44-40', '9mm Makarov', '7.62 Tokarev', '7.62 Nagant', '30 Luger', '30 Mauser'
+  '9mm',
+  '45 ACP',
+  '40 S&W',
+  '380 ACP',
+  '380 Auto',
+  '38 Special',
+  '357 Mag',
+  '10mm',
+  '44 Mag',
+  '44 Special',
+  '45 Colt',
+  '25 ACP',
+  '32 ACP',
+  '5.7x28',
+  '5.7',
+  '9x19',
+  '32 Auto',
+  '25 Auto',
+  '7.62x25',
+  '7.62x38',
+  '9x18',
+  '7.63x25',
+  '7.65x21',
+  '455 Webley',
+  '38 S&W',
+  '38/200',
+  '32 S&W',
+  '38-40',
+  '44-40',
+  '9mm Makarov',
+  '7.62 Tokarev',
+  '7.62 Nagant',
+  '30 Luger',
+  '30 Mauser',
 ];
 export const rifleCalibers = [
-  '223 Rem', '223', '5.56 NATO', '5.56', '308 Win', '308', '7.62 NATO', '7.62x39', '7.62', '6.5 Creedmoor', '6.5', '30-06', '270 Win', '270', '300 Blackout', '300 Win Mag', '300', '22 LR', '22 Long', '22 WMR', '17 HMR', '7mm Rem Mag', '7mm', '30-30', '45-70', '5.45',
-  '30-40 Krag', '30 Carbine', '303 British', '7.62x54', '7.62x54r', '7.92x57', '8mm Mauser', '8x57', '6.5x55', '6.5 Swede', '7.5x55', '7.5 Swiss', '7.65x53', '7x57', '7mm Mauser', '6.5x50', 'Arisaka', '7.7x58', '6.5x52', 'Carcano', '7.35x51', '8x56', '8x50', '7.5x54', 'French', '405 Win', '32 Win Special', '35 Rem', '300 Savage', '250-3000'
+  '223 Rem',
+  '223',
+  '5.56 NATO',
+  '5.56',
+  '308 Win',
+  '308',
+  '7.62 NATO',
+  '7.62x39',
+  '7.62',
+  '6.5 Creedmoor',
+  '6.5',
+  '30-06',
+  '270 Win',
+  '270',
+  '300 Blackout',
+  '300 Win Mag',
+  '300',
+  '22 LR',
+  '22 Long',
+  '22 WMR',
+  '17 HMR',
+  '7mm Rem Mag',
+  '7mm',
+  '30-30',
+  '45-70',
+  '5.45',
+  '30-40 Krag',
+  '30 Carbine',
+  '303 British',
+  '7.62x54',
+  '7.62x54r',
+  '7.92x57',
+  '8mm Mauser',
+  '8x57',
+  '6.5x55',
+  '6.5 Swede',
+  '7.5x55',
+  '7.5 Swiss',
+  '7.65x53',
+  '7x57',
+  '7mm Mauser',
+  '6.5x50',
+  'Arisaka',
+  '7.7x58',
+  '6.5x52',
+  'Carcano',
+  '7.35x51',
+  '8x56',
+  '8x50',
+  '7.5x54',
+  'French',
+  '405 Win',
+  '32 Win Special',
+  '35 Rem',
+  '300 Savage',
+  '250-3000',
 ];
 
 /**
@@ -277,18 +369,96 @@ export const COMPREHENSIVE_BULLET_TYPES = [
   'Scirocco II Bonded (Swift)',
   'A-Frame (Swift)',
   'Solid Copper Hollow Point (SCHP)',
-  'Monolithic Solid'
+  'Monolithic Solid',
 ];
 
 /**
  * Determines the ammo category (Pistol, Rifle, Shotgun, Other) based on caliber string.
  */
-export const getAmmoCategory = (caliber: string, customMap?: Record<string, string>): 'Pistol' | 'Rifle' | 'Shotgun' | 'Other' => {
+export const getAmmoCategory = (
+  caliber: string,
+  customMap?: Record<string, string>
+): 'Pistol' | 'Rifle' | 'Shotgun' | 'Other' => {
   if (!caliber) return 'Other';
   const c = caliber.toLowerCase().replace(/\s+/g, '');
   if (customMap && customMap[c]) return customMap[c] as any;
-  if (c.includes('gauge') || c.includes('ga') || c.includes('.410') || c.includes('bore')) return 'Shotgun';
-  if (pistolCalibers.some(p => c.includes(p.toLowerCase().replace(/\s+/g, '')))) return 'Pistol';
-  if (rifleCalibers.some(r => c.includes(r.toLowerCase().replace(/\s+/g, '')))) return 'Rifle';
+  if (c.includes('gauge') || c.includes('ga') || c.includes('.410') || c.includes('bore'))
+    return 'Shotgun';
+  if (pistolCalibers.some((p) => c.includes(p.toLowerCase().replace(/\s+/g, '')))) return 'Pistol';
+  if (rifleCalibers.some((r) => c.includes(r.toLowerCase().replace(/\s+/g, '')))) return 'Rifle';
   return 'Other';
+};
+
+/**
+ * Validates whether a barcode string matches standard retail numeric UPC/EAN formats.
+ * Standard formats:
+ * - UPC-E / EAN-8: 8 digits
+ * - UPC-A: 12 digits
+ * - EAN-13: 13 digits
+ * - GTIN-14: 14 digits
+ */
+export const isUpcBarcode = (code?: string | null): boolean => {
+  if (!code) return false;
+  const clean = code.trim().replace(/\s+/g, '');
+  return /^\d{8}$|^\d{12}$|^\d{13}$|^\d{14}$/.test(clean);
+};
+
+/**
+ * Differentiates standard retail UPC barcodes from manufacturer/store SKU codes.
+ * Returns 'UPC' for standard 8/12/13/14-digit numeric barcodes and 'SKU' for alphanumeric/custom codes.
+ */
+export const getBarcodeLabelType = (code?: string | null): 'UPC' | 'SKU' => {
+  if (!code || !code.trim()) return 'UPC';
+  return isUpcBarcode(code) ? 'UPC' : 'SKU';
+};
+
+/**
+ * Accurately determines if an ammunition item represents a shotgun shell.
+ */
+export const isShotgunAmmo = (ammo?: Partial<Ammo> | null): boolean => {
+  if (!ammo) return false;
+  if (ammo.category === 'Shotgun') return true;
+  const cal = (ammo.caliber || '').toLowerCase();
+  return (
+    cal.includes('ga') ||
+    cal.includes('gauge') ||
+    cal.includes('.410') ||
+    cal.includes('410') ||
+    cal.includes('bore')
+  );
+};
+
+/**
+ * Formats shotgun shell specifications (Shell Length, Shot Size, Pellet Count / Payload) for display.
+ */
+export const formatShotgunSpecs = (
+  ammo?: Partial<Ammo> | null
+): {
+  shellLength?: string;
+  shotSize?: string;
+  pelletCount?: string;
+  payload?: string;
+  summary: string;
+} => {
+  if (!ammo) return { summary: '' };
+  const parts: string[] = [];
+  const shellLength = ammo.shell_length ? ammo.shell_length.trim() : undefined;
+  const shotSize = ammo.shot_size ? ammo.shot_size.trim() : undefined;
+  const pelletCount = ammo.pellet_count ? `${ammo.pellet_count} Pellets` : undefined;
+  const payload = ammo.oz_payload
+    ? `${ammo.oz_payload}${ammo.oz_payload.toLowerCase().includes('oz') ? '' : ' oz'}`
+    : undefined;
+
+  if (shellLength) parts.push(shellLength);
+  if (shotSize) parts.push(shotSize);
+  if (pelletCount) parts.push(pelletCount);
+  else if (payload) parts.push(payload);
+
+  return {
+    shellLength,
+    shotSize,
+    pelletCount,
+    payload,
+    summary: parts.join(' • ') || ammo.projectile || 'Standard Load',
+  };
 };

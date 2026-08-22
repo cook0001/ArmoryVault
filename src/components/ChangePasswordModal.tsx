@@ -326,9 +326,13 @@ INSTRUCTIONS:
                       color: '#fbbf24',
                       textTransform: 'uppercase',
                       letterSpacing: '0.5px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
                     }}
                   >
-                    ⚠️ Your New 64-Character Recovery Key
+                    <AlertTriangle size={13} color="#fbbf24" />
+                    <span>Your New 64-Character Recovery Key</span>
                   </span>
                 </div>
 

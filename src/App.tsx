@@ -4,12 +4,16 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { Layout } from './components/Layout';
 import { Accessories } from './pages/Accessories';
 import { AmmoDashboard } from './pages/AmmoDashboard';
+import { BallisticsCalculator } from './pages/BallisticsCalculator';
 import { BoundBook } from './pages/BoundBook';
 import { Dashboard } from './pages/Dashboard';
 import { FirearmDetails } from './pages/FirearmDetails';
 import { FirearmForm } from './pages/FirearmForm';
+import { LoadDevelopment } from './pages/LoadDevelopment';
 import { MaintenanceDashboard } from './pages/MaintenanceDashboard';
+import { NfaTracker } from './pages/NfaTracker';
 import { ReloadingComponents } from './pages/ReloadingComponents';
+import { StorageOrganizer } from './pages/StorageOrganizer';
 import { SyncInbox } from './pages/SyncInbox';
 import { VaultLogin } from './pages/VaultLogin';
 
@@ -113,6 +117,10 @@ function App() {
             <Route path="accessories" element={<Accessories />} />
             <Route path="maintenance" element={<MaintenanceDashboard />} />
             <Route path="sync" element={<SyncInbox />} />
+            <Route path="ballistics" element={<BallisticsCalculator />} />
+            <Route path="storage" element={<StorageOrganizer />} />
+            <Route path="load-development" element={<LoadDevelopment />} />
+            <Route path="nfa-tracker" element={<NfaTracker />} />
           </Route>
         </Routes>
       </ErrorBoundary>

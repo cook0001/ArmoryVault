@@ -99,4 +99,32 @@ contextBridge.exposeInMainWorld('api', {
   getSyncQueue: () => ipcRenderer.invoke('get-sync-queue'),
   removeSyncItem: (id) => ipcRenderer.invoke('remove-sync-item', id),
   clearSyncQueue: () => ipcRenderer.invoke('clear-sync-queue'),
+
+  // ─── Storage Locations ──────────────────────────────────────────────
+  getStorageLocations: () => ipcRenderer.invoke('get-storage-locations'),
+  addStorageLocation: (loc) => ipcRenderer.invoke('add-storage-location', loc),
+  updateStorageLocation: (id, loc) => ipcRenderer.invoke('update-storage-location', id, loc),
+  deleteStorageLocation: (id) => ipcRenderer.invoke('delete-storage-location', id),
+
+  // ─── Chronograph Strings ────────────────────────────────────────────
+  getChronoStrings: () => ipcRenderer.invoke('get-chrono-strings'),
+  addChronoString: (cs) => ipcRenderer.invoke('add-chrono-string', cs),
+  deleteChronoString: (id) => ipcRenderer.invoke('delete-chrono-string', id),
+
+  // ─── Target Analyses ────────────────────────────────────────────────
+  getTargetAnalyses: () => ipcRenderer.invoke('get-target-analyses'),
+  addTargetAnalysis: (ta) => ipcRenderer.invoke('add-target-analysis', ta),
+  deleteTargetAnalysis: (id) => ipcRenderer.invoke('delete-target-analysis', id),
+
+  // ─── Load Ladder Tests ──────────────────────────────────────────────
+  getLoadLadderTests: () => ipcRenderer.invoke('get-load-ladder-tests'),
+  addLoadLadderTest: (lt) => ipcRenderer.invoke('add-load-ladder-test', lt),
+  updateLoadLadderTest: (id, lt) => ipcRenderer.invoke('update-load-ladder-test', id, lt),
+  deleteLoadLadderTest: (id) => ipcRenderer.invoke('delete-load-ladder-test', id),
+
+  // ─── Ballistic Profiles ────────────────────────────────────────────
+  getBallisticProfiles: () => ipcRenderer.invoke('get-ballistic-profiles'),
+  addBallisticProfile: (bp) => ipcRenderer.invoke('add-ballistic-profile', bp),
+  updateBallisticProfile: (id, bp) => ipcRenderer.invoke('update-ballistic-profile', id, bp),
+  deleteBallisticProfile: (id) => ipcRenderer.invoke('delete-ballistic-profile', id),
 });
