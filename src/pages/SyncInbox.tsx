@@ -637,23 +637,23 @@ export const SyncInbox = () => {
             f.serial_number.trim().toLowerCase() === serial_number.trim().toLowerCase())
       );
 
-      if (firearm && firearm.id !== undefined) {
-        const savedPhotos: string[] = [];
-        if (data.photosBase64 && Array.isArray(data.photosBase64)) {
-          for (let i = 0; i < data.photosBase64.length; i++) {
-            const b64 = data.photosBase64[i];
-            const ext = b64.split(';')[0].split('/')[1] || 'jpg';
-            const filename = `firearm_${Date.now()}_${i}.${ext}`;
-            const savedPath = await window.api.saveBase64Photo(b64, filename);
-            if (savedPath) savedPhotos.push(savedPath);
-          }
-        } else if (data.photoBase64) {
-          const ext = data.photoBase64.split(';')[0].split('/')[1] || 'jpg';
-          const filename = `firearm_${Date.now()}.${ext}`;
-          const savedPath = await window.api.saveBase64Photo(data.photoBase64, filename);
+      const savedPhotos: string[] = [];
+      if (data.photosBase64 && Array.isArray(data.photosBase64)) {
+        for (let i = 0; i < data.photosBase64.length; i++) {
+          const b64 = data.photosBase64[i];
+          const ext = b64.split(';')[0].split('/')[1] || 'jpg';
+          const filename = `firearm_${Date.now()}_${i}.${ext}`;
+          const savedPath = await window.api.saveBase64Photo(b64, filename);
           if (savedPath) savedPhotos.push(savedPath);
         }
+      } else if (data.photoBase64) {
+        const ext = data.photoBase64.split(';')[0].split('/')[1] || 'jpg';
+        const filename = `firearm_${Date.now()}.${ext}`;
+        const savedPath = await window.api.saveBase64Photo(data.photoBase64, filename);
+        if (savedPath) savedPhotos.push(savedPath);
+      }
 
+      if (firearm && firearm.id !== undefined) {
         const updated = {
           ...firearm,
           ...data,
@@ -668,6 +668,40 @@ export const SyncInbox = () => {
           const updatedLocs = assignItemToStorage(
             'firearm',
             firearm.id,
+            Number(data.storageLocationId),
+            locs || []
+          );
+          await saveStorageLocations(updatedLocs);
+        }
+      } else {
+        // Fallback: If firearm not found in DB (e.g. temporary mobile ID was used), insert as new firearm
+        const newFirearm: any = {
+          make: data.make || 'Unknown Make',
+          model: data.model || 'Unknown Model',
+          serial_number: serial_number,
+          caliber: data.caliber || '',
+          action_type: data.action_type || '',
+          firearm_type: data.firearm_type || '',
+          barrel_length: data.barrel_length || '',
+          finish: data.finish || '',
+          condition: data.condition || 'Excellent',
+          purchase_price: data.purchase_price !== undefined ? data.purchase_price : null,
+          purchase_date: data.purchase_date || '',
+          purchased_from: data.purchased_from || '',
+          notes: data.notes || '',
+          is_nfa: !!data.is_nfa,
+          nfa_type: data.nfa_type || '',
+          image_path: savedPhotos.length > 0 ? savedPhotos[0] : '',
+          photos: savedPhotos,
+          is_sold: false,
+        };
+        const newId = await window.api.addFirearm(newFirearm);
+
+        if (data.storageLocationId && window.api.getStorageLocations) {
+          const locs = await window.api.getStorageLocations();
+          const updatedLocs = assignItemToStorage(
+            'firearm',
+            newId,
             Number(data.storageLocationId),
             locs || []
           );
@@ -805,6 +839,176 @@ export const SyncInbox = () => {
           await window.api.removeSyncItem(item.id!);
           processedAny = true;
         }
+      } else if (item.type === 'new_firearm') {
+        const data: any = item.data || item;
+        const make = data.make || '';
+        const model = data.model || '';
+        const caliber = data.caliber || '';
+        const serial_number = data.serial_number || '';
+
+        const existing = currentFirearms.find(
+          (f) =>
+            serial_number &&
+            f.serial_number &&
+            f.serial_number.trim().toLowerCase() === serial_number.trim().toLowerCase()
+        );
+
+        const savedPhotos: string[] = [];
+        if (data.photosBase64 && Array.isArray(data.photosBase64)) {
+          for (let i = 0; i < data.photosBase64.length; i++) {
+            const b64 = data.photosBase64[i];
+            const ext = b64.split(';')[0].split('/')[1] || 'jpg';
+            const filename = `firearm_${Date.now()}_${i}.${ext}`;
+            const savedPath = await window.api.saveBase64Photo(b64, filename);
+            if (savedPath) savedPhotos.push(savedPath);
+          }
+        } else if (data.photoBase64) {
+          const ext = data.photoBase64.split(';')[0].split('/')[1] || 'jpg';
+          const filename = `firearm_${Date.now()}.${ext}`;
+          const savedPath = await window.api.saveBase64Photo(data.photoBase64, filename);
+          if (savedPath) savedPhotos.push(savedPath);
+        }
+
+        if (existing && existing.id !== undefined) {
+          const updated = {
+            ...existing,
+            ...data,
+            photos: [...(existing.photos || []), ...savedPhotos],
+            image_path: existing.image_path || (savedPhotos.length > 0 ? savedPhotos[0] : ''),
+          };
+          await window.api.updateFirearm(existing.id, updated);
+          const idx = currentFirearms.findIndex((f) => f.id === existing.id);
+          if (idx >= 0) currentFirearms[idx] = updated;
+        } else {
+          const newFirearm: any = {
+            make,
+            model,
+            serial_number,
+            caliber,
+            action_type: data.action_type || '',
+            firearm_type: data.firearm_type || '',
+            barrel_length: data.barrel_length || '',
+            finish: data.finish || '',
+            condition: data.condition || 'Excellent',
+            purchase_price: data.purchase_price !== undefined ? data.purchase_price : null,
+            purchase_date: data.purchase_date || '',
+            purchased_from: data.purchased_from || '',
+            notes: data.notes || '',
+            is_nfa: !!data.is_nfa,
+            nfa_type: data.nfa_type || '',
+            image_path: savedPhotos.length > 0 ? savedPhotos[0] : '',
+            photos: savedPhotos,
+            is_sold: false,
+          };
+          const newId = await window.api.addFirearm(newFirearm);
+          newFirearm.id = newId;
+          currentFirearms.push(newFirearm);
+
+          if (data.storageLocationId && window.api.getStorageLocations) {
+            const locs = await window.api.getStorageLocations();
+            const updatedLocs = assignItemToStorage(
+              'firearm',
+              newId,
+              Number(data.storageLocationId),
+              locs || []
+            );
+            await saveStorageLocations(updatedLocs);
+          }
+        }
+
+        await window.api.removeSyncItem(item.id!);
+        processedAny = true;
+      } else if (item.type === 'firearm_update') {
+        const data: any = item.data || item;
+        const fId = Number(data.firearmId || (item as any).firearmId);
+        const serial_number = data.serial_number || '';
+
+        const firearm = currentFirearms.find(
+          (f) =>
+            (fId && f.id === fId) ||
+            (serial_number &&
+              f.serial_number &&
+              f.serial_number.trim().toLowerCase() === serial_number.trim().toLowerCase())
+        );
+
+        const savedPhotos: string[] = [];
+        if (data.photosBase64 && Array.isArray(data.photosBase64)) {
+          for (let i = 0; i < data.photosBase64.length; i++) {
+            const b64 = data.photosBase64[i];
+            const ext = b64.split(';')[0].split('/')[1] || 'jpg';
+            const filename = `firearm_${Date.now()}_${i}.${ext}`;
+            const savedPath = await window.api.saveBase64Photo(b64, filename);
+            if (savedPath) savedPhotos.push(savedPath);
+          }
+        } else if (data.photoBase64) {
+          const ext = data.photoBase64.split(';')[0].split('/')[1] || 'jpg';
+          const filename = `firearm_${Date.now()}.${ext}`;
+          const savedPath = await window.api.saveBase64Photo(data.photoBase64, filename);
+          if (savedPath) savedPhotos.push(savedPath);
+        }
+
+        if (firearm && firearm.id !== undefined) {
+          const updated = {
+            ...firearm,
+            ...data,
+            photos: [...(firearm.photos || []), ...savedPhotos],
+            image_path: firearm.image_path || (savedPhotos.length > 0 ? savedPhotos[0] : ''),
+          };
+
+          await window.api.updateFirearm(firearm.id, updated);
+          const idx = currentFirearms.findIndex((f) => f.id === firearm.id);
+          if (idx >= 0) currentFirearms[idx] = updated;
+
+          if (data.storageLocationId && window.api.getStorageLocations) {
+            const locs = await window.api.getStorageLocations();
+            const updatedLocs = assignItemToStorage(
+              'firearm',
+              firearm.id,
+              Number(data.storageLocationId),
+              locs || []
+            );
+            await saveStorageLocations(updatedLocs);
+          }
+        } else {
+          // Fallback: If firearm not found in DB (e.g. temporary mobile ID was used), insert as new firearm
+          const newFirearm: any = {
+            make: data.make || 'Unknown Make',
+            model: data.model || 'Unknown Model',
+            serial_number: serial_number,
+            caliber: data.caliber || '',
+            action_type: data.action_type || '',
+            firearm_type: data.firearm_type || '',
+            barrel_length: data.barrel_length || '',
+            finish: data.finish || '',
+            condition: data.condition || 'Excellent',
+            purchase_price: data.purchase_price !== undefined ? data.purchase_price : null,
+            purchase_date: data.purchase_date || '',
+            purchased_from: data.purchased_from || '',
+            notes: data.notes || '',
+            is_nfa: !!data.is_nfa,
+            nfa_type: data.nfa_type || '',
+            image_path: savedPhotos.length > 0 ? savedPhotos[0] : '',
+            photos: savedPhotos,
+            is_sold: false,
+          };
+          const newId = await window.api.addFirearm(newFirearm);
+          newFirearm.id = newId;
+          currentFirearms.push(newFirearm);
+
+          if (data.storageLocationId && window.api.getStorageLocations) {
+            const locs = await window.api.getStorageLocations();
+            const updatedLocs = assignItemToStorage(
+              'firearm',
+              newId,
+              Number(data.storageLocationId),
+              locs || []
+            );
+            await saveStorageLocations(updatedLocs);
+          }
+        }
+
+        await window.api.removeSyncItem(item.id!);
+        processedAny = true;
       }
     }
 
@@ -1752,24 +1956,29 @@ export const SyncInbox = () => {
                             onClick={() => handleApprove(item)}
                             style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
                           >
-                            <CheckCircle size={16} /> Apply Update
+                            <CheckCircle size={16} /> {firearm ? 'Apply Update' : 'Add to Vault'}
                           </button>
-                          {firearm && (
-                            <button
-                              className="btn-secondary"
-                              onClick={() =>
-                                navigate(`/edit/${firearm.id}`, {
-                                  state: {
-                                    parsedData: data,
-                                    syncItemId: item.id,
-                                  },
-                                })
-                              }
-                              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-                            >
-                              <Edit3 size={15} /> Review & Edit
-                            </button>
-                          )}
+                          <button
+                            className="btn-secondary"
+                            onClick={() =>
+                              firearm
+                                ? navigate(`/edit/${firearm.id}`, {
+                                    state: {
+                                      parsedData: data,
+                                      syncItemId: item.id,
+                                    },
+                                  })
+                                : navigate('/add', {
+                                    state: {
+                                      parsedData: data,
+                                      syncItemId: item.id,
+                                    },
+                                  })
+                            }
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                          >
+                            <Edit3 size={15} /> Review & Edit
+                          </button>
                           <button
                             className="btn-icon"
                             onClick={() => handleDelete(item.id!)}
