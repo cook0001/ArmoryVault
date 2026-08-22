@@ -1,6 +1,6 @@
 import { Save, Upload, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { AutocompleteInput } from '../components/AutocompleteInput';
 import { StorageLocationSelect } from '../components/StorageBadge';
 import { Firearm, StorageLocation } from '../types';
@@ -20,6 +20,7 @@ import {
 
 export const FirearmForm = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [formData, setFormData] = useState<Partial<Firearm>>({
     make: '',
     model: '',
@@ -51,6 +52,8 @@ export const FirearmForm = () => {
         if (id) {
           const matched = getItemStorageLocation('firearm', Number(id), locs || []);
           if (matched) setStorageLocationId(matched.id || null);
+        } else if (location.state?.parsedData?.storageLocationId) {
+          setStorageLocationId(Number(location.state.parsedData.storageLocationId));
         }
       });
     }
@@ -71,8 +74,29 @@ export const FirearmForm = () => {
           }
         }
       });
+    } else if (location.state?.parsedData) {
+      const p = location.state.parsedData;
+      setFormData((prev) => ({
+        ...prev,
+        make: p.make || prev.make,
+        model: p.model || prev.model,
+        serial_number: p.serial_number || prev.serial_number,
+        caliber: p.caliber || prev.caliber,
+        barrel_length: p.barrel_length || prev.barrel_length,
+        action_type: p.action_type || prev.action_type,
+        finish: p.finish || prev.finish,
+        notes: p.notes || prev.notes,
+        purchase_price: p.purchase_price !== undefined ? p.purchase_price : prev.purchase_price,
+        purchase_date: p.purchase_date || prev.purchase_date,
+        condition: p.condition || prev.condition,
+        purchased_from: p.purchased_from || prev.purchased_from,
+        firearm_type: p.firearm_type || prev.firearm_type,
+      }));
+      if (p.photoBase64) {
+        setPreviews([{ url: p.photoBase64, isExisting: false }]);
+      }
     }
-  }, [id]);
+  }, [id, location.state]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -106,9 +130,20 @@ export const FirearmForm = () => {
     e.preventDefault();
     if (!window.api) return;
 
-    const finalPhotos: string[] = previews
-      .filter((p) => p.isExisting && p.path)
-      .map((p) => p.path!);
+    const finalPhotos: string[] = [];
+    for (let i = 0; i < previews.length; i++) {
+      const p = previews[i];
+      if (p.isExisting && p.path) {
+        finalPhotos.push(p.path);
+      } else if (p.url.startsWith('data:image') && window.api?.saveBase64Photo) {
+        const ext = p.url.split(';')[0].split('/')[1] || 'jpg';
+        const filename = `firearm_${Date.now()}_${i}.${ext}`;
+        const savedPath = await window.api.saveBase64Photo(p.url, filename);
+        if (savedPath) finalPhotos.push(savedPath);
+      } else if (p.path) {
+        finalPhotos.push(p.path);
+      }
+    }
 
     const payload: Firearm = {
       ...(formData as Firearm),
@@ -144,6 +179,11 @@ export const FirearmForm = () => {
         locations
       );
       await saveStorageLocations(updatedLocations);
+    }
+
+    // Remove sync queue item if opened from Sync Inbox
+    if (location.state?.syncItemId && window.api?.removeSyncItem) {
+      await window.api.removeSyncItem(location.state.syncItemId);
     }
 
     if (id) {

@@ -1,7 +1,7 @@
 {
   "name": "armoryvault",
   "productName": "ArmoryVault",
-  "version": "2.8.0-nightly.7",
+  "version": "2.8.0-nightly.8",
   "description": "Firearm & Ammo Inventory Software",
   "main": "electron/main.js",
   "scripts": {

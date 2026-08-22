@@ -1,12 +1,16 @@
 import {
   AlertTriangle,
+  Camera,
   CheckCircle,
   CheckCircle2,
+  Edit3,
   Info,
+  Paperclip,
   PlusCircle,
   Radio,
   RefreshCw,
   Server,
+  Shield,
   Smartphone,
   Sparkles,
   Target,
@@ -541,6 +545,135 @@ export const SyncInbox = () => {
           notes: updatedNotes,
         });
       }
+      await window.api.removeSyncItem(item.id!);
+      loadData();
+    } else if (item.type === 'new_firearm') {
+      const data: any = item.data || item;
+      const make = data.make || '';
+      const model = data.model || '';
+      const caliber = data.caliber || '';
+      const serial_number = data.serial_number || '';
+
+      // Check if duplicate serial already exists
+      const existing = firearms.find(
+        (f) =>
+          serial_number &&
+          f.serial_number &&
+          f.serial_number.trim().toLowerCase() === serial_number.trim().toLowerCase()
+      );
+
+      const savedPhotos: string[] = [];
+      if (data.photosBase64 && Array.isArray(data.photosBase64)) {
+        for (let i = 0; i < data.photosBase64.length; i++) {
+          const b64 = data.photosBase64[i];
+          const ext = b64.split(';')[0].split('/')[1] || 'jpg';
+          const filename = `firearm_${Date.now()}_${i}.${ext}`;
+          const savedPath = await window.api.saveBase64Photo(b64, filename);
+          if (savedPath) savedPhotos.push(savedPath);
+        }
+      } else if (data.photoBase64) {
+        const ext = data.photoBase64.split(';')[0].split('/')[1] || 'jpg';
+        const filename = `firearm_${Date.now()}.${ext}`;
+        const savedPath = await window.api.saveBase64Photo(data.photoBase64, filename);
+        if (savedPath) savedPhotos.push(savedPath);
+      }
+
+      if (existing) {
+        const updated = {
+          ...existing,
+          ...data,
+          photos: [...(existing.photos || []), ...savedPhotos],
+          image_path: existing.image_path || (savedPhotos.length > 0 ? savedPhotos[0] : ''),
+        };
+        await window.api.updateFirearm(existing.id, updated);
+      } else {
+        const newFirearm: any = {
+          make,
+          model,
+          serial_number,
+          caliber,
+          action_type: data.action_type || '',
+          firearm_type: data.firearm_type || '',
+          barrel_length: data.barrel_length || '',
+          finish: data.finish || '',
+          condition: data.condition || 'Excellent',
+          purchase_price: data.purchase_price !== undefined ? data.purchase_price : null,
+          purchase_date: data.purchase_date || '',
+          purchased_from: data.purchased_from || '',
+          notes: data.notes || '',
+          is_nfa: !!data.is_nfa,
+          nfa_type: data.nfa_type || '',
+          image_path: savedPhotos.length > 0 ? savedPhotos[0] : '',
+          photos: savedPhotos,
+          is_sold: false,
+        };
+        const newId = await window.api.addFirearm(newFirearm);
+
+        if (data.storageLocationId && window.api.getStorageLocations) {
+          const locs = await window.api.getStorageLocations();
+          const updatedLocs = assignItemToStorage(
+            'firearm',
+            newId,
+            Number(data.storageLocationId),
+            locs || []
+          );
+          await saveStorageLocations(updatedLocs);
+        }
+      }
+
+      await window.api.removeSyncItem(item.id!);
+      loadData();
+    } else if (item.type === 'firearm_update') {
+      const data: any = item.data || item;
+      const fId = Number(data.firearmId || (item as any).firearmId);
+      const serial_number = data.serial_number || '';
+
+      const firearm = firearms.find(
+        (f) =>
+          (fId && f.id === fId) ||
+          (serial_number &&
+            f.serial_number &&
+            f.serial_number.trim().toLowerCase() === serial_number.trim().toLowerCase())
+      );
+
+      if (firearm) {
+        const savedPhotos: string[] = [];
+        if (data.photosBase64 && Array.isArray(data.photosBase64)) {
+          for (let i = 0; i < data.photosBase64.length; i++) {
+            const b64 = data.photosBase64[i];
+            const ext = b64.split(';')[0].split('/')[1] || 'jpg';
+            const filename = `firearm_${Date.now()}_${i}.${ext}`;
+            const savedPath = await window.api.saveBase64Photo(b64, filename);
+            if (savedPath) savedPhotos.push(savedPath);
+          }
+        } else if (data.photoBase64) {
+          const ext = data.photoBase64.split(';')[0].split('/')[1] || 'jpg';
+          const filename = `firearm_${Date.now()}.${ext}`;
+          const savedPath = await window.api.saveBase64Photo(data.photoBase64, filename);
+          if (savedPath) savedPhotos.push(savedPath);
+        }
+
+        const updated = {
+          ...firearm,
+          ...data,
+          photos: [...(firearm.photos || []), ...savedPhotos],
+          image_path: firearm.image_path || (savedPhotos.length > 0 ? savedPhotos[0] : ''),
+        };
+
+        await window.api.updateFirearm(firearm.id, updated);
+
+        if (data.storageLocationId && window.api.getStorageLocations) {
+          const locs = await window.api.getStorageLocations();
+          const updatedLocs = assignItemToStorage(
+            'firearm',
+            firearm.id,
+            Number(data.storageLocationId),
+            locs || []
+          );
+          await saveStorageLocations(updatedLocs);
+        }
+      }
+
       await window.api.removeSyncItem(item.id!);
       loadData();
     }
@@ -1351,6 +1484,304 @@ export const SyncInbox = () => {
                     );
                   }
 
+                  if (item.type === 'new_firearm') {
+                    const data: any = item.data || item;
+                    const make = data.make || 'Unknown Make';
+                    const model = data.model || 'Unknown Model';
+                    const caliber = data.caliber || '';
+                    const serial = data.serial_number || '';
+                    const hasPhoto =
+                      data.photoBase64 || (data.photosBase64 && data.photosBase64.length > 0);
+                    const photoSrc =
+                      data.photoBase64 || (data.photosBase64 && data.photosBase64[0]);
+                    const existing = firearms.find(
+                      (f) =>
+                        serial &&
+                        f.serial_number &&
+                        f.serial_number.trim().toLowerCase() === serial.trim().toLowerCase()
+                    );
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="card"
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '1.5rem',
+                          gap: '1rem',
+                        }}
+                      >
+                        {hasPhoto && photoSrc && (
+                          <img
+                            src={photoSrc}
+                            alt={`${make} ${model}`}
+                            style={{
+                              width: '72px',
+                              height: '72px',
+                              borderRadius: '8px',
+                              objectFit: 'cover',
+                              border: '1px solid var(--border)',
+                              backgroundColor: 'rgba(0,0,0,0.2)',
+                            }}
+                          />
+                        )}
+
+                        <div style={{ flex: 1 }}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem',
+                              marginBottom: '0.5rem',
+                              flexWrap: 'wrap',
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: '0.75rem',
+                                padding: '0.2rem 0.5rem',
+                                background: existing
+                                  ? 'rgba(245, 158, 11, 0.15)'
+                                  : 'rgba(59, 130, 246, 0.15)',
+                                color: existing ? '#f59e0b' : '#3b82f6',
+                                borderRadius: '4px',
+                                textTransform: 'uppercase',
+                                fontWeight: 'bold',
+                              }}
+                            >
+                              {existing ? 'Firearm (Serial Match)' : 'New Firearm'}
+                            </span>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                              {new Date(item.timestamp).toLocaleString()}
+                            </span>
+                          </div>
+
+                          <div>
+                            <h3
+                              style={{
+                                fontSize: '1.15rem',
+                                margin: '0 0 0.25rem 0',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                              }}
+                            >
+                              <Shield size={18} color="#3b82f6" />
+                              {make} {model} {caliber ? `• ${caliber}` : ''}
+                            </h3>
+                            <p
+                              style={{
+                                margin: 0,
+                                color: 'var(--text-secondary)',
+                                fontSize: '0.9rem',
+                              }}
+                            >
+                              {serial ? `S/N: ${serial} ` : ''}
+                              {data.action_type ? `• ${data.action_type} ` : ''}
+                              {data.condition ? `• Condition: ${data.condition} ` : ''}
+                              {data.purchase_price ? `• $${data.purchase_price} ` : ''}
+                            </p>
+                            {data.notes && (
+                              <p
+                                style={{
+                                  margin: '0.4rem 0 0 0',
+                                  color: 'var(--text-secondary)',
+                                  fontSize: '0.85rem',
+                                  fontStyle: 'italic',
+                                }}
+                              >
+                                "{data.notes}"
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <button
+                            className="btn-primary"
+                            onClick={() => handleApprove(item)}
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                          >
+                            <CheckCircle size={16} />
+                            {existing ? 'Update' : 'Direct Add'}
+                          </button>
+                          <button
+                            className="btn-secondary"
+                            onClick={() =>
+                              navigate('/firearms/new', {
+                                state: {
+                                  parsedData: data,
+                                  syncItemId: item.id,
+                                },
+                              })
+                            }
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                          >
+                            <Edit3 size={15} /> Review
+                          </button>
+                          <button
+                            className="btn-icon"
+                            onClick={() => handleDelete(item.id!)}
+                            style={{ color: 'var(--danger)' }}
+                            title="Dismiss"
+                          >
+                            <Trash2 size={20} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (item.type === 'firearm_update') {
+                    const data: any = item.data || item;
+                    const fId = Number(data.firearmId || (item as any).firearmId);
+                    const serial = data.serial_number || '';
+                    const firearm = firearms.find(
+                      (f) =>
+                        (fId && f.id === fId) ||
+                        (serial &&
+                          f.serial_number &&
+                          f.serial_number.trim().toLowerCase() === serial.trim().toLowerCase())
+                    );
+                    const make = data.make || firearm?.make || 'Firearm';
+                    const model = data.model || firearm?.model || '';
+                    const hasPhoto =
+                      data.photoBase64 || (data.photosBase64 && data.photosBase64.length > 0);
+                    const photoSrc =
+                      data.photoBase64 || (data.photosBase64 && data.photosBase64[0]);
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="card"
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '1.5rem',
+                          gap: '1rem',
+                        }}
+                      >
+                        {hasPhoto && photoSrc && (
+                          <img
+                            src={photoSrc}
+                            alt={`${make} ${model}`}
+                            style={{
+                              width: '72px',
+                              height: '72px',
+                              borderRadius: '8px',
+                              objectFit: 'cover',
+                              border: '1px solid var(--border)',
+                              backgroundColor: 'rgba(0,0,0,0.2)',
+                            }}
+                          />
+                        )}
+
+                        <div style={{ flex: 1 }}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem',
+                              marginBottom: '0.5rem',
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: '0.75rem',
+                                padding: '0.2rem 0.5rem',
+                                background: 'rgba(245, 158, 11, 0.15)',
+                                color: '#f59e0b',
+                                borderRadius: '4px',
+                                textTransform: 'uppercase',
+                                fontWeight: 'bold',
+                              }}
+                            >
+                              Firearm Spec Update
+                            </span>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                              {new Date(item.timestamp).toLocaleString()}
+                            </span>
+                          </div>
+
+                          <div>
+                            <h3
+                              style={{
+                                fontSize: '1.15rem',
+                                margin: '0 0 0.25rem 0',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                              }}
+                            >
+                              <Shield size={18} color="#f59e0b" />
+                              {make} {model} {data.caliber ? `• ${data.caliber}` : ''}
+                            </h3>
+                            <p
+                              style={{
+                                margin: 0,
+                                color: 'var(--text-secondary)',
+                                fontSize: '0.9rem',
+                              }}
+                            >
+                              {serial ? `S/N: ${serial} ` : ''}
+                              {data.condition ? `• Condition: ${data.condition} ` : ''}
+                              {hasPhoto ? '• New Photo Attached ' : ''}
+                            </p>
+                            {data.notes && (
+                              <p
+                                style={{
+                                  margin: '0.4rem 0 0 0',
+                                  color: 'var(--text-secondary)',
+                                  fontSize: '0.85rem',
+                                  fontStyle: 'italic',
+                                }}
+                              >
+                                "{data.notes}"
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <button
+                            className="btn-primary"
+                            onClick={() => handleApprove(item)}
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                          >
+                            <CheckCircle size={16} /> Apply Update
+                          </button>
+                          {firearm && (
+                            <button
+                              className="btn-secondary"
+                              onClick={() =>
+                                navigate(`/details/${firearm.id}`, {
+                                  state: {
+                                    parsedData: data,
+                                    syncItemId: item.id,
+                                  },
+                                })
+                              }
+                              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                            >
+                              <Edit3 size={15} /> Review
+                            </button>
+                          )}
+                          <button
+                            className="btn-icon"
+                            onClick={() => handleDelete(item.id!)}
+                            style={{ color: 'var(--danger)' }}
+                            title="Dismiss"
+                          >
+                            <Trash2 size={20} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+
                   if (item.type === 'firearm_log') {
                     const fId = Number((item as any).firearmId);
                     const firearm = firearms.find((f) => f.id === fId);
@@ -1441,9 +1872,12 @@ export const SyncInbox = () => {
                                     margin: '0.2rem 0 0 0',
                                     color: 'var(--accent)',
                                     fontSize: '0.8rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.3rem',
                                   }}
                                 >
-                                  📎 Photo Attached
+                                  <Paperclip size={13} /> Photo Attached
                                 </p>
                               )}
                             </div>

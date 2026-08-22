@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.8.0-nightly.8] - 2026-08-22 (Nightly Test Build)
+### Added
+- **Mobile Firearm Intake & Spec Updates Ingestion (`src/pages/SyncInbox.tsx`)**:
+  - Direct 1-tap ingest card for `new_firearm` and `firearm_update` sync payloads from mobile companion app.
+  - Automatically saves base64 photo payloads to local media store, inserts new firearms, and links storage container assignments.
+  - Added "Review in Form" integration pre-populating `FirearmForm.tsx` from sync inbox.
+  - Automatic serial number deduplication and matching.
+
 ## [2.8.0-nightly.7]
 ### Preview & Architecture Upgrade Release
 - **Modular Database Engine & Schema Versioning**:
