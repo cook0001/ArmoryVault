@@ -2,7 +2,15 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { app } = require('electron');
+const VaultEncryption = require('./VaultEncryption');
+const BackupManager = require('./BackupManager');
+const MediaManager = require('./MediaManager');
 
+/**
+ * Database is the unified facade that composes VaultEncryption, BackupManager,
+ * and MediaManager. It maintains the same public API surface as the original
+ * monolithic class so that main.js and preload.js require no changes.
+ */
 class Database {
   constructor() {
     this.dbPath = path.join(app.getPath('userData'), 'firearms_inventory.json'); // Legacy
@@ -10,448 +18,56 @@ class Database {
     this.photoDir = path.join(app.getPath('userData'), 'photos');
     this.docDir = path.join(app.getPath('userData'), 'documents');
 
-    if (!fs.existsSync(this.photoDir)) {
-      fs.mkdirSync(this.photoDir, { recursive: true });
-    }
-    if (!fs.existsSync(this.docDir)) {
-      fs.mkdirSync(this.docDir, { recursive: true });
-    }
-
-    this.masterKey = null;
-    this.vaultMeta = null;
-
-    // In-memory cache for performance — avoids decrypting the entire vault on every CRUD call
-    this._cache = null;
-    this._dirty = false;
-    this._flushTimer = null;
-    this._FLUSH_DELAY_MS = 2000;
+    // Compose modules
+    this.vault = new VaultEncryption(this.encPath, this.dbPath);
+    this.backup = new BackupManager(this.vault, () => this.getConfig());
+    this.media = new MediaManager(this.photoDir, this.docDir);
   }
 
+  // ─── Vault Delegation ──────────────────────────────────────────────
   isVaultSetup() {
-    return fs.existsSync(this.encPath);
+    return this.vault.isVaultSetup();
   }
-
   isLocked() {
-    return this.masterKey === null;
+    return this.vault.isLocked();
   }
-
   setupVault(password) {
-    const masterKey = crypto.randomBytes(32);
-    const recoveryCode = masterKey.toString('hex'); // 64 char recovery code
-
-    const salt = crypto.randomBytes(16);
-    const derivedKey = crypto.pbkdf2Sync(password, salt, 100000, 32, 'sha256');
-    const iv = crypto.randomBytes(12);
-
-    const cipher = crypto.createCipheriv('aes-256-gcm', derivedKey, iv);
-    let encryptedMasterKey = cipher.update(masterKey, 'utf8', 'hex');
-    encryptedMasterKey += cipher.final('hex');
-    const authTag = cipher.getAuthTag().toString('hex');
-
-    this.masterKey = masterKey;
-    this.vaultMeta = {
-      salt: salt.toString('hex'),
-      iv: iv.toString('hex'),
-      authTag: authTag,
-      encryptedMasterKey: encryptedMasterKey,
-    };
-
-    // Migration: If legacy JSON exists, encrypt it into the new file.
-    let dataToEncrypt = [];
-    if (fs.existsSync(this.dbPath)) {
-      try {
-        dataToEncrypt = JSON.parse(fs.readFileSync(this.dbPath, 'utf8'));
-        fs.renameSync(this.dbPath, this.dbPath + '.bak'); // Backup plaintext just in case for now
-      } catch (e) {}
-    }
-
-    this.saveFirearms(dataToEncrypt);
-    return recoveryCode;
+    return this.vault.setupVault(password);
   }
-
   unlockVault(password) {
-    if (!fs.existsSync(this.encPath)) return false;
-    try {
-      const filePayload = JSON.parse(fs.readFileSync(this.encPath, 'utf8'));
-      this.vaultMeta = filePayload.vault;
-
-      const derivedKey = crypto.pbkdf2Sync(
-        password,
-        Buffer.from(this.vaultMeta.salt, 'hex'),
-        100000,
-        32,
-        'sha256'
-      );
-      const decipher = crypto.createDecipheriv(
-        'aes-256-gcm',
-        derivedKey,
-        Buffer.from(this.vaultMeta.iv, 'hex')
-      );
-      decipher.setAuthTag(Buffer.from(this.vaultMeta.authTag, 'hex'));
-
-      let masterKey = decipher.update(this.vaultMeta.encryptedMasterKey, 'hex');
-      masterKey = Buffer.concat([Buffer.from(masterKey, 'hex'), decipher.final()]);
-
-      // Test decryption to ensure it works
-      const testDecipher = crypto.createDecipheriv(
-        'aes-256-gcm',
-        masterKey,
-        Buffer.from(filePayload.dataIv, 'hex')
-      );
-      testDecipher.setAuthTag(Buffer.from(filePayload.dataAuthTag, 'hex'));
-      let decrypted = testDecipher.update(filePayload.encryptedData, 'hex', 'utf8');
-      decrypted += testDecipher.final('utf8');
-
-      this.masterKey = masterKey;
-      return true;
-    } catch (e) {
-      console.error('Unlock failed:', e.message);
-      return false;
-    }
+    return this.vault.unlockVault(password);
   }
-
   unlockWithRecoveryCode(code) {
-    if (!fs.existsSync(this.encPath)) return false;
-    try {
-      const filePayload = JSON.parse(fs.readFileSync(this.encPath, 'utf8'));
-      this.vaultMeta = filePayload.vault;
-
-      const masterKeyBuffer = Buffer.from(code, 'hex');
-      if (masterKeyBuffer.length !== 32) return false;
-
-      // Test decryption
-      const decipher = crypto.createDecipheriv(
-        'aes-256-gcm',
-        masterKeyBuffer,
-        Buffer.from(filePayload.dataIv, 'hex')
-      );
-      decipher.setAuthTag(Buffer.from(filePayload.dataAuthTag, 'hex'));
-      let decrypted = decipher.update(filePayload.encryptedData, 'hex', 'utf8');
-      decrypted += decipher.final('utf8');
-
-      this.masterKey = masterKeyBuffer;
-      return true;
-    } catch (e) {
-      return false;
-    }
+    return this.vault.unlockWithRecoveryCode(code);
   }
-
-  changePassword(currentPassword, newPassword, regenerateRecoveryKey = false) {
-    if (this.isLocked() || !this.masterKey) {
-      return { success: false, error: 'Vault must be unlocked to change password.' };
-    }
-    if (!newPassword || newPassword.length < 8) {
-      return { success: false, error: 'New password must be at least 8 characters long.' };
-    }
-
-    try {
-      if (!this.vaultMeta) {
-        if (!fs.existsSync(this.encPath)) {
-          return { success: false, error: 'Vault file not found.' };
-        }
-        const filePayload = JSON.parse(fs.readFileSync(this.encPath, 'utf8'));
-        this.vaultMeta = filePayload.vault;
-      }
-
-      // Verify current password if provided
-      if (currentPassword) {
-        const derivedKey = crypto.pbkdf2Sync(
-          currentPassword,
-          Buffer.from(this.vaultMeta.salt, 'hex'),
-          100000,
-          32,
-          'sha256'
-        );
-        const decipher = crypto.createDecipheriv(
-          'aes-256-gcm',
-          derivedKey,
-          Buffer.from(this.vaultMeta.iv, 'hex')
-        );
-        decipher.setAuthTag(Buffer.from(this.vaultMeta.authTag, 'hex'));
-
-        let decryptedKey;
-        try {
-          decryptedKey = Buffer.concat([
-            decipher.update(Buffer.from(this.vaultMeta.encryptedMasterKey, 'hex')),
-            decipher.final(),
-          ]);
-        } catch (err) {
-          return { success: false, error: 'Current password is incorrect.' };
-        }
-
-        if (!decryptedKey || !decryptedKey.equals(this.masterKey)) {
-          return { success: false, error: 'Current password is incorrect.' };
-        }
-      }
-
-      // Handle re-keying if requested
-      let targetMasterKey = this.masterKey;
-      let newRecoveryCode = null;
-
-      if (regenerateRecoveryKey) {
-        targetMasterKey = crypto.randomBytes(32);
-        newRecoveryCode = targetMasterKey.toString('hex');
-      }
-
-      // Re-encrypt the master key with new password
-      const newSalt = crypto.randomBytes(16);
-      const newDerivedKey = crypto.pbkdf2Sync(newPassword, newSalt, 100000, 32, 'sha256');
-      const newIv = crypto.randomBytes(12);
-
-      const cipher = crypto.createCipheriv('aes-256-gcm', newDerivedKey, newIv);
-      let encryptedMasterKey = cipher.update(targetMasterKey, null, 'hex');
-      encryptedMasterKey += cipher.final('hex');
-      const authTag = cipher.getAuthTag().toString('hex');
-
-      this.masterKey = targetMasterKey;
-      this.vaultMeta = {
-        salt: newSalt.toString('hex'),
-        iv: newIv.toString('hex'),
-        authTag: authTag,
-        encryptedMasterKey: encryptedMasterKey,
-      };
-
-      // Load cache if needed and flush to disk
-      this.getData();
-      this._dirty = true;
-      this.flushSync();
-
-      return {
-        success: true,
-        newRecoveryCode: newRecoveryCode,
-        message: regenerateRecoveryKey
-          ? 'Master password updated and new recovery key generated successfully!'
-          : 'Master password updated successfully!',
-      };
-    } catch (e) {
-      console.error('Password change error:', e);
-      return { success: false, error: e.message || 'Failed to update master password.' };
-    }
+  changePassword(currentPassword, newPassword, regenerateRecoveryKey) {
+    return this.vault.changePassword(currentPassword, newPassword, regenerateRecoveryKey);
   }
-
   regenerateRecoveryKey(currentPassword) {
-    if (this.isLocked() || !this.masterKey) {
-      return { success: false, error: 'Vault must be unlocked to regenerate recovery key.' };
-    }
-
-    try {
-      if (!this.vaultMeta) {
-        if (!fs.existsSync(this.encPath)) {
-          return { success: false, error: 'Vault file not found.' };
-        }
-        const filePayload = JSON.parse(fs.readFileSync(this.encPath, 'utf8'));
-        this.vaultMeta = filePayload.vault;
-      }
-
-      // Verify current password
-      const derivedKey = crypto.pbkdf2Sync(
-        currentPassword,
-        Buffer.from(this.vaultMeta.salt, 'hex'),
-        100000,
-        32,
-        'sha256'
-      );
-      const decipher = crypto.createDecipheriv(
-        'aes-256-gcm',
-        derivedKey,
-        Buffer.from(this.vaultMeta.iv, 'hex')
-      );
-      decipher.setAuthTag(Buffer.from(this.vaultMeta.authTag, 'hex'));
-
-      let decryptedKey;
-      try {
-        decryptedKey = Buffer.concat([
-          decipher.update(Buffer.from(this.vaultMeta.encryptedMasterKey, 'hex')),
-          decipher.final(),
-        ]);
-      } catch (err) {
-        return { success: false, error: 'Current password is incorrect.' };
-      }
-
-      if (!decryptedKey || !decryptedKey.equals(this.masterKey)) {
-        return { success: false, error: 'Current password is incorrect.' };
-      }
-
-      // Generate new 32-byte master key
-      const newMasterKey = crypto.randomBytes(32);
-      const newRecoveryCode = newMasterKey.toString('hex');
-
-      // Re-encrypt new master key with current password
-      const newSalt = crypto.randomBytes(16);
-      const newDerivedKey = crypto.pbkdf2Sync(currentPassword, newSalt, 100000, 32, 'sha256');
-      const newIv = crypto.randomBytes(12);
-
-      const cipher = crypto.createCipheriv('aes-256-gcm', newDerivedKey, newIv);
-      let encryptedMasterKey = cipher.update(newMasterKey, null, 'hex');
-      encryptedMasterKey += cipher.final('hex');
-      const authTag = cipher.getAuthTag().toString('hex');
-
-      this.masterKey = newMasterKey;
-      this.vaultMeta = {
-        salt: newSalt.toString('hex'),
-        iv: newIv.toString('hex'),
-        authTag: authTag,
-        encryptedMasterKey: encryptedMasterKey,
-      };
-
-      // Re-encrypt entire database under the new master key
-      this.getData();
-      this._dirty = true;
-      this.flushSync();
-
-      return {
-        success: true,
-        newRecoveryCode: newRecoveryCode,
-        message: 'New recovery key generated and vault re-keyed successfully!',
-      };
-    } catch (e) {
-      console.error('Regenerate recovery key error:', e);
-      return { success: false, error: e.message || 'Failed to regenerate recovery key.' };
-    }
+    return this.vault.regenerateRecoveryKey(currentPassword);
   }
-
   getRecoveryCode() {
-    if (this.isLocked() || !this.masterKey) return null;
-    return this.masterKey.toString('hex');
+    return this.vault.getRecoveryCode();
   }
-
   lockVault() {
-    this.flushSync(); // Persist any pending writes before locking
-    this.masterKey = null;
-    this._cache = null;
-    this._dirty = false;
-    if (this._flushTimer) clearTimeout(this._flushTimer);
+    return this.vault.lockVault();
   }
-
   getData() {
-    const emptySchema = {
-      firearms: [],
-      ammo: [],
-      skus: {},
-      accessories: [],
-      components: [],
-      sync_queue: [],
-      storage_locations: [],
-      chrono_strings: [],
-      target_analyses: [],
-      load_ladder_tests: [],
-      ballistic_profiles: [],
-    };
-    if (this.isLocked()) return emptySchema;
-
-    // Return the in-memory cache if available
-    if (this._cache) return this._cache;
-
-    if (!fs.existsSync(this.encPath)) return emptySchema;
-
-    try {
-      const filePayload = JSON.parse(fs.readFileSync(this.encPath, 'utf8'));
-      if (!filePayload.encryptedData) return emptySchema;
-
-      const decipher = crypto.createDecipheriv(
-        'aes-256-gcm',
-        this.masterKey,
-        Buffer.from(filePayload.dataIv, 'hex')
-      );
-      decipher.setAuthTag(Buffer.from(filePayload.dataAuthTag, 'hex'));
-      let decrypted = decipher.update(filePayload.encryptedData, 'hex', 'utf8');
-      decrypted += decipher.final('utf8');
-
-      const parsed = JSON.parse(decrypted);
-      let data = {
-        firearms: [],
-        ammo: [],
-        skus: {},
-        accessories: [],
-        components: [],
-        sync_queue: [],
-        storage_locations: [],
-        chrono_strings: [],
-        target_analyses: [],
-        load_ladder_tests: [],
-        ballistic_profiles: [],
-      };
-      if (Array.isArray(parsed)) {
-        data.firearms = parsed;
-      } else if (parsed && typeof parsed === 'object') {
-        data = {
-          ...data,
-          ...parsed,
-          firearms: parsed.firearms || [],
-          ammo: parsed.ammo || [],
-          skus: parsed.skus || {},
-          accessories: parsed.accessories || [],
-          components: parsed.components || [],
-          sync_queue: parsed.sync_queue || [],
-          storage_locations: parsed.storage_locations || [],
-          chrono_strings: parsed.chrono_strings || [],
-          target_analyses: parsed.target_analyses || [],
-          load_ladder_tests: parsed.load_ladder_tests || [],
-          ballistic_profiles: parsed.ballistic_profiles || [],
-        };
-      }
-
-      // Migrate legacy mountedOnFirearmId to mounts array
-      data.accessories = data.accessories.map((acc) => {
-        if (acc.mountedOnFirearmId && !acc.mounts) {
-          acc.mounts = [{ firearmId: acc.mountedOnFirearmId, quantity: acc.quantity || 1 }];
-          delete acc.mountedOnFirearmId;
-        }
-        return acc;
-      });
-
-      // Populate the in-memory cache
-      this._cache = data;
-      return data;
-    } catch (e) {
-      console.error(e);
-      return emptySchema;
-    }
+    return this.vault.getData();
   }
-
   saveData(dataObj) {
-    if (this.isLocked()) throw new Error('Vault is locked');
-
-    // Update the in-memory cache immediately
-    this._cache = dataObj;
-    this._dirty = true;
-
-    // Debounce the expensive disk write — resets on each call
-    if (this._flushTimer) clearTimeout(this._flushTimer);
-    this._flushTimer = setTimeout(() => this._flushToDisk(), this._FLUSH_DELAY_MS);
+    this.vault.saveData(dataObj);
+    // Trigger backup after flush
+    this.backup.triggerBackup();
   }
-
-  _flushToDisk() {
-    if (!this._dirty || !this._cache) return;
-    try {
-      const jsonStr = JSON.stringify(this._cache);
-      const iv = crypto.randomBytes(12);
-      const cipher = crypto.createCipheriv('aes-256-gcm', this.masterKey, iv);
-
-      let encryptedData = cipher.update(jsonStr, 'utf8', 'hex');
-      encryptedData += cipher.final('hex');
-      const dataAuthTag = cipher.getAuthTag().toString('hex');
-
-      const filePayload = {
-        vault: this.vaultMeta,
-        dataIv: iv.toString('hex'),
-        dataAuthTag: dataAuthTag,
-        encryptedData: encryptedData,
-      };
-
-      fs.writeFileSync(this.encPath, JSON.stringify(filePayload, null, 2));
-      this._dirty = false;
-      this.triggerBackup();
-    } catch (e) {
-      console.error('Failed to flush vault to disk:', e);
-    }
-  }
-
   flushSync() {
-    if (this._flushTimer) clearTimeout(this._flushTimer);
-    this._flushToDisk();
+    return this.vault.flushSync();
+  }
+  getLastModified() {
+    return this.vault.getLastModified();
   }
 
+  // ─── Config ────────────────────────────────────────────────────────
   getConfig() {
     const configPath = path.join(app.getPath('userData'), 'config.json');
     if (fs.existsSync(configPath)) {
@@ -467,261 +83,82 @@ class Database {
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
   }
 
-  getBackupPath() {
-    return this.getConfig().backupPath;
+  // ─── Companion API Pairing Token ─────────────────────────────────────
+  generatePairingToken() {
+    const token = crypto.randomBytes(32).toString('hex');
+    this.setConfig('pairingToken', token);
+    return token;
   }
 
+  getPairingToken() {
+    return this.getConfig().pairingToken || null;
+  }
+
+  validatePairingToken(token) {
+    if (!token || typeof token !== 'string') return false;
+    const stored = this.getPairingToken();
+    if (!stored) return false;
+    // Constant-time comparison to prevent timing attacks
+    try {
+      return crypto.timingSafeEqual(Buffer.from(token, 'utf8'), Buffer.from(stored, 'utf8'));
+    } catch (e) {
+      return false;
+    }
+  }
+
+  revokePairingToken() {
+    this.setConfig('pairingToken', null);
+  }
+
+  // ─── Backup Delegation ─────────────────────────────────────────────
+  getBackupPath() {
+    return this.backup.getBackupPath();
+  }
   setBackupPath(backupPath) {
     this.setConfig('backupPath', backupPath);
-    this.triggerBackup();
+    this.backup.triggerBackup();
   }
-
   triggerBackup() {
-    const backupPath = this.getBackupPath();
-    if (!backupPath) return;
-    if (fs.existsSync(this.encPath)) {
-      try {
-        // Date-stamped backup: ArmoryVault_Backup_2026-08-16.enc
-        const dateStr = new Date().toISOString().split('T')[0];
-        const dest = path.join(backupPath, `ArmoryVault_Backup_${dateStr}.enc`);
-        fs.copyFileSync(this.encPath, dest);
-
-        // Rotate: keep only the 5 most recent backups
-        const MAX_BACKUPS = 5;
-        const backupFiles = fs
-          .readdirSync(backupPath)
-          .filter((f) => f.startsWith('ArmoryVault_Backup_') && f.endsWith('.enc'))
-          .sort()
-          .reverse();
-
-        if (backupFiles.length > MAX_BACKUPS) {
-          backupFiles.slice(MAX_BACKUPS).forEach((oldFile) => {
-            try {
-              fs.unlinkSync(path.join(backupPath, oldFile));
-            } catch (e) {
-              console.error('Failed to remove old backup:', oldFile, e);
-            }
-          });
-        }
-      } catch (e) {
-        console.error('Backup failed:', e);
-      }
-    }
+    return this.backup.triggerBackup();
   }
-
   createZipBackup(targetPath) {
-    if (!targetPath) {
-      throw new Error('Target backup path is required.');
-    }
-
-    // Flush any pending in-memory changes to disk first
-    this.flushSync();
-
-    const AdmZip = require('adm-zip');
-    const zip = new AdmZip();
-
-    // 1. Add database file(s)
-    let hasDb = false;
-    if (fs.existsSync(this.encPath)) {
-      zip.addLocalFile(this.encPath);
-      hasDb = true;
-    }
-    if (fs.existsSync(this.dbPath)) {
-      zip.addLocalFile(this.dbPath);
-      hasDb = true;
-    }
-
-    if (!hasDb) {
-      throw new Error(
-        'No active database found to archive. Please initialize or unlock the vault first.'
-      );
-    }
-
-    // 2. Add photos folder if it exists
-    if (fs.existsSync(this.photoDir)) {
-      const photos = fs.readdirSync(this.photoDir);
-      for (const file of photos) {
-        if (file.startsWith('.')) continue; // skip hidden files like .DS_Store
-        const fullPath = path.join(this.photoDir, file);
-        try {
-          if (fs.statSync(fullPath).isFile()) {
-            zip.addLocalFile(fullPath, 'photos');
-          }
-        } catch (e) {
-          console.warn('Could not add photo to zip:', fullPath, e);
-        }
-      }
-    }
-
-    // 3. Add documents folder if it exists
-    if (fs.existsSync(this.docDir)) {
-      const docs = fs.readdirSync(this.docDir);
-      for (const file of docs) {
-        if (file.startsWith('.')) continue; // skip hidden files like .DS_Store
-        const fullPath = path.join(this.docDir, file);
-        try {
-          if (fs.statSync(fullPath).isFile()) {
-            zip.addLocalFile(fullPath, 'documents');
-          }
-        } catch (e) {
-          console.warn('Could not add document to zip:', fullPath, e);
-        }
-      }
-    }
-
-    // 4. Write zip file synchronously and safely
-    zip.writeZip(targetPath);
-    return true;
+    return this.backup.createZipBackup(targetPath, this.photoDir, this.docDir);
   }
-
   restoreBackup(sourcePath) {
-    if (!fs.existsSync(sourcePath)) {
-      throw new Error('Backup file not found at ' + sourcePath);
-    }
-
-    // Flush any pending changes to current disk before restore
-    this.flushSync();
-
-    // 1. Create a safety backup of current active enc file
-    if (fs.existsSync(this.encPath)) {
-      const safetyBackupName = `firearms_inventory_pre_restore_${Date.now()}.enc.bak`;
-      const safetyBackupPath = path.join(app.getPath('userData'), safetyBackupName);
-      try {
-        fs.copyFileSync(this.encPath, safetyBackupPath);
-      } catch (e) {
-        console.error('Failed to create pre-restore safety backup:', e);
-      }
-    }
-
-    const ext = path.extname(sourcePath).toLowerCase();
-
-    if (ext === '.enc') {
-      const content = fs.readFileSync(sourcePath, 'utf8');
-      const parsed = JSON.parse(content);
-      if (!parsed.encryptedData || !parsed.dataIv || !parsed.dataAuthTag) {
-        throw new Error('Invalid encrypted backup file format.');
-      }
-
-      fs.copyFileSync(sourcePath, this.encPath);
-    } else if (ext === '.zip') {
-      const AdmZip = require('adm-zip');
-      const zip = new AdmZip(sourcePath);
-      const zipEntries = zip.getEntries();
-
-      const hasEnc = zipEntries.some(
-        (e) =>
-          e.entryName === 'firearms_inventory.enc' ||
-          e.entryName.endsWith('/firearms_inventory.enc')
-      );
-      const hasJson = zipEntries.some(
-        (e) =>
-          e.entryName === 'firearms_inventory.json' ||
-          e.entryName.endsWith('/firearms_inventory.json')
-      );
-
-      if (!hasEnc && !hasJson) {
-        throw new Error(
-          'Zip archive does not contain a valid database file (firearms_inventory.enc).'
-        );
-      }
-
-      // Extract enc file
-      if (hasEnc) {
-        const encEntry = zipEntries.find(
-          (e) =>
-            e.entryName === 'firearms_inventory.enc' ||
-            e.entryName.endsWith('/firearms_inventory.enc')
-        );
-        fs.writeFileSync(this.encPath, encEntry.getData());
-      } else if (hasJson) {
-        const jsonEntry = zipEntries.find(
-          (e) =>
-            e.entryName === 'firearms_inventory.json' ||
-            e.entryName.endsWith('/firearms_inventory.json')
-        );
-        fs.writeFileSync(this.dbPath, jsonEntry.getData());
-      }
-
-      // Extract photos & documents
-      zipEntries.forEach((entry) => {
-        if (entry.entryName.startsWith('photos/') && !entry.isDirectory) {
-          const filename = path.basename(entry.entryName);
-          if (filename) {
-            fs.writeFileSync(path.join(this.photoDir, filename), entry.getData());
-          }
-        } else if (entry.entryName.startsWith('documents/') && !entry.isDirectory) {
-          const filename = path.basename(entry.entryName);
-          if (filename) {
-            fs.writeFileSync(path.join(this.docDir, filename), entry.getData());
-          }
-        }
-      });
-    } else {
-      throw new Error('Unsupported backup file format. Please select an .enc or .zip file.');
-    }
-
-    // Reset cache
-    this._cache = null;
-    this._dirty = false;
-
-    // Check if the current masterKey can decrypt the restored file
-    if (this.masterKey && fs.existsSync(this.encPath)) {
-      try {
-        const filePayload = JSON.parse(fs.readFileSync(this.encPath, 'utf8'));
-        this.vaultMeta = filePayload.vault;
-        const decipher = crypto.createDecipheriv(
-          'aes-256-gcm',
-          this.masterKey,
-          Buffer.from(filePayload.dataIv, 'hex')
-        );
-        decipher.setAuthTag(Buffer.from(filePayload.dataAuthTag, 'hex'));
-        let decrypted = decipher.update(filePayload.encryptedData, 'hex', 'utf8');
-        decrypted += decipher.final('utf8');
-        const parsed = JSON.parse(decrypted);
-        let data = {
-          firearms: [],
-          ammo: [],
-          skus: {},
-          accessories: [],
-          components: [],
-          sync_queue: [],
-          storage_locations: [],
-          chrono_strings: [],
-          target_analyses: [],
-          load_ladder_tests: [],
-          ballistic_profiles: [],
-        };
-        if (Array.isArray(parsed)) {
-          data.firearms = parsed;
-        } else if (parsed && typeof parsed === 'object') {
-          data = {
-            ...data,
-            ...parsed,
-            firearms: parsed.firearms || [],
-            ammo: parsed.ammo || [],
-            skus: parsed.skus || {},
-            accessories: parsed.accessories || [],
-            components: parsed.components || [],
-            sync_queue: parsed.sync_queue || [],
-            storage_locations: parsed.storage_locations || [],
-            chrono_strings: parsed.chrono_strings || [],
-            target_analyses: parsed.target_analyses || [],
-            load_ladder_tests: parsed.load_ladder_tests || [],
-            ballistic_profiles: parsed.ballistic_profiles || [],
-          };
-        }
-        this._cache = data;
-        return { success: true, requiresRelogin: false };
-      } catch (e) {
-        // Restored file has a different master key/password
-        this.lockVault();
-        return { success: true, requiresRelogin: true };
-      }
-    }
-
-    return { success: true, requiresRelogin: false };
+    return this.backup.restoreBackup(sourcePath, this.photoDir, this.docDir);
   }
 
+  // ─── Media Delegation ──────────────────────────────────────────────
+  savePhoto(sourcePath, filename) {
+    return this.media.savePhoto(sourcePath, filename);
+  }
+  saveDocument(sourcePath, filename) {
+    return this.media.saveDocument(sourcePath, filename);
+  }
+
+  // ─── Activity Logging ──────────────────────────────────────────────
+  addActivityLog(entry) {
+    const data = this.getData();
+    if (!Array.isArray(data.activity_log)) {
+      data.activity_log = [];
+    }
+    data.activity_log.push({
+      ...entry,
+      timestamp: entry.timestamp || new Date().toISOString(),
+    });
+    // Cap at 1000 most recent entries
+    if (data.activity_log.length > 1000) {
+      data.activity_log = data.activity_log.slice(-1000);
+    }
+    this.saveData(data);
+  }
+
+  getActivityLog() {
+    const data = this.getData();
+    return data.activity_log || [];
+  }
+
+  // ─── Firearms CRUD ─────────────────────────────────────────────────
   getFirearms() {
     return this.getData().firearms;
   }
@@ -733,10 +170,17 @@ class Database {
   }
 
   addFirearm(firearm) {
-    const firearms = this.getFirearms();
-    const newId = firearms.length > 0 ? Math.max(...firearms.map((f) => f.id || 0)) + 1 : 1;
-    firearms.push({ ...firearm, id: newId });
-    this.saveFirearms(firearms);
+    const data = this.getData();
+    const newId = this.vault.getNextId('firearms');
+    data.firearms.push({ ...firearm, id: newId });
+    this.saveData(data);
+    this.addActivityLog({
+      action: 'add',
+      entityType: 'firearm',
+      entityId: newId,
+      detail: `${firearm.make || ''} ${firearm.model || ''}`.trim(),
+      source: 'desktop',
+    });
     return newId;
   }
 
@@ -751,9 +195,19 @@ class Database {
   }
 
   deleteFirearm(id) {
-    let firearms = this.getFirearms();
-    firearms = firearms.filter((f) => f.id !== id);
-    this.saveFirearms(firearms);
+    const firearms = this.getFirearms();
+    const target = firearms.find((f) => f.id === id);
+    const remaining = firearms.filter((f) => f.id !== id);
+    this.saveFirearms(remaining);
+    if (target) {
+      this.addActivityLog({
+        action: 'delete',
+        entityType: 'firearm',
+        entityId: id,
+        detail: `${target.make || ''} ${target.model || ''}`.trim(),
+        source: 'desktop',
+      });
+    }
     return id;
   }
 
@@ -823,6 +277,13 @@ class Database {
     }
 
     this.saveData(data);
+    this.addActivityLog({
+      action: 'range_session',
+      entityType: 'firearm',
+      entityId: Number(firearm_id),
+      detail: `${rounds} rounds fired`,
+      source: 'desktop',
+    });
     return { success: true, firearm_rounds: firearmRounds, ammo_remaining: ammoRemaining };
   }
 
@@ -867,6 +328,7 @@ class Database {
     return true;
   }
 
+  // ─── Ammo CRUD ─────────────────────────────────────────────────────
   getAmmo() {
     return this.getData().ammo;
   }
@@ -878,10 +340,17 @@ class Database {
   }
 
   addAmmo(ammo) {
-    const ammoList = this.getAmmo();
-    const newId = ammoList.length > 0 ? Math.max(...ammoList.map((a) => a.id || 0)) + 1 : 1;
-    ammoList.push({ ...ammo, id: newId });
-    this.saveAmmoList(ammoList);
+    const data = this.getData();
+    const newId = this.vault.getNextId('ammo');
+    data.ammo.push({ ...ammo, id: newId });
+    this.saveData(data);
+    this.addActivityLog({
+      action: 'add',
+      entityType: 'ammo',
+      entityId: newId,
+      detail: `${ammo.manufacturer || ''} ${ammo.caliber || ''}`.trim(),
+      source: 'desktop',
+    });
     return newId;
   }
 
@@ -896,12 +365,23 @@ class Database {
   }
 
   deleteAmmo(id) {
-    let ammoList = this.getAmmo();
-    ammoList = ammoList.filter((a) => a.id !== id);
-    this.saveAmmoList(ammoList);
+    const ammoList = this.getAmmo();
+    const target = ammoList.find((a) => a.id === id);
+    const remaining = ammoList.filter((a) => a.id !== id);
+    this.saveAmmoList(remaining);
+    if (target) {
+      this.addActivityLog({
+        action: 'delete',
+        entityType: 'ammo',
+        entityId: id,
+        detail: `${target.manufacturer || ''} ${target.caliber || ''}`.trim(),
+        source: 'desktop',
+      });
+    }
     return id;
   }
 
+  // ─── Accessories CRUD ──────────────────────────────────────────────
   getAccessories() {
     return this.getData().accessories || [];
   }
@@ -913,10 +393,17 @@ class Database {
   }
 
   addAccessory(accessory) {
-    const list = this.getAccessories();
-    const newId = list.length > 0 ? Math.max(...list.map((a) => a.id || 0)) + 1 : 1;
-    list.push({ ...accessory, id: newId });
-    this.saveAccessoriesList(list);
+    const data = this.getData();
+    const newId = this.vault.getNextId('accessories');
+    data.accessories.push({ ...accessory, id: newId });
+    this.saveData(data);
+    this.addActivityLog({
+      action: 'add',
+      entityType: 'accessory',
+      entityId: newId,
+      detail: `${accessory.manufacturer || ''} ${accessory.model || ''}`.trim(),
+      source: 'desktop',
+    });
     return newId;
   }
 
@@ -931,12 +418,23 @@ class Database {
   }
 
   deleteAccessory(id) {
-    let list = this.getAccessories();
-    list = list.filter((a) => a.id !== id);
-    this.saveAccessoriesList(list);
+    const list = this.getAccessories();
+    const target = list.find((a) => a.id === id);
+    const remaining = list.filter((a) => a.id !== id);
+    this.saveAccessoriesList(remaining);
+    if (target) {
+      this.addActivityLog({
+        action: 'delete',
+        entityType: 'accessory',
+        entityId: id,
+        detail: `${target.manufacturer || ''} ${target.model || ''}`.trim(),
+        source: 'desktop',
+      });
+    }
     return id;
   }
 
+  // ─── Components CRUD ───────────────────────────────────────────────
   getComponents() {
     return this.getData().components || [];
   }
@@ -948,10 +446,10 @@ class Database {
   }
 
   addComponent(component) {
-    const list = this.getComponents();
-    const newId = list.length > 0 ? Math.max(...list.map((c) => c.id || 0)) + 1 : 1;
-    list.push({ ...component, id: newId });
-    this.saveComponentsList(list);
+    const data = this.getData();
+    const newId = this.vault.getNextId('components');
+    data.components.push({ ...component, id: newId });
+    this.saveData(data);
     return newId;
   }
 
@@ -972,6 +470,7 @@ class Database {
     return id;
   }
 
+  // ─── SKUs ──────────────────────────────────────────────────────────
   getSkus() {
     const data = this.getData();
     return data && data.skus ? data.skus : {};
@@ -992,6 +491,7 @@ class Database {
     return skuId;
   }
 
+  // ─── Custom Schedule Presets ────────────────────────────────────────
   getCustomSchedulePresets() {
     const data = this.getData();
     return Array.isArray(data.custom_schedule_presets) ? data.custom_schedule_presets : [];
@@ -1004,6 +504,7 @@ class Database {
     return true;
   }
 
+  // ─── Handload Batch Manufacturing ──────────────────────────────────
   manufactureHandloadBatch(ammoId, quantity, deductions) {
     const data = this.getData();
     const ammoIndex = (data.ammo || []).findIndex((a) => a.id === Number(ammoId));
@@ -1018,9 +519,7 @@ class Database {
 
     // 1. Deduct powder
     if (deductions.powderId && (deductions.powderAmount || deductions.powderAmountGrains)) {
-      const comp = (data.reloading_components || []).find(
-        (c) => c.id === Number(deductions.powderId)
-      );
+      const comp = (data.components || []).find((c) => c.id === Number(deductions.powderId));
       if (comp) {
         let amountToDeduct = Number(deductions.powderAmount) || 0;
         if (deductions.powderAmountGrains) {
@@ -1044,9 +543,7 @@ class Database {
     // 2. Deduct Primers
     if (deductions.primerId && (deductions.primerCount || batchCount)) {
       const primerDeduct = deductions.primerCount ? Number(deductions.primerCount) : batchCount;
-      const comp = (data.reloading_components || []).find(
-        (c) => c.id === Number(deductions.primerId)
-      );
+      const comp = (data.components || []).find((c) => c.id === Number(deductions.primerId));
       if (comp) {
         comp.quantity = Math.max(0, Math.round(Number(comp.quantity || 0) - primerDeduct));
       }
@@ -1055,9 +552,7 @@ class Database {
     // 3. Deduct Brass / Cases
     if (deductions.brassId && (deductions.brassCount || batchCount)) {
       const brassDeduct = deductions.brassCount ? Number(deductions.brassCount) : batchCount;
-      const comp = (data.reloading_components || []).find(
-        (c) => c.id === Number(deductions.brassId)
-      );
+      const comp = (data.components || []).find((c) => c.id === Number(deductions.brassId));
       if (comp) {
         comp.quantity = Math.max(0, Math.round(Number(comp.quantity || 0) - brassDeduct));
       }
@@ -1066,9 +561,7 @@ class Database {
     // 4. Deduct Bullets / Projectiles
     if (deductions.bulletId && (deductions.bulletCount || batchCount)) {
       const bulletDeduct = deductions.bulletCount ? Number(deductions.bulletCount) : batchCount;
-      const comp = (data.reloading_components || []).find(
-        (c) => c.id === Number(deductions.bulletId)
-      );
+      const comp = (data.components || []).find((c) => c.id === Number(deductions.bulletId));
       if (comp) {
         comp.quantity = Math.max(0, Math.round(Number(comp.quantity || 0) - bulletDeduct));
       }
@@ -1080,36 +573,17 @@ class Database {
     data.ammo[ammoIndex].count = newCount;
 
     this.saveData(data);
+    this.addActivityLog({
+      action: 'manufacture',
+      entityType: 'ammo',
+      entityId: Number(ammoId),
+      detail: `Manufactured ${batchCount} rounds`,
+      source: 'desktop',
+    });
     return { success: true, newAmmoCount: newCount };
   }
 
-  savePhoto(sourcePath, filename) {
-    const destPath = path.join(this.photoDir, filename);
-    try {
-      if (fs.existsSync(sourcePath)) {
-        fs.copyFileSync(sourcePath, destPath);
-        return `file://${destPath}`;
-      }
-      return null;
-    } catch (error) {
-      console.error('Failed to save photo:', error);
-      return null;
-    }
-  }
-
-  saveDocument(sourcePath, filename) {
-    const destPath = path.join(this.docDir, filename);
-    try {
-      if (fs.existsSync(sourcePath)) {
-        fs.copyFileSync(sourcePath, destPath);
-        return `file://${destPath}`;
-      }
-      return null;
-    } catch (error) {
-      console.error('Failed to save document:', error);
-      return null;
-    }
-  }
+  // ─── Sync Queue ────────────────────────────────────────────────────
   getSyncQueue() {
     return this.getData().sync_queue || [];
   }
@@ -1121,10 +595,11 @@ class Database {
   }
 
   addSyncItem(item) {
-    const queue = this.getSyncQueue();
-    const newId = queue.length > 0 ? Math.max(...queue.map((i) => i.id || 0)) + 1 : 1;
-    queue.push({ ...item, id: newId });
-    this.saveSyncQueue(queue);
+    const data = this.getData();
+    const newId = this.vault.getNextId('sync_queue');
+    data.sync_queue = data.sync_queue || [];
+    data.sync_queue.push({ ...item, id: newId });
+    this.saveData(data);
     return newId;
   }
 
@@ -1152,10 +627,11 @@ class Database {
   }
 
   addStorageLocation(loc) {
-    const list = this.getStorageLocations();
-    const newId = list.length > 0 ? Math.max(...list.map((l) => l.id || 0)) + 1 : 1;
-    list.push({ ...loc, id: newId });
-    this.saveStorageLocations(list);
+    const data = this.getData();
+    const newId = this.vault.getNextId('storage_locations');
+    data.storage_locations = data.storage_locations || [];
+    data.storage_locations.push({ ...loc, id: newId });
+    this.saveData(data);
     return newId;
   }
 
@@ -1189,10 +665,11 @@ class Database {
   }
 
   addChronoString(cs) {
-    const list = this.getChronoStrings();
-    const newId = list.length > 0 ? Math.max(...list.map((c) => c.id || 0)) + 1 : 1;
-    list.push({ ...cs, id: newId });
-    this.saveChronoStrings(list);
+    const data = this.getData();
+    const newId = this.vault.getNextId('chrono_strings');
+    data.chrono_strings = data.chrono_strings || [];
+    data.chrono_strings.push({ ...cs, id: newId });
+    this.saveData(data);
     return newId;
   }
 
@@ -1216,10 +693,11 @@ class Database {
   }
 
   addTargetAnalysis(ta) {
-    const list = this.getTargetAnalyses();
-    const newId = list.length > 0 ? Math.max(...list.map((t) => t.id || 0)) + 1 : 1;
-    list.push({ ...ta, id: newId });
-    this.saveTargetAnalyses(list);
+    const data = this.getData();
+    const newId = this.vault.getNextId('target_analyses');
+    data.target_analyses = data.target_analyses || [];
+    data.target_analyses.push({ ...ta, id: newId });
+    this.saveData(data);
     return newId;
   }
 
@@ -1243,10 +721,11 @@ class Database {
   }
 
   addLoadLadderTest(lt) {
-    const list = this.getLoadLadderTests();
-    const newId = list.length > 0 ? Math.max(...list.map((l) => l.id || 0)) + 1 : 1;
-    list.push({ ...lt, id: newId });
-    this.saveLoadLadderTests(list);
+    const data = this.getData();
+    const newId = this.vault.getNextId('load_ladder_tests');
+    data.load_ladder_tests = data.load_ladder_tests || [];
+    data.load_ladder_tests.push({ ...lt, id: newId });
+    this.saveData(data);
     return newId;
   }
 
@@ -1280,10 +759,11 @@ class Database {
   }
 
   addBallisticProfile(bp) {
-    const list = this.getBallisticProfiles();
-    const newId = list.length > 0 ? Math.max(...list.map((b) => b.id || 0)) + 1 : 1;
-    list.push({ ...bp, id: newId });
-    this.saveBallisticProfiles(list);
+    const data = this.getData();
+    const newId = this.vault.getNextId('ballistic_profiles');
+    data.ballistic_profiles = data.ballistic_profiles || [];
+    data.ballistic_profiles.push({ ...bp, id: newId });
+    this.saveData(data);
     return newId;
   }
 

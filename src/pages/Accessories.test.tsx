@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
@@ -57,10 +57,53 @@ describe('Accessories Component & Tactical Detail Cards', () => {
       value: 849.0,
       mounts: [],
     },
+    {
+      id: 103,
+      type: 'Chassis',
+      manufacturer: 'MDT',
+      model: 'ACC Elite',
+      stockType: 'Precision Rifle Chassis',
+      actionInlet: 'Remington 700 Short Action',
+      bufferTubeType: 'Direct Action V-Block Bedding',
+      magCompatibility: 'AICS / AW Detachable Box',
+      forendRail: 'Full ARCA-Swiss + M-LOK',
+      quantity: 1,
+      value: 1299.99,
+      mounts: [],
+    },
+    {
+      id: 104,
+      type: 'Stock',
+      manufacturer: 'Thompson Center',
+      model: 'Pro Hunter FlexTech',
+      stockType: 'T/C Rifle Buttstock',
+      actionInlet: 'Thompson/Center Encore / Pro Hunter / Endeavor',
+      bufferTubeType: 'T/C Encore Frame Bolt Interface',
+      lengthOfPull: '14.25" FlexTech',
+      quantity: 1,
+      value: 119.0,
+      mounts: [],
+    },
+    {
+      id: 105,
+      type: 'Belt',
+      manufacturer: 'The Hunter Company',
+      model: '150 Series Buscadero',
+      beltType: 'Western Buscadero Drop Belt (Single/Double)',
+      dropLoopType: 'Single Drop (Right-Hand Strong Side)',
+      cartridgeLoopCaliber: '.44 Special / .44 Magnum / .45 Colt',
+      cartridgeLoopCount: 25,
+      beltWidth: '2.75" - 3.0" (Western Buscadero Drop Belt)',
+      buckleType: 'Classic Western Clipped-Corner / Nickel Buckle',
+      quantity: 1,
+      value: 89.99,
+      mounts: [],
+    },
   ];
 
   beforeEach(() => {
-    window.api = {
+    vi.clearAllMocks();
+    (window as any).api = {
       ...window.api,
       getAccessories: vi.fn().mockResolvedValue(mockAccessories),
       getFirearms: vi.fn().mockResolvedValue(mockFirearms),
@@ -79,6 +122,8 @@ describe('Accessories Component & Tactical Detail Cards', () => {
       expect(screen.getByText('Accessories & Optics')).toBeDefined();
       expect(screen.getByText(/Trijicon RMR Type 2/i)).toBeDefined();
       expect(screen.getByText(/Dead Air Sandman-S/i)).toBeDefined();
+      expect(screen.getByText(/MDT ACC Elite/i)).toBeDefined();
+      expect(screen.getByText(/150 Series Buscadero/i)).toBeDefined();
     });
 
     // Check tactical spec chips and telemetry
@@ -87,6 +132,8 @@ describe('Accessories Component & Tactical Detail Cards', () => {
     expect(screen.getByText(/1x \/ 3.25 MOA/i)).toBeDefined();
     expect(screen.getByText(/Up to \.300 Win Mag/i)).toBeDefined();
     expect(screen.getByText(/Glock 19 Gen 5/i)).toBeDefined();
+    expect(screen.getByText(/Remington 700 Short Action/i)).toBeDefined();
+    expect(screen.getByText(/14\.25" FlexTech/i)).toBeDefined();
   });
 
   test('opens AccessoryDetailModal when card or View Details is clicked', async () => {
@@ -100,8 +147,9 @@ describe('Accessories Component & Tactical Detail Cards', () => {
       expect(screen.getByText(/Trijicon RMR Type 2/i)).toBeDefined();
     });
 
-    const viewDetailsButtons = screen.getAllByText('View Details');
-    fireEvent.click(viewDetailsButtons[0]);
+    const card = screen.getByText(/Trijicon RMR Type 2/i).closest('.tactical-card')!;
+    const viewDetailsButton = within(card).getByText('View Details');
+    fireEvent.click(viewDetailsButton);
 
     await waitFor(() => {
       expect(screen.getByText('Technical Specifications & Logistics')).toBeDefined();
@@ -123,15 +171,83 @@ describe('Accessories Component & Tactical Detail Cards', () => {
       expect(screen.getByText(/Dead Air Sandman-S/i)).toBeDefined();
     });
 
-    const viewDetailsButtons = screen.getAllByText('View Details');
-    // Second item is the Suppressor
-    fireEvent.click(viewDetailsButtons[1]);
+    const card = screen.getByText(/Dead Air Sandman-S/i).closest('.tactical-card')!;
+    const viewDetailsButton = within(card).getByText('View Details');
+    fireEvent.click(viewDetailsButton);
 
     await waitFor(() => {
       expect(screen.getByText('ATF / NFA Registration Details')).toBeDefined();
       expect(screen.getByText('Form 4 Submitted')).toBeDefined();
       expect(screen.getByText('2022-06-01')).toBeDefined();
       expect(screen.getByText('2023-02-15')).toBeDefined();
+    });
+  });
+
+  test('displays Stock and Chassis technical specs in detail modal', async () => {
+    render(
+      <MemoryRouter>
+        <Accessories />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/MDT ACC Elite/i)).toBeDefined();
+    });
+
+    const card = screen.getByText(/MDT ACC Elite/i).closest('.tactical-card')!;
+    const viewDetailsButton = within(card).getByText('View Details');
+    fireEvent.click(viewDetailsButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Technical Specifications & Logistics')).toBeDefined();
+      expect(screen.getByText('Stock / Chassis Subtype')).toBeDefined();
+      expect(screen.getAllByText('Precision Rifle Chassis').length).toBeGreaterThan(0);
+      expect(screen.getByText('Action Inlet / Platform Fits')).toBeDefined();
+      expect(screen.getByText('AICS / AW Detachable Box')).toBeDefined();
+      expect(screen.getByText('Full ARCA-Swiss + M-LOK')).toBeDefined();
+    });
+  });
+
+  test('displays Gun Belt and Western Drop Belt technical specs in detail modal', async () => {
+    render(
+      <MemoryRouter>
+        <Accessories />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/150 Series Buscadero/i)).toBeDefined();
+    });
+
+    const card = screen.getByText(/150 Series Buscadero/i).closest('.tactical-card')!;
+    const viewDetailsButton = within(card).getByText('View Details');
+    fireEvent.click(viewDetailsButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Technical Specifications & Logistics')).toBeDefined();
+      expect(screen.getByText('Belt Subtype / Rig Style')).toBeDefined();
+      expect(
+        screen.getAllByText('Western Buscadero Drop Belt (Single/Double)').length
+      ).toBeGreaterThan(0);
+      expect(screen.getByText('Western Drop Loop / Configuration')).toBeDefined();
+      expect(screen.getAllByText('Single Drop (Right-Hand Strong Side)').length).toBeGreaterThan(0);
+      expect(screen.getByText('Integrated Cartridge Loops')).toBeDefined();
+      expect(screen.getAllByText('25x .44 Special / .44 Magnum / .45 Colt').length).toBeGreaterThan(
+        0
+      );
+    });
+  });
+
+  test('displays Storage Location filter and container information in detail modal', async () => {
+    render(
+      <MemoryRouter>
+        <Accessories />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTitle('Filter accessories by storage location / safe')).toBeDefined();
+      expect(screen.getByText('All Storage Locations')).toBeDefined();
     });
   });
 });

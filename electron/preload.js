@@ -81,6 +81,8 @@ contextBridge.exposeInMainWorld('api', {
 
   // Mobile Sync API
   getLocalIp: () => ipcRenderer.invoke('get-local-ip'),
+  getPairingToken: () => ipcRenderer.invoke('get-pairing-token'),
+  revokePairingToken: () => ipcRenderer.invoke('revoke-pairing-token'),
   onSyncReceived: (callback) => {
     const subscription = () => callback();
     ipcRenderer.on('sync-received', subscription);
@@ -127,4 +129,7 @@ contextBridge.exposeInMainWorld('api', {
   addBallisticProfile: (bp) => ipcRenderer.invoke('add-ballistic-profile', bp),
   updateBallisticProfile: (id, bp) => ipcRenderer.invoke('update-ballistic-profile', id, bp),
   deleteBallisticProfile: (id) => ipcRenderer.invoke('delete-ballistic-profile', id),
+
+  // ─── Activity Audit Log ────────────────────────────────────────────
+  getActivityLog: () => ipcRenderer.invoke('get-activity-log'),
 });

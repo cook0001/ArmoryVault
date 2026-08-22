@@ -1,8 +1,9 @@
 import { Save, Upload, X } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AutocompleteInput } from '../components/AutocompleteInput';
-import { Firearm } from '../types';
+import { StorageLocationSelect } from '../components/StorageBadge';
+import { Firearm, StorageLocation } from '../types';
 import { formatCaliber } from '../utils/caliberHelpers';
 import {
   ACTION_OPTIONS,
@@ -11,6 +12,11 @@ import {
   FINISH_OPTIONS,
   TYPE_OPTIONS,
 } from '../utils/formOptions';
+import {
+  assignItemToStorage,
+  getItemStorageLocation,
+  saveStorageLocations,
+} from '../utils/StorageSync';
 
 export const FirearmForm = () => {
   const navigate = useNavigate();
@@ -31,12 +37,24 @@ export const FirearmForm = () => {
     purchased_from: '',
     firearm_type: '',
   });
+  const [locations, setLocations] = useState<StorageLocation[]>([]);
+  const [storageLocationId, setStorageLocationId] = useState<number | null>(null);
   const [previews, setPreviews] = useState<{ url: string; isExisting: boolean; path?: string }[]>(
     []
   );
   const { id } = useParams();
 
-  React.useEffect(() => {
+  useEffect(() => {
+    if (window.api && window.api.getStorageLocations) {
+      window.api.getStorageLocations().then((locs) => {
+        setLocations(locs || []);
+        if (id) {
+          const matched = getItemStorageLocation('firearm', Number(id), locs || []);
+          if (matched) setStorageLocationId(matched.id || null);
+        }
+      });
+    }
+
     if (id && window.api) {
       window.api.getFirearms().then((all) => {
         const found = all.find((f) => f.id === Number(id));
@@ -96,13 +114,41 @@ export const FirearmForm = () => {
       ...(formData as Firearm),
       photos: finalPhotos,
       image_path: finalPhotos.length > 0 ? finalPhotos[0] : '', // Keep backward compatibility
+      storageLocationId: storageLocationId || undefined,
     };
 
+    let savedId = Number(id);
     if (id) {
       await window.api.updateFirearm(Number(id), payload);
+    } else {
+      const res: any = await window.api.addFirearm(payload);
+      if (typeof res === 'number') {
+        savedId = res;
+      } else if (res && typeof res.id === 'number') {
+        savedId = res.id;
+      } else {
+        // Fallback: fetch all firearms and find the highest ID
+        const all = await window.api.getFirearms();
+        if (all && all.length > 0) {
+          savedId = Math.max(...all.map((f: any) => f.id || 0));
+        }
+      }
+    }
+
+    // Bi-directional Storage Sync
+    if (savedId && locations.length > 0) {
+      const updatedLocations = assignItemToStorage(
+        'firearm',
+        savedId,
+        storageLocationId,
+        locations
+      );
+      await saveStorageLocations(updatedLocations);
+    }
+
+    if (id) {
       navigate(`/details/${id}`);
     } else {
-      await window.api.addFirearm(payload);
       navigate('/');
     }
   };
@@ -254,6 +300,15 @@ export const FirearmForm = () => {
               onChange={handleChange}
               options={CONDITION_OPTIONS}
               placeholder="e.g. NRA Fine, Excellent, CMP Service"
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="storage_location">Storage Location / Safe</label>
+            <StorageLocationSelect
+              value={storageLocationId}
+              onChange={(locId) => setStorageLocationId(locId)}
+              locations={locations}
+              placeholder="Select Safe / Cabinet / Container..."
             />
           </div>
         </div>

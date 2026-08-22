@@ -22,6 +22,7 @@ import {
   Star,
   Target,
   Trash2,
+  Unlink,
   Upload,
   Wrench,
 } from 'lucide-react';
@@ -31,8 +32,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { AccessoryDetailModal, getAccessoryTypeColor } from '../components/AccessoryDetailModal';
 import { AccessoryModal } from '../components/AccessoryModal';
 import { AutocompleteInput } from '../components/AutocompleteInput';
-import { ScopeIcon } from '../components/CustomIcons';
+import { ChassisIcon, GunBeltIcon, ScopeIcon, StockIcon } from '../components/CustomIcons';
 import { Lightbox } from '../components/Lightbox';
+import { MountAccessoryModal } from '../components/MountAccessoryModal';
+import { StorageBadge } from '../components/StorageBadge';
+import { useUndoToast } from '../components/UndoToast';
 import {
   Accessory,
   Ammo,
@@ -40,6 +44,7 @@ import {
   Firearm,
   MaintenanceLog,
   MaintenanceScheduleItem,
+  StorageLocation,
 } from '../types';
 import {
   createScheduleItemsFromProfile,
@@ -47,8 +52,15 @@ import {
   MAINTENANCE_PROFILES,
   MaintenanceProfile,
 } from '../utils/maintenancePresets';
+import {
+  assignItemToStorage,
+  getItemStorageLocation,
+  removeItemFromAllStorage,
+  saveStorageLocations,
+} from '../utils/StorageSync';
 
 export const FirearmDetails = () => {
+  const { showUndo } = useUndoToast();
   const { id } = useParams();
   const navigate = useNavigate();
   const [firearm, setFirearm] = useState<Firearm | null>(null);
@@ -79,8 +91,10 @@ export const FirearmDetails = () => {
   const [editingLogId, setEditingLogId] = useState<number | null>(null);
   const [inventoryAmmo, setInventoryAmmo] = useState<Ammo[]>([]);
   const [attachedAccessories, setAttachedAccessories] = useState<Accessory[]>([]);
+  const [allAccessories, setAllAccessories] = useState<Accessory[]>([]);
   const [showTotalSetupValue, setShowTotalSetupValue] = useState(false);
   const [isAccessoryModalOpen, setIsAccessoryModalOpen] = useState(false);
+  const [isMountAccessoryModalOpen, setIsMountAccessoryModalOpen] = useState(false);
   const [editingAccessoryId, setEditingAccessoryId] = useState<number | null>(null);
   const [accessoryFormData, setAccessoryFormData] = useState<Partial<Accessory>>({});
   const [selectedAccessoryForDetail, setSelectedAccessoryForDetail] = useState<Accessory | null>(
@@ -103,6 +117,7 @@ export const FirearmDetails = () => {
   const [selectedPresetId, setSelectedPresetId] = useState<string>('semi_pistol');
   const [presetTab, setPresetTab] = useState<'profiles' | 'custom'>('profiles');
   const [customPresets, setCustomPresets] = useState<CustomSchedulePreset[]>([]);
+  const [storageLocations, setStorageLocations] = useState<StorageLocation[]>([]);
   const [isSavePresetModalOpen, setIsSavePresetModalOpen] = useState(false);
   const [customPresetForm, setCustomPresetForm] = useState({ name: '', description: '' });
 
@@ -162,6 +177,7 @@ export const FirearmDetails = () => {
 
       if (window.api.getAccessories) {
         const allAcc = await window.api.getAccessories();
+        setAllAccessories(allAcc);
         const attached = allAcc.filter((a) => a.mounts?.some((m) => m.firearmId === Number(id)));
         setAttachedAccessories(attached);
 
@@ -180,13 +196,46 @@ export const FirearmDetails = () => {
         const presets = await window.api.getCustomSchedulePresets();
         setCustomPresets(presets || []);
       }
+
+      if (window.api.getStorageLocations) {
+        const locs = await window.api.getStorageLocations();
+        setStorageLocations(locs || []);
+      }
     }
   };
 
   const handleDelete = async () => {
-    if (window.confirm('Are you sure you want to delete this record?')) {
-      await window.api.deleteFirearm(Number(id));
-      navigate('/');
+    if (!firearm) return;
+    const targetFirearm = { ...firearm };
+    if (storageLocations.length > 0) {
+      const updatedLocs = removeItemFromAllStorage('firearm', Number(id), storageLocations);
+      await saveStorageLocations(updatedLocs);
+    }
+    await window.api.deleteFirearm(Number(id));
+    navigate('/');
+    showUndo(`Deleted "${targetFirearm.make} ${targetFirearm.model}"`, async () => {
+      if (window.api?.addFirearm) {
+        const { id: _oldId, ...rest } = targetFirearm;
+        const newId = await window.api.addFirearm(rest as Firearm);
+        if (newId) {
+          navigate(`/firearms/${newId}`);
+        }
+      }
+    });
+  };
+
+  const handleUnmountAccessory = async (acc: Accessory) => {
+    if (!id || !window.api?.updateAccessory) return;
+    if (
+      window.confirm(
+        `Are you sure you want to unmount "${acc.manufacturer} ${acc.model}" from this firearm? It will remain saved in your Accessories catalog.`
+      )
+    ) {
+      const currentMounts = acc.mounts || [];
+      const updatedMounts = currentMounts.filter((m) => m.firearmId !== Number(id));
+      const updatedAcc = { ...acc, mounts: updatedMounts };
+      await window.api.updateAccessory(acc.id!, updatedAcc);
+      await loadFirearm();
     }
   };
 
@@ -224,14 +273,20 @@ export const FirearmDetails = () => {
   };
 
   const handleDeleteLog = async (logId: number) => {
-    if (window.confirm('Are you sure you want to delete this log entry?')) {
-      if (firearm) {
-        const updatedLogs = (firearm.logs || []).filter((l) => l.id !== logId);
-        const updated = { ...firearm, logs: updatedLogs };
-        await window.api.updateFirearm(firearm.id!, updated);
-        setFirearm(updated);
+    if (!firearm) return;
+    const targetLog = (firearm.logs || []).find((l) => l.id === logId);
+    if (!targetLog) return;
+    const updatedLogs = (firearm.logs || []).filter((l) => l.id !== logId);
+    const updated = { ...firearm, logs: updatedLogs };
+    await window.api.updateFirearm(firearm.id!, updated);
+    setFirearm(updated);
+    showUndo(`Deleted ${targetLog.type} log entry`, async () => {
+      if (window.api?.updateFirearm && firearm.id) {
+        const restored = { ...firearm, logs: [...(updated.logs || []), targetLog] };
+        await window.api.updateFirearm(firearm.id, restored);
+        setFirearm(restored);
       }
-    }
+    });
   };
 
   const handleDocumentSelect = async () => {
@@ -371,15 +426,23 @@ export const FirearmDetails = () => {
   };
 
   const handleDeleteSchedule = async (taskId: string) => {
-    if (
-      !firearm ||
-      !window.confirm('Are you sure you want to delete this maintenance schedule task?')
-    )
-      return;
+    if (!firearm) return;
+    const targetSchedule = (firearm.maintenance_schedules || []).find((s) => s.id === taskId);
+    if (!targetSchedule) return;
     const updatedSchedules = (firearm.maintenance_schedules || []).filter((s) => s.id !== taskId);
     const updated = { ...firearm, maintenance_schedules: updatedSchedules };
     await window.api.updateFirearm(firearm.id!, updated);
     setFirearm(updated);
+    showUndo(`Deleted "${targetSchedule.task_name}" task`, async () => {
+      if (window.api?.updateFirearm && firearm.id) {
+        const restored = {
+          ...firearm,
+          maintenance_schedules: [...(updated.maintenance_schedules || []), targetSchedule],
+        };
+        await window.api.updateFirearm(firearm.id, restored);
+        setFirearm(restored);
+      }
+    });
   };
 
   const handleLoadPreset = async (
@@ -566,7 +629,11 @@ export const FirearmDetails = () => {
                 {firearm.is_sold ? (
                   <span className="status-badge sold">Sold Ledger</span>
                 ) : (
-                  <span className="status-badge available">● In Safe</span>
+                  <StorageBadge
+                    location={getItemStorageLocation('firearm', firearm.id, storageLocations)}
+                    onClick={() => navigate('/storage')}
+                    size="md"
+                  />
                 )}
                 {firearm.is_nfa && (
                   <span
@@ -986,17 +1053,40 @@ export const FirearmDetails = () => {
                 cards.
               </p>
             </div>
-            <button
-              className="btn-secondary"
-              onClick={() => {
-                setEditingAccessoryId(null);
-                setAccessoryFormData({ mounts: [{ firearmId: Number(id), quantity: 1 }] });
-                setIsAccessoryModalOpen(true);
-              }}
-              style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
-            >
-              <PlusCircle size={16} /> Add Accessory
-            </button>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => setIsMountAccessoryModalOpen(true)}
+                style={{
+                  padding: '0.4rem 0.85rem',
+                  fontSize: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                }}
+              >
+                <Bookmark size={15} /> Mount Existing Accessory
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setEditingAccessoryId(null);
+                  setAccessoryFormData({ mounts: [{ firearmId: Number(id), quantity: 1 }] });
+                  setIsAccessoryModalOpen(true);
+                }}
+                style={{
+                  padding: '0.4rem 0.85rem',
+                  fontSize: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                }}
+              >
+                <PlusCircle size={15} /> + New Accessory
+              </button>
+            </div>
           </div>
           {attachedAccessories.length > 0 ? (
             <div
@@ -1247,7 +1337,61 @@ export const FirearmDetails = () => {
                           {acc.capacity}rd
                         </span>
                       )}
-                      {acc.supportedModels && (
+                      {acc.actionInlet && (
+                        <span
+                          style={{
+                            background: 'rgba(56, 189, 248, 0.1)',
+                            color: '#38bdf8',
+                            border: '1px solid rgba(56, 189, 248, 0.25)',
+                            padding: '0.1rem 0.45rem',
+                            borderRadius: '4px',
+                            fontSize: '0.7rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                          }}
+                        >
+                          <Target size={11} color="#38bdf8" />
+                          <span>{acc.actionInlet}</span>
+                        </span>
+                      )}
+                      {acc.stockType && (
+                        <span
+                          style={{
+                            background: 'rgba(16, 185, 129, 0.1)',
+                            color: '#10b981',
+                            border: '1px solid rgba(16, 185, 129, 0.25)',
+                            padding: '0.1rem 0.45rem',
+                            borderRadius: '4px',
+                            fontSize: '0.7rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                          }}
+                        >
+                          {acc.type === 'Chassis' ? (
+                            <ChassisIcon size={11} color="#10b981" />
+                          ) : (
+                            <StockIcon size={11} color="#10b981" />
+                          )}
+                          <span>{acc.stockType}</span>
+                        </span>
+                      )}
+                      {acc.lengthOfPull && (
+                        <span
+                          style={{
+                            background: 'rgba(52, 211, 153, 0.1)',
+                            color: '#34d399',
+                            border: '1px solid rgba(52, 211, 153, 0.25)',
+                            padding: '0.1rem 0.45rem',
+                            borderRadius: '4px',
+                            fontSize: '0.7rem',
+                          }}
+                        >
+                          LOP: {acc.lengthOfPull}
+                        </span>
+                      )}
+                      {acc.supportedModels && !acc.actionInlet && (
                         <span
                           style={{
                             background: 'rgba(255, 255, 255, 0.05)',
@@ -1310,6 +1454,22 @@ export const FirearmDetails = () => {
                         >
                           <Edit size={14} />
                         </button>
+                        <button
+                          type="button"
+                          className="btn-icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleUnmountAccessory(acc);
+                          }}
+                          style={{
+                            padding: '0.35rem',
+                            borderRadius: '4px',
+                            color: '#f87171',
+                          }}
+                          title="Unmount / Detach from this Firearm"
+                        >
+                          <Unlink size={14} />
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -1320,15 +1480,61 @@ export const FirearmDetails = () => {
             <div
               style={{
                 textAlign: 'center',
-                padding: '2rem',
+                padding: '2.5rem 1.5rem',
                 background: 'rgba(0,0,0,0.2)',
-                borderRadius: '8px',
+                borderRadius: '12px',
                 border: '1px dashed var(--border-light)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '0.75rem',
               }}
             >
-              <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
-                No accessories or optics mounted to this firearm.
+              <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.95rem' }}>
+                No accessories or optics currently mounted to this firearm.
               </p>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '0.6rem',
+                  marginTop: '0.25rem',
+                  flexWrap: 'wrap',
+                  justifyContent: 'center',
+                }}
+              >
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={() => setIsMountAccessoryModalOpen(true)}
+                  style={{
+                    padding: '0.45rem 0.95rem',
+                    fontSize: '0.85rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                  }}
+                >
+                  <Bookmark size={15} /> Select &amp; Mount Existing Accessory
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => {
+                    setEditingAccessoryId(null);
+                    setAccessoryFormData({ mounts: [{ firearmId: Number(id), quantity: 1 }] });
+                    setIsAccessoryModalOpen(true);
+                  }}
+                  style={{
+                    padding: '0.45rem 0.95rem',
+                    fontSize: '0.85rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                  }}
+                >
+                  <PlusCircle size={15} /> + Create New Accessory
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -4086,6 +4292,22 @@ export const FirearmDetails = () => {
           images={lightboxImages}
           initialIndex={lightboxIndex}
           onClose={() => setLightboxImages([])}
+        />
+      )}
+      {/* Mount Existing Accessory Modal */}
+      {firearm && (
+        <MountAccessoryModal
+          isOpen={isMountAccessoryModalOpen}
+          onClose={() => setIsMountAccessoryModalOpen(false)}
+          targetFirearm={firearm}
+          allAccessories={allAccessories}
+          allFirearms={allFirearms.length > 0 ? allFirearms : [firearm]}
+          onMountChanged={() => loadFirearm()}
+          onOpenCreateNew={() => {
+            setEditingAccessoryId(null);
+            setAccessoryFormData({ mounts: [{ firearmId: Number(id), quantity: 1 }] });
+            setIsAccessoryModalOpen(true);
+          }}
         />
       )}
     </>

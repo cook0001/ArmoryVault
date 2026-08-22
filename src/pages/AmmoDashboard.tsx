@@ -42,7 +42,9 @@ import {
   ShotgunIcon,
 } from '../components/CustomIcons';
 import { ReloadingComponentModal } from '../components/ReloadingComponentModal';
-import { Ammo, ReloadingComponent } from '../types';
+import { StorageBadge, StorageLocationSelect } from '../components/StorageBadge';
+import { useUndoToast } from '../components/UndoToast';
+import { Ammo, ReloadingComponent, StorageLocation } from '../types';
 import { parseBarcodeData } from '../utils/BarcodeEngine';
 import {
   buildCustomCategories,
@@ -69,6 +71,12 @@ import {
   SHOTGUN_SHOT_SIZES,
 } from '../utils/formOptions';
 import { formatPowderMultiUnit, toGrains } from '../utils/powderUnits';
+import {
+  assignItemToStorage,
+  getItemStorageLocation,
+  removeItemFromAllStorage,
+  saveStorageLocations,
+} from '../utils/StorageSync';
 
 export { formatCaliber } from '../utils/caliberHelpers';
 
@@ -97,12 +105,16 @@ const DEFAULT_METRIC_VISIBILITY: MetricVisibility = {
 };
 
 export const AmmoDashboard = () => {
+  const { showUndo } = useUndoToast();
   const location = useLocation();
   const navigate = useNavigate();
 
   // Primary State
   const [ammoList, setAmmoList] = useState<Ammo[]>([]);
   const [components, setComponents] = useState<ReloadingComponent[]>([]);
+  const [storageLocations, setStorageLocations] = useState<StorageLocation[]>([]);
+  const [selectedStorageLocationId, setSelectedStorageLocationId] = useState<string>('ALL');
+  const [ammoStorageLocationId, setAmmoStorageLocationId] = useState<number | null>(null);
   const [activeDepotView, setActiveDepotView] = useState<DepotView>('ammo');
   const [activeAmmoTab, setActiveAmmoTab] = useState<'factory' | 'handload'>('factory');
   const [searchQuery, setSearchQuery] = useState('');
@@ -145,12 +157,14 @@ export const AmmoDashboard = () => {
   // Load Data
   const loadData = async () => {
     if (window.api) {
-      const [ammoData, compData] = await Promise.all([
+      const [ammoData, compData, locData] = await Promise.all([
         window.api.getAmmo(),
         window.api.getComponents ? window.api.getComponents() : [],
+        window.api.getStorageLocations ? window.api.getStorageLocations() : [],
       ]);
       setAmmoList(ammoData || []);
       setComponents(compData || []);
+      setStorageLocations(locData || []);
     }
   };
 
@@ -234,6 +248,7 @@ export const AmmoDashboard = () => {
     setEditingAmmo(null);
     setIsAddingStockMode(false);
     setFormData({ type });
+    setAmmoStorageLocationId(null);
     setUpcStatus(null);
     setIsAmmoModalOpen(true);
     setCalcRds('');
@@ -244,6 +259,8 @@ export const AmmoDashboard = () => {
     setEditingAmmo(ammo);
     setIsAddingStockMode(false);
     setFormData({ ...ammo });
+    const loc = getItemStorageLocation('ammo', ammo.id, storageLocations);
+    setAmmoStorageLocationId(loc?.id || null);
     setUpcStatus(null);
     setIsAmmoModalOpen(true);
     setCalcRds(ammo.count);
@@ -326,20 +343,45 @@ export const AmmoDashboard = () => {
   };
 
   const handleDeleteAmmo = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this ammo record?')) {
-      if (window.api) {
-        await window.api.deleteAmmo(id);
-        await loadData();
-      }
+    const targetAmmo = ammoList.find((a) => a.id === id);
+    if (!targetAmmo) return;
+    if (storageLocations.length > 0) {
+      const updatedLocs = removeItemFromAllStorage('ammo', id, storageLocations);
+      await saveStorageLocations(updatedLocs);
+    }
+    if (window.api) {
+      await window.api.deleteAmmo(id);
+      await loadData();
+      showUndo(`Deleted ${targetAmmo.caliber} (${targetAmmo.count} rds)`, async () => {
+        if (window.api?.addAmmo) {
+          const { id: _oldId, ...rest } = targetAmmo;
+          await window.api.addAmmo(rest as Ammo);
+          await loadData();
+        }
+      });
     }
   };
 
   const handleDeleteComponent = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this reloading component?')) {
-      if (window.api && window.api.deleteComponent) {
-        await window.api.deleteComponent(id);
-        await loadData();
-      }
+    const targetComp = components.find((c) => c.id === id);
+    if (!targetComp) return;
+    if (storageLocations.length > 0) {
+      const updatedLocs = removeItemFromAllStorage('component', id, storageLocations);
+      await saveStorageLocations(updatedLocs);
+    }
+    if (window.api && window.api.deleteComponent) {
+      await window.api.deleteComponent(id);
+      await loadData();
+      showUndo(
+        `Deleted ${targetComp.type}: ${targetComp.manufacturer} ${targetComp.name || ''}`,
+        async () => {
+          if (window.api?.addComponent) {
+            const { id: _oldId, ...rest } = targetComp;
+            await window.api.addComponent(rest as ReloadingComponent);
+            await loadData();
+          }
+        }
+      );
     }
   };
 
@@ -461,11 +503,13 @@ export const AmmoDashboard = () => {
       submissionData.upc_code = generateInternalUPC();
     }
 
+    let savedId = editingAmmo?.id || null;
     if (editingAmmo && editingAmmo.id) {
       if (isAddingStockMode) {
         submissionData.count = (editingAmmo.count || 0) + (submissionData.count || 0);
       }
       await window.api.updateAmmo(editingAmmo.id, submissionData as Ammo);
+      savedId = editingAmmo.id;
     } else {
       const duplicate = ammoList.find(
         (a) =>
@@ -489,18 +533,41 @@ export const AmmoDashboard = () => {
             mergedData.upc_code = submissionData.upc_code;
           }
           await window.api.updateAmmo(duplicate.id!, mergedData as Ammo);
+          savedId = duplicate.id || null;
           merged = true;
         }
       }
 
       if (!merged) {
-        await window.api.addAmmo(submissionData as Ammo);
+        const res = await window.api.addAmmo(submissionData as Ammo);
+        if (typeof res === 'number') {
+          savedId = res;
+        } else if (res && typeof (res as any).id === 'number') {
+          savedId = (res as any).id;
+        } else {
+          const fresh = await window.api.getAmmo();
+          if (fresh && fresh.length > 0) {
+            savedId = Math.max(...fresh.map((a: any) => a.id || 0));
+          }
+        }
       }
 
       if (location.state && (location.state as any).syncItemId) {
         await window.api.removeSyncItem((location.state as any).syncItemId);
       }
     }
+
+    // Bi-directional Storage Sync
+    if (savedId && storageLocations.length > 0) {
+      const updatedLocations = assignItemToStorage(
+        'ammo',
+        savedId,
+        ammoStorageLocationId,
+        storageLocations
+      );
+      await saveStorageLocations(updatedLocations);
+    }
+
     setIsAmmoModalOpen(false);
     setIsAddingStockMode(false);
 
@@ -622,6 +689,16 @@ export const AmmoDashboard = () => {
   // Filtered Ammo List
   const filteredAmmo = useMemo(() => {
     return ammoList.filter((a) => {
+      // Storage Location filter
+      if (selectedStorageLocationId !== 'ALL') {
+        const loc = getItemStorageLocation('ammo', a.id, storageLocations);
+        if (selectedStorageLocationId === 'UNASSIGNED') {
+          if (loc) return false;
+        } else if (loc?.id !== Number(selectedStorageLocationId)) {
+          return false;
+        }
+      }
+
       // Subview filter
       if (activeDepotView === 'ammo' && a.type !== activeAmmoTab) return false;
 
@@ -653,7 +730,16 @@ export const AmmoDashboard = () => {
       }
       return true;
     });
-  }, [ammoList, activeDepotView, activeAmmoTab, selectedFilterChip, searchQuery, customCategories]);
+  }, [
+    ammoList,
+    activeDepotView,
+    activeAmmoTab,
+    selectedFilterChip,
+    searchQuery,
+    customCategories,
+    selectedStorageLocationId,
+    storageLocations,
+  ]);
 
   // Filtered Components List
   const filteredComponents = useMemo(() => {
@@ -1516,6 +1602,28 @@ export const AmmoDashboard = () => {
               </button>
             )}
           </div>
+
+          <select
+            className="form-input"
+            style={{
+              width: 'auto',
+              minWidth: '180px',
+              padding: '0.35rem 0.6rem',
+              fontSize: '0.8rem',
+              height: '36px',
+            }}
+            value={selectedStorageLocationId}
+            onChange={(e) => setSelectedStorageLocationId(e.target.value)}
+            title="Filter depot items by storage location / container"
+          >
+            <option value="ALL">All Storage Locations</option>
+            <option value="UNASSIGNED">Unassigned Containers</option>
+            {storageLocations.map((loc) => (
+              <option key={loc.id} value={loc.id}>
+                [{loc.type}] {loc.name}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -1726,6 +1834,14 @@ export const AmmoDashboard = () => {
                               Low Stock
                             </span>
                           )}
+                          <StorageBadge
+                            location={getItemStorageLocation('ammo', ammo.id, storageLocations)}
+                            onClick={(e) => {
+                              e?.stopPropagation();
+                              navigate('/storage');
+                            }}
+                            size="sm"
+                          />
                         </div>
 
                         <p
@@ -2566,6 +2682,18 @@ export const AmmoDashboard = () => {
                       }}
                     />
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Boxes</span>
+                  </div>
+
+                  <div style={{ marginTop: '0.85rem' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label>Storage Location / Ammo Can</label>
+                      <StorageLocationSelect
+                        value={ammoStorageLocationId}
+                        onChange={(locId) => setAmmoStorageLocationId(locId)}
+                        locations={storageLocations}
+                        placeholder="Select Ammo Can / Safe / Shelf..."
+                      />
+                    </div>
                   </div>
                 </div>
 

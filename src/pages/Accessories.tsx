@@ -18,18 +18,31 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { AccessoryDetailModal, getAccessoryTypeColor } from '../components/AccessoryDetailModal';
 import { AccessoryModal } from '../components/AccessoryModal';
 import {
+  ChassisIcon,
+  GunBeltIcon,
   HolsterIcon,
   MagazineIcon,
   PicatinnyMountIcon,
   ScopeIcon,
+  StockIcon,
   SuppressorIcon,
   TacticalSlingIcon,
 } from '../components/CustomIcons';
-import { Accessory, Firearm } from '../types';
+import { StorageBadge } from '../components/StorageBadge';
+import { useUndoToast } from '../components/UndoToast';
+import { Accessory, Firearm, StorageLocation } from '../types';
+import {
+  getItemStorageLocation,
+  removeItemFromAllStorage,
+  saveStorageLocations,
+} from '../utils/StorageSync';
 
 export const Accessories = () => {
+  const { showUndo } = useUndoToast();
   const [accessories, setAccessories] = useState<Accessory[]>([]);
   const [firearms, setFirearms] = useState<Firearm[]>([]);
+  const [locations, setLocations] = useState<StorageLocation[]>([]);
+  const [selectedLocationId, setSelectedLocationId] = useState<string>('ALL');
   const [search, setSearch] = useState('');
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -37,6 +50,10 @@ export const Accessories = () => {
   const [selectedAccessoryForDetail, setSelectedAccessoryForDetail] = useState<Accessory | null>(
     null
   );
+
+  const [activeTab, setActiveTab] = useState<
+    'all' | 'unmounted' | 'mounted' | 'nfa' | 'optics' | 'stocks' | 'belts' | 'magazines'
+  >('all');
 
   const [formData, setFormData] = useState<Partial<Accessory>>({});
 
@@ -80,6 +97,11 @@ export const Accessories = () => {
       setAccessories(fetchedAcc);
       setFirearms(fetchedFirearms);
 
+      if (window.api.getStorageLocations) {
+        const locs = await window.api.getStorageLocations();
+        setLocations(locs || []);
+      }
+
       // Keep detail modal synchronized if an item was updated
       if (selectedAccessoryForDetail) {
         const refreshed = fetchedAcc.find((a) => a.id === selectedAccessoryForDetail.id);
@@ -90,14 +112,29 @@ export const Accessories = () => {
 
   const filteredAccessories = accessories.filter((a) => {
     const term = search.toLowerCase();
-    return (
+    const matchesSearch =
       a.manufacturer.toLowerCase().includes(term) ||
       a.model.toLowerCase().includes(term) ||
       a.type.toLowerCase().includes(term) ||
+      (a.stockType && a.stockType.toLowerCase().includes(term)) ||
+      (a.actionInlet && a.actionInlet.toLowerCase().includes(term)) ||
+      (a.bufferTubeType && a.bufferTubeType.toLowerCase().includes(term)) ||
+      (a.beltType && a.beltType.toLowerCase().includes(term)) ||
+      (a.dropLoopType && a.dropLoopType.toLowerCase().includes(term)) ||
+      (a.cartridgeLoopCaliber && a.cartridgeLoopCaliber.toLowerCase().includes(term)) ||
       (a.upc_code && a.upc_code.toLowerCase().includes(term)) ||
       (a.serialNumber && a.serialNumber.toLowerCase().includes(term)) ||
-      (a.supportedModels && a.supportedModels.toLowerCase().includes(term))
-    );
+      (a.supportedModels && a.supportedModels.toLowerCase().includes(term));
+
+    if (!matchesSearch) return false;
+
+    if (selectedLocationId === 'ALL') return true;
+    if (selectedLocationId === 'UNASSIGNED') {
+      const loc = getItemStorageLocation('accessory', a.id, locations);
+      return !loc;
+    }
+    const loc = getItemStorageLocation('accessory', a.id, locations);
+    return loc?.id === Number(selectedLocationId);
   });
 
   const handleEdit = (acc: Accessory) => {
@@ -107,11 +144,26 @@ export const Accessories = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this accessory?')) {
-      if (window.api && window.api.deleteAccessory) {
-        await window.api.deleteAccessory(id);
-        loadData();
+    const targetAcc = accessories.find((a) => a.id === id);
+    if (!targetAcc) return;
+
+    if (locations.length > 0) {
+      const updatedLocs = removeItemFromAllStorage('accessory', id, locations);
+      await saveStorageLocations(updatedLocs);
+    }
+    if (window.api && window.api.deleteAccessory) {
+      await window.api.deleteAccessory(id);
+      if (selectedAccessoryForDetail?.id === id) {
+        setSelectedAccessoryForDetail(null);
       }
+      loadData();
+      showUndo(`Deleted "${targetAcc.manufacturer} ${targetAcc.model}"`, async () => {
+        if (window.api?.addAccessory) {
+          const { id: _oldId, ...rest } = targetAcc;
+          await window.api.addAccessory(rest as Accessory);
+          loadData();
+        }
+      });
     }
   };
 
@@ -158,14 +210,33 @@ export const Accessories = () => {
           gap: '1rem',
         }}
       >
-        <div className="search-bar" style={{ flex: 1, maxWidth: '400px' }}>
-          <Search size={20} color="var(--text-secondary)" />
-          <input
-            type="text"
-            placeholder="Search accessories by make, model, type, SKU..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div
+          style={{ display: 'flex', gap: '0.75rem', flex: 1, flexWrap: 'wrap', maxWidth: '650px' }}
+        >
+          <div className="search-bar" style={{ flex: 1, minWidth: '240px' }}>
+            <Search size={20} color="var(--text-secondary)" />
+            <input
+              type="text"
+              placeholder="Search accessories by make, model, type, SKU..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <select
+            className="form-input"
+            style={{ width: 'auto', minWidth: '180px' }}
+            value={selectedLocationId}
+            onChange={(e) => setSelectedLocationId(e.target.value)}
+            title="Filter accessories by storage location / safe"
+          >
+            <option value="ALL">All Storage Locations</option>
+            <option value="UNASSIGNED">Unassigned Containers</option>
+            {locations.map((loc) => (
+              <option key={loc.id} value={loc.id}>
+                [{loc.type}] {loc.name}
+              </option>
+            ))}
+          </select>
         </div>
         <div
           style={{
@@ -319,6 +390,12 @@ export const Accessories = () => {
                           <TacticalSlingIcon size={12} color={typeColor.text} />
                         ) : acc.type === 'Magazine' ? (
                           <MagazineIcon size={12} color={typeColor.text} />
+                        ) : acc.type === 'Stock' ? (
+                          <StockIcon size={12} color={typeColor.text} />
+                        ) : acc.type === 'Chassis' ? (
+                          <ChassisIcon size={12} color={typeColor.text} />
+                        ) : acc.type === 'Belt' ? (
+                          <GunBeltIcon size={12} color={typeColor.text} />
                         ) : (
                           <Package size={12} />
                         )}
@@ -361,6 +438,14 @@ export const Accessories = () => {
                           NFA
                         </span>
                       )}
+                      <StorageBadge
+                        location={getItemStorageLocation('accessory', acc.id, locations)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate('/storage');
+                        }}
+                        size="sm"
+                      />
                     </div>
 
                     <h3
@@ -480,7 +565,154 @@ export const Accessories = () => {
                       {acc.capacity}rd
                     </span>
                   )}
-                  {acc.supportedModels && (
+                  {acc.actionInlet && (
+                    <span
+                      style={{
+                        background: 'rgba(56, 189, 248, 0.1)',
+                        color: '#38bdf8',
+                        border: '1px solid rgba(56, 189, 248, 0.25)',
+                        padding: '0.15rem 0.5rem',
+                        borderRadius: '4px',
+                        fontSize: '0.75rem',
+                        fontWeight: 500,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      <Target size={12} color="#38bdf8" />
+                      <span>{acc.actionInlet}</span>
+                    </span>
+                  )}
+                  {acc.stockType && (
+                    <span
+                      style={{
+                        background: 'rgba(16, 185, 129, 0.1)',
+                        color: '#10b981',
+                        border: '1px solid rgba(16, 185, 129, 0.25)',
+                        padding: '0.15rem 0.5rem',
+                        borderRadius: '4px',
+                        fontSize: '0.75rem',
+                        fontWeight: 500,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      {acc.type === 'Chassis' ? (
+                        <ChassisIcon size={12} color="#10b981" />
+                      ) : (
+                        <StockIcon size={12} color="#10b981" />
+                      )}
+                      <span>{acc.stockType}</span>
+                    </span>
+                  )}
+                  {acc.lengthOfPull && (
+                    <span
+                      style={{
+                        background: 'rgba(52, 211, 153, 0.1)',
+                        color: '#34d399',
+                        border: '1px solid rgba(52, 211, 153, 0.25)',
+                        padding: '0.15rem 0.5rem',
+                        borderRadius: '4px',
+                        fontSize: '0.75rem',
+                        fontWeight: 500,
+                      }}
+                    >
+                      LOP: {acc.lengthOfPull}
+                    </span>
+                  )}
+                  {acc.bufferTubeType && (
+                    <span
+                      style={{
+                        background: 'rgba(96, 165, 250, 0.1)',
+                        color: '#60a5fa',
+                        border: '1px solid rgba(96, 165, 250, 0.25)',
+                        padding: '0.15rem 0.5rem',
+                        borderRadius: '4px',
+                        fontSize: '0.75rem',
+                        fontWeight: 500,
+                      }}
+                    >
+                      {acc.bufferTubeType}
+                    </span>
+                  )}
+                  {acc.beltType && (
+                    <span
+                      style={{
+                        background: 'rgba(234, 179, 8, 0.1)',
+                        color: '#eab308',
+                        border: '1px solid rgba(234, 179, 8, 0.25)',
+                        padding: '0.15rem 0.5rem',
+                        borderRadius: '4px',
+                        fontSize: '0.75rem',
+                        fontWeight: 500,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      <GunBeltIcon size={12} color="#eab308" />
+                      <span>{acc.beltType}</span>
+                    </span>
+                  )}
+                  {acc.dropLoopType && (
+                    <span
+                      style={{
+                        background: 'rgba(245, 158, 11, 0.1)',
+                        color: '#f59e0b',
+                        border: '1px solid rgba(245, 158, 11, 0.25)',
+                        padding: '0.15rem 0.5rem',
+                        borderRadius: '4px',
+                        fontSize: '0.75rem',
+                        fontWeight: 500,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      <GunBeltIcon size={12} color="#f59e0b" />
+                      <span>{acc.dropLoopType}</span>
+                    </span>
+                  )}
+                  {acc.cartridgeLoopCaliber && (
+                    <span
+                      style={{
+                        background: 'rgba(251, 191, 36, 0.1)',
+                        color: '#fbbf24',
+                        border: '1px solid rgba(251, 191, 36, 0.25)',
+                        padding: '0.15rem 0.5rem',
+                        borderRadius: '4px',
+                        fontSize: '0.75rem',
+                        fontWeight: 500,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      <GunBeltIcon size={12} color="#fbbf24" />
+                      <span>
+                        {acc.cartridgeLoopCount ? `${acc.cartridgeLoopCount}x ` : ''}
+                        {acc.cartridgeLoopCaliber}
+                      </span>
+                    </span>
+                  )}
+                  {acc.beltWidth && (
+                    <span
+                      style={{
+                        background: 'rgba(56, 189, 248, 0.1)',
+                        color: '#38bdf8',
+                        border: '1px solid rgba(56, 189, 248, 0.25)',
+                        padding: '0.15rem 0.5rem',
+                        borderRadius: '4px',
+                        fontSize: '0.75rem',
+                        fontWeight: 500,
+                      }}
+                    >
+                      Width: {acc.beltWidth}
+                    </span>
+                  )}
+                  {acc.supportedModels && !acc.actionInlet && (
                     <span
                       style={{
                         background: 'rgba(255, 255, 255, 0.05)',

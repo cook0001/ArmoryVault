@@ -18,11 +18,21 @@ import {
   PrimerIcon,
 } from '../components/CustomIcons';
 import { ReloadingComponentModal } from '../components/ReloadingComponentModal';
-import { ReloadingComponent } from '../types';
+import { StorageBadge } from '../components/StorageBadge';
+import { useUndoToast } from '../components/UndoToast';
+import { ReloadingComponent, StorageLocation } from '../types';
 import { calcCostPerGrain, formatPowderMultiUnit, toGrains } from '../utils/powderUnits';
+import {
+  getItemStorageLocation,
+  removeItemFromAllStorage,
+  saveStorageLocations,
+} from '../utils/StorageSync';
 
 export const ReloadingComponents = () => {
+  const { showUndo } = useUndoToast();
   const [components, setComponents] = useState<ReloadingComponent[]>([]);
+  const [storageLocations, setStorageLocations] = useState<StorageLocation[]>([]);
+  const [selectedStorageLocationId, setSelectedStorageLocationId] = useState<string>('ALL');
   const [search, setSearch] = useState('');
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -69,6 +79,11 @@ export const ReloadingComponents = () => {
     if (window.api && window.api.getComponents) {
       const fetched = await window.api.getComponents();
       setComponents(fetched);
+
+      if (window.api.getStorageLocations) {
+        const locs = await window.api.getStorageLocations();
+        setStorageLocations(locs || []);
+      }
     }
   };
 
@@ -77,6 +92,15 @@ export const ReloadingComponents = () => {
   ).length;
 
   const filteredComponents = components.filter((c) => {
+    if (selectedStorageLocationId !== 'ALL') {
+      const loc = getItemStorageLocation('component', c.id, storageLocations);
+      if (selectedStorageLocationId === 'UNASSIGNED') {
+        if (loc) return false;
+      } else if (loc?.id !== Number(selectedStorageLocationId)) {
+        return false;
+      }
+    }
+
     const term = search.toLowerCase();
     const matchesSearch =
       c.manufacturer.toLowerCase().includes(term) ||
@@ -96,11 +120,25 @@ export const ReloadingComponents = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this component?')) {
-      if (window.api && window.api.deleteComponent) {
-        await window.api.deleteComponent(id);
-        loadData();
-      }
+    const targetComp = components.find((c) => c.id === id);
+    if (!targetComp) return;
+    if (storageLocations.length > 0) {
+      const updatedLocs = removeItemFromAllStorage('component', id, storageLocations);
+      await saveStorageLocations(updatedLocs);
+    }
+    if (window.api && window.api.deleteComponent) {
+      await window.api.deleteComponent(id);
+      loadData();
+      showUndo(
+        `Deleted ${targetComp.type}: ${targetComp.manufacturer} ${targetComp.name || ''}`,
+        async () => {
+          if (window.api?.addComponent) {
+            const { id: _oldId, ...rest } = targetComp;
+            await window.api.addComponent(rest as ReloadingComponent);
+            loadData();
+          }
+        }
+      );
     }
   };
 
@@ -234,21 +272,45 @@ export const ReloadingComponents = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          gap: '1rem',
-          marginBottom: '1.5rem',
+          marginBottom: '2rem',
           flexWrap: 'wrap',
+          gap: '1rem',
         }}
       >
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flex: 1 }}>
-          <div className="search-bar" style={{ maxWidth: '350px', width: '100%' }}>
-            <Search size={18} />
+        <div
+          style={{
+            display: 'flex',
+            gap: '0.75rem',
+            flex: 1,
+            flexWrap: 'wrap',
+            maxWidth: '650px',
+            alignItems: 'center',
+          }}
+        >
+          <div className="search-bar" style={{ flex: 1, minWidth: '240px' }}>
+            <Search size={20} color="var(--text-secondary)" />
             <input
               type="text"
-              placeholder="Search components..."
+              placeholder="Search components by make, name, type, caliber..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
+          <select
+            className="form-input"
+            style={{ width: 'auto', minWidth: '180px' }}
+            value={selectedStorageLocationId}
+            onChange={(e) => setSelectedStorageLocationId(e.target.value)}
+            title="Filter by storage location / locker"
+          >
+            <option value="ALL">All Storage Locations</option>
+            <option value="UNASSIGNED">Unassigned Containers</option>
+            {storageLocations.map((loc) => (
+              <option key={loc.id} value={loc.id}>
+                [{loc.type}] {loc.name}
+              </option>
+            ))}
+          </select>
           {lowStockCount > 0 && (
             <button
               className={onlyLowStock ? 'btn-danger' : 'btn-secondary'}
@@ -447,6 +509,14 @@ export const ReloadingComponents = () => {
                                   Low Stock (≤{c.min_threshold})
                                 </span>
                               )}
+                              <StorageBadge
+                                location={getItemStorageLocation(
+                                  'component',
+                                  c.id,
+                                  storageLocations
+                                )}
+                                size="sm"
+                              />
                             </div>
                             {renderComponentDetails(c)}
                           </div>

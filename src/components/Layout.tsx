@@ -15,6 +15,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import packageJson from '../../package.json';
 import { useScrollRestoration } from '../utils/scrollRestoration';
+import { ActivityLogModal } from './ActivityLogModal';
 import { ChangePasswordModal } from './ChangePasswordModal';
 import {
   AccessoriesNavIcon,
@@ -49,6 +50,7 @@ export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [isRecoveryKeyModalOpen, setIsRecoveryKeyModalOpen] = useState(false);
   const [isSkuManagerOpen, setIsSkuManagerOpen] = useState(false);
+  const [isActivityLogOpen, setIsActivityLogOpen] = useState(false);
 
   useEffect(() => {
     let unsubSync: (() => void) | undefined;
@@ -77,9 +79,13 @@ export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
     }
     loadSyncQueue();
 
+    const handleOpenActivityLog = () => setIsActivityLogOpen(true);
+    window.addEventListener('armoryvault-open-activity-log', handleOpenActivityLog);
+
     return () => {
       if (unsubSync) unsubSync();
       if (unsubUpdate) unsubUpdate();
+      window.removeEventListener('armoryvault-open-activity-log', handleOpenActivityLog);
     };
   }, []);
 
@@ -374,6 +380,7 @@ export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
         onOpenSkuManager={() => setIsSkuManagerOpen(true)}
         onOpenChangePassword={() => setIsChangePasswordOpen(true)}
         onOpenRecoveryKey={() => setIsRecoveryKeyModalOpen(true)}
+        onOpenActivityLog={() => setIsActivityLogOpen(true)}
         onSettingsSaved={() => {
           loadSyncQueue();
           window.dispatchEvent(new Event('armoryvault-reload'));
@@ -381,6 +388,8 @@ export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
       />
 
       <SkuManagerModal isOpen={isSkuManagerOpen} onClose={() => setIsSkuManagerOpen(false)} />
+
+      <ActivityLogModal isOpen={isActivityLogOpen} onClose={() => setIsActivityLogOpen(false)} />
 
       {isRangeModalOpen && (
         <RangeSessionModal

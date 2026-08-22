@@ -4,6 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const express = require('express');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 const db = require('./database');
 const log = require('electron-log');
 const isDev = !app.isPackaged;
@@ -195,6 +196,8 @@ app.whenReady().then(() => {
   ipcMain.handle('add-ballistic-profile', (_, bp) => db.addBallisticProfile(bp));
   ipcMain.handle('update-ballistic-profile', (_, id, bp) => db.updateBallisticProfile(id, bp));
   ipcMain.handle('delete-ballistic-profile', (_, id) => db.deleteBallisticProfile(id));
+
+  ipcMain.handle('get-activity-log', () => db.getActivityLog());
 
   ipcMain.handle('log-range-session', (_, data) => {
     const res = db.logRangeSession(data);
@@ -787,12 +790,78 @@ app.whenReady().then(() => {
     return '127.0.0.1';
   });
 
+  ipcMain.handle('get-pairing-token', () => {
+    return db.getPairingToken();
+  });
+
+  ipcMain.handle('revoke-pairing-token', () => {
+    db.revokePairingToken();
+    return true;
+  });
+
   function startLocalServer() {
     const expressApp = express();
-    expressApp.use(cors());
+    expressApp.use(
+      cors({
+        origin: (origin, callback) => {
+          // Allow requests with no origin (mobile apps, curl, etc.)
+          if (!origin) return callback(null, true);
+          // Allow local network origins
+          if (
+            /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/.test(
+              origin
+            )
+          ) {
+            return callback(null, true);
+          }
+          callback(new Error('CORS not allowed'));
+        },
+      })
+    );
     expressApp.use(express.json({ limit: '50mb' }));
 
-    expressApp.get('/api/ping', (req, res) => {
+    // ─── Rate Limiting ─────────────────────────────────────────────────
+    const readLimiter = rateLimit({
+      windowMs: 60 * 1000, // 1 minute
+      max: 60,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { success: false, error: 'Too many requests. Please try again later.' },
+    });
+
+    const writeLimiter = rateLimit({
+      windowMs: 60 * 1000,
+      max: 30,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { success: false, error: 'Too many write requests. Please try again later.' },
+    });
+
+    // ─── Authentication Middleware ──────────────────────────────────────
+    const authenticateCompanion = (req, res, next) => {
+      const authHeader = req.headers['authorization'] || '';
+      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+      if (!token) {
+        return res
+          .status(401)
+          .json({ success: false, error: 'Authentication required. Please pair your device.' });
+      }
+
+      if (!db.validatePairingToken(token)) {
+        return res
+          .status(403)
+          .json({
+            success: false,
+            error: 'Invalid or expired pairing token. Please re-pair your device.',
+          });
+      }
+
+      next();
+    };
+
+    // ─── Public Endpoints (No Auth Required) ───────────────────────────
+    expressApp.get('/api/ping', readLimiter, (req, res) => {
       const userAgent = req.headers['user-agent'] || '';
       const deviceName =
         req.query?.device ||
@@ -809,12 +878,42 @@ app.whenReady().then(() => {
         status: 'ok',
         device: os.hostname(),
         isLocked: db.isLocked(),
+        requiresAuth: !!db.getPairingToken(),
       });
     });
 
-    expressApp.post('/api/pair', (req, res) => {
+    expressApp.post('/api/pair', writeLimiter, (req, res) => {
       const deviceName = req.body?.deviceName || req.body?.device || 'Mobile Companion App';
       console.log('Received device pairing request from:', deviceName);
+
+      // Check if a pairing token already exists
+      const existingToken = db.getPairingToken();
+      if (existingToken) {
+        // Re-pairing: verify the existing token is provided
+        const authHeader = req.headers['authorization'] || '';
+        const providedToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+        if (providedToken && db.validatePairingToken(providedToken)) {
+          // Already paired — return existing token
+          if (mainWindow) {
+            mainWindow.webContents.send('device-paired', { deviceName, timestamp: Date.now() });
+          }
+          return res.json({
+            success: true,
+            vaultName: 'ArmoryVault',
+            host: os.hostname(),
+            isLocked: db.isLocked(),
+            pairingToken: existingToken,
+          });
+        }
+        // No valid token provided — reject (must have the current token to re-pair)
+        return res.status(403).json({
+          success: false,
+          error: 'Device already paired. Provide current pairing token to re-pair.',
+        });
+      }
+
+      // First-time pairing: generate and return a new token
+      const newToken = db.generatePairingToken();
       if (mainWindow) {
         mainWindow.webContents.send('device-paired', { deviceName, timestamp: Date.now() });
       }
@@ -823,10 +922,11 @@ app.whenReady().then(() => {
         vaultName: 'ArmoryVault',
         host: os.hostname(),
         isLocked: db.isLocked(),
+        pairingToken: newToken,
       });
     });
 
-    expressApp.get('/api/pair', (req, res) => {
+    expressApp.get('/api/pair', readLimiter, (req, res) => {
       const deviceName = req.query?.device || req.query?.deviceName || 'Mobile Companion App';
       console.log('Received device pairing ping from:', deviceName);
       if (mainWindow) {
@@ -837,10 +937,12 @@ app.whenReady().then(() => {
         vaultName: 'ArmoryVault',
         host: os.hostname(),
         isLocked: db.isLocked(),
+        requiresAuth: !!db.getPairingToken(),
       });
     });
 
-    expressApp.post('/api/vault/lock', (req, res) => {
+    // ─── Authenticated Endpoints ──────────────────────────────────────
+    expressApp.post('/api/vault/lock', authenticateCompanion, writeLimiter, (req, res) => {
       console.log('Received remote vault lock request from mobile companion app');
       try {
         db.lockVault();
@@ -854,7 +956,7 @@ app.whenReady().then(() => {
       }
     });
 
-    expressApp.post('/api/lock', (req, res) => {
+    expressApp.post('/api/lock', authenticateCompanion, writeLimiter, (req, res) => {
       try {
         db.lockVault();
         if (mainWindow) {
@@ -867,7 +969,7 @@ app.whenReady().then(() => {
       }
     });
 
-    expressApp.get('/api/inventory/summary', (req, res) => {
+    expressApp.get('/api/inventory/summary', authenticateCompanion, readLimiter, (req, res) => {
       try {
         const userAgent = req.headers['user-agent'] || '';
         const deviceName =
@@ -907,7 +1009,7 @@ app.whenReady().then(() => {
       }
     });
 
-    expressApp.get('/api/inventory/cache', (req, res) => {
+    expressApp.get('/api/inventory/cache', authenticateCompanion, readLimiter, (req, res) => {
       try {
         const userAgent = req.headers['user-agent'] || '';
         const deviceName =
@@ -935,6 +1037,8 @@ app.whenReady().then(() => {
         const firearms = db.getFirearms() || [];
         const ammo = db.getAmmo() || [];
         const components = db.getComponents() || [];
+        const accessories = db.getAccessories ? db.getAccessories() || [] : [];
+        const storageLocations = db.getStorageLocations ? db.getStorageLocations() || [] : [];
         const skus = db.getSkus() || {};
         res.json({
           success: true,
@@ -967,6 +1071,15 @@ app.whenReady().then(() => {
             quantity: c.quantity,
             caliber: c.caliber,
           })),
+          accessories: accessories.map((acc) => ({
+            id: acc.id,
+            name: acc.name,
+            type: acc.type,
+            manufacturer: acc.manufacturer,
+            firearm_id: acc.firearm_id,
+            quantity: acc.quantity,
+          })),
+          storageLocations,
           skus,
         });
       } catch (e) {
@@ -975,12 +1088,54 @@ app.whenReady().then(() => {
       }
     });
 
-    expressApp.post('/api/sync', (req, res) => {
+    expressApp.post('/api/sync', authenticateCompanion, writeLimiter, (req, res) => {
       console.log('Received sync payload from mobile:', req.body);
       try {
-        const items = req.body.items || [];
+        // Input validation
+        const items = req.body.items;
+        if (!Array.isArray(items)) {
+          return res
+            .status(400)
+            .json({ success: false, error: 'Invalid payload: items must be an array.' });
+        }
+        if (items.length > 100) {
+          return res
+            .status(400)
+            .json({ success: false, error: 'Batch too large: maximum 100 items per sync.' });
+        }
         for (const item of items) {
-          db.addSyncItem(item);
+          if (!item.type || typeof item.type !== 'string') {
+            return res
+              .status(400)
+              .json({ success: false, error: 'Invalid item: each item must have a type field.' });
+          }
+          if (!item.timestamp || typeof item.timestamp !== 'string') {
+            return res
+              .status(400)
+              .json({
+                success: false,
+                error: 'Invalid item: each item must have a timestamp field.',
+              });
+          }
+        }
+
+        // Deduplication: check existing queue for duplicate timestamp+type+upcOrId
+        const existingQueue = db.getSyncQueue();
+        let processed = 0;
+        let skipped = 0;
+        for (const item of items) {
+          const isDuplicate = existingQueue.some(
+            (existing) =>
+              existing.timestamp === item.timestamp &&
+              existing.type === item.type &&
+              (existing.upcOrId || '') === (item.upcOrId || '')
+          );
+          if (isDuplicate) {
+            skipped++;
+          } else {
+            db.addSyncItem(item);
+            processed++;
+          }
         }
 
         const userAgent = req.headers['user-agent'] || '';
@@ -997,7 +1152,7 @@ app.whenReady().then(() => {
           mainWindow.webContents.send('device-paired', { deviceName, timestamp: Date.now() });
           mainWindow.webContents.send('sync-received');
         }
-        res.json({ success: true, processed: items.length });
+        res.json({ success: true, processed, skipped });
       } catch (e) {
         console.error('Sync error:', e);
         res.status(500).json({ success: false, error: e.message });
@@ -1005,10 +1160,26 @@ app.whenReady().then(() => {
     });
 
     // ─── Mobile Companion: Chrono String Sync ───────────────────────────
-    expressApp.post('/api/chrono', (req, res) => {
+    expressApp.post('/api/chrono', authenticateCompanion, writeLimiter, (req, res) => {
       console.log('Received chrono string from mobile:', req.body);
       try {
         const cs = req.body;
+        if (!cs || !Array.isArray(cs.shotVelocities) || cs.shotVelocities.length === 0) {
+          return res
+            .status(400)
+            .json({
+              success: false,
+              error: 'Invalid chrono data: shotVelocities must be a non-empty array of numbers.',
+            });
+        }
+        if (cs.shotVelocities.some((v) => typeof v !== 'number' || isNaN(v))) {
+          return res
+            .status(400)
+            .json({
+              success: false,
+              error: 'Invalid chrono data: all velocities must be valid numbers.',
+            });
+        }
         if (cs && cs.shotVelocities) {
           db.addChronoString(cs);
           if (mainWindow) {
@@ -1023,10 +1194,19 @@ app.whenReady().then(() => {
     });
 
     // ─── Mobile Companion: Target Analysis Sync ─────────────────────────
-    expressApp.post('/api/target-analysis', (req, res) => {
+    expressApp.post('/api/target-analysis', authenticateCompanion, writeLimiter, (req, res) => {
       console.log('Received target analysis from mobile:', req.body);
       try {
         const ta = req.body;
+        if (!ta || typeof ta.shotsCount !== 'number' || typeof ta.groupSizeInches !== 'number') {
+          return res
+            .status(400)
+            .json({
+              success: false,
+              error:
+                'Invalid target analysis: shotsCount and groupSizeInches are required numbers.',
+            });
+        }
         if (ta) {
           db.addTargetAnalysis(ta);
           if (mainWindow) {
@@ -1041,7 +1221,7 @@ app.whenReady().then(() => {
     });
 
     // ─── Mobile Companion: Read Storage Locations ───────────────────────
-    expressApp.get('/api/storage-locations', (req, res) => {
+    expressApp.get('/api/storage-locations', authenticateCompanion, readLimiter, (req, res) => {
       try {
         if (db.isLocked()) {
           return res.json({ success: false, isLocked: true, locations: [] });
@@ -1055,7 +1235,7 @@ app.whenReady().then(() => {
     });
 
     // ─── Mobile Companion: Read Ballistic Profiles ──────────────────────
-    expressApp.get('/api/ballistic-profiles', (req, res) => {
+    expressApp.get('/api/ballistic-profiles', authenticateCompanion, readLimiter, (req, res) => {
       try {
         if (db.isLocked()) {
           return res.json({ success: false, isLocked: true, profiles: [] });

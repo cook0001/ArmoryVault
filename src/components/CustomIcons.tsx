@@ -813,3 +813,113 @@ export const ShotgunIcon: React.FC<IconProps> = ({
     <path d="M6 12l-4 4v3l5-1 2-4" />
   </svg>
 );
+
+/**
+ * Stock Icon
+ * Tactical adjustable rifle / carbine buttstock with buffer tube collar, cheek rest, and recoil pad.
+ */
+export const StockIcon: React.FC<IconProps> = ({
+  size = 18,
+  color = '#10b981',
+  className,
+  style,
+}) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    style={style}
+  >
+    {/* Buffer Tube Interface */}
+    <path d="M21 7H14V11H21V7Z" />
+    {/* Stock Body with Cheek Slope */}
+    <path d="M14 7L6 9C4 9.5 3 11 3 13V18C3 19 4 20 5 20L9 19.5L14 13V11" />
+    {/* Recoil Buttpad */}
+    <path d="M3 13V20" strokeWidth="2.5" />
+    {/* Adjustment Lever / Latch */}
+    <path d="M10 15L13 14" />
+    {/* QD Sling Socket */}
+    <circle cx="7" cy="15" r="1" fill={color} />
+  </svg>
+);
+
+/**
+ * Chassis Icon
+ * Modular precision bolt-action rifle chassis with M-LOK forend, action inlet, and skeletonized stock.
+ */
+export const ChassisIcon: React.FC<IconProps> = ({
+  size = 18,
+  color = '#06b6d4',
+  className,
+  style,
+}) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    style={style}
+  >
+    {/* Forend with M-LOK Slots */}
+    <path d="M22 10H14V13H22V10Z" />
+    <line x1="16" y1="11.5" x2="18" y2="11.5" strokeWidth="1.5" />
+    <line x1="19.5" y1="11.5" x2="21" y2="11.5" strokeWidth="1.5" />
+    {/* Action Bedding & Trigger Guard */}
+    <path d="M14 10H10V14C10 15 11 16 12 16H13V13H14" />
+    {/* Pistol Grip Interface */}
+    <path d="M10 14L8 19H10L11.5 15.5" />
+    {/* Skeletonized Buttstock & Cheek Riser */}
+    <path d="M10 11H6L3 13V19L6 18L10 13" />
+    <path d="M7 8.5H4.5C3.7 8.5 3 9.2 3 10V13" />
+    {/* Recoil Pad */}
+    <line x1="2" y1="13" x2="2" y2="19" strokeWidth="2.5" />
+  </svg>
+);
+
+/**
+ * Gun Belt Icon
+ * Tactical loadout belt / Western cartridge drop belt with heavy-duty buckle and ammo/MOLLE slots.
+ */
+export const GunBeltIcon: React.FC<IconProps> = ({
+  size = 18,
+  color = '#eab308',
+  className,
+  style,
+}) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    style={style}
+  >
+    {/* Main Belt Strap */}
+    <path d="M2 9H22V15H2V9Z" />
+    {/* Heavy-Duty Buckle Frame */}
+    <rect x="7" y="7.5" width="6" height="9" rx="1.5" strokeWidth="2" />
+    {/* Buckle Center Prong / Latch */}
+    <line x1="10" y1="9" x2="10" y2="15" strokeWidth="2" />
+    {/* Belt Loop / Keeper */}
+    <line x1="15" y1="9" x2="15" y2="15" strokeWidth="1.5" />
+    {/* Cartridge Loops / Micro-MOLLE Slots */}
+    <line x1="18" y1="11" x2="18" y2="13" strokeWidth="1.5" />
+    <line x1="20.5" y1="11" x2="20.5" y2="13" strokeWidth="1.5" />
+    <line x1="4.5" y1="11" x2="4.5" y2="13" strokeWidth="1.5" />
+  </svg>
+);

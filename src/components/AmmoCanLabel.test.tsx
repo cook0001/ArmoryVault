@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Ammo } from '../types';
@@ -96,9 +96,10 @@ describe('AmmoCanLabelModal Component', () => {
 
     render(<AmmoCanLabelModal isOpen={true} onClose={onCloseMock} ammo={shotgunAmmo} />);
 
-    // Verify header
-    expect(screen.getByText('12 Gauge')).toBeDefined();
-    expect(screen.getByText('Winchester')).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByText('12 Gauge')).toBeDefined();
+      expect(screen.getByText('Winchester')).toBeDefined();
+    });
 
     // Verify Shotgun-specific rows are rendered
     expect(screen.getByText(/SHELL LENGTH:/i)).toBeDefined();
@@ -134,9 +135,10 @@ describe('AmmoCanLabelModal Component', () => {
 
     render(<AmmoCanLabelModal isOpen={true} onClose={onCloseMock} ammo={cartridgeAmmo} />);
 
-    // Verify header
-    expect(screen.getByText('9mm Luger')).toBeDefined();
-    expect(screen.getByText('Federal')).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByText('9mm Luger')).toBeDefined();
+      expect(screen.getByText('Federal')).toBeDefined();
+    });
 
     // Verify Bullet row is rendered for cartridges
     expect(screen.getByText(/BULLET:/i)).toBeDefined();

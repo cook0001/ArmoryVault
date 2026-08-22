@@ -1,30 +1,38 @@
 /**
  * @vitest-environment jsdom
  */
+
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { ChangePasswordModal } from './ChangePasswordModal';
-import { expect, test, describe, vi, beforeEach } from 'vitest';
 
 describe('ChangePasswordModal Component', () => {
   beforeEach(() => {
     window.api = {
       ...window.api,
       changePassword: vi.fn().mockResolvedValue({ success: true, message: 'Password changed!' }),
-      getRecoveryCode: vi.fn().mockResolvedValue('test-recovery-code-64-characters-long-example-1234567890abcdef')
+      getRecoveryCode: vi
+        .fn()
+        .mockResolvedValue('test-recovery-code-64-characters-long-example-1234567890abcdef'),
     } as any;
   });
 
-  test('renders modal when open', () => {
+  test('renders modal when open', async () => {
     render(<ChangePasswordModal isOpen={true} onClose={() => {}} />);
-    expect(screen.getByText('Change Master Password')).toBeDefined();
-    expect(screen.getByPlaceholderText('Enter current password')).toBeDefined();
-    expect(screen.getByPlaceholderText('At least 8 characters')).toBeDefined();
-    expect(screen.getByPlaceholderText('Re-enter new password')).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByText('Change Master Password')).toBeDefined();
+      expect(screen.getByPlaceholderText('Enter current password')).toBeDefined();
+      expect(screen.getByPlaceholderText('At least 8 characters')).toBeDefined();
+      expect(screen.getByPlaceholderText('Re-enter new password')).toBeDefined();
+    });
   });
 
   test('validates minimum password length and matching passwords', async () => {
     render(<ChangePasswordModal isOpen={true} onClose={() => {}} />);
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Enter current password')).toBeDefined();
+    });
 
     const currentInput = screen.getByPlaceholderText('Enter current password');
     const newInput = screen.getByPlaceholderText('At least 8 characters');
@@ -51,27 +59,48 @@ describe('ChangePasswordModal Component', () => {
 
   test('submits password change and triggers API', async () => {
     render(<ChangePasswordModal isOpen={true} onClose={() => {}} />);
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Enter current password')).toBeDefined();
+    });
 
-    fireEvent.change(screen.getByPlaceholderText('Enter current password'), { target: { value: 'currentPass123' } });
-    fireEvent.change(screen.getByPlaceholderText('At least 8 characters'), { target: { value: 'newSecurePass456' } });
-    fireEvent.change(screen.getByPlaceholderText('Re-enter new password'), { target: { value: 'newSecurePass456' } });
+    fireEvent.change(screen.getByPlaceholderText('Enter current password'), {
+      target: { value: 'currentPass123' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('At least 8 characters'), {
+      target: { value: 'newSecurePass456' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Re-enter new password'), {
+      target: { value: 'newSecurePass456' },
+    });
 
     const submitBtn = screen.getByRole('button', { name: /update password/i });
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(window.api.changePassword).toHaveBeenCalledWith('currentPass123', 'newSecurePass456', false);
+      expect(window.api.changePassword).toHaveBeenCalledWith(
+        'currentPass123',
+        'newSecurePass456',
+        false
+      );
     });
   });
 
   test('displays error message if changePassword fails', async () => {
-    window.api.changePassword = vi.fn().mockResolvedValue({ success: false, error: 'Current password is incorrect.' });
+    window.api.changePassword = vi
+      .fn()
+      .mockResolvedValue({ success: false, error: 'Current password is incorrect.' });
 
     render(<ChangePasswordModal isOpen={true} onClose={() => {}} />);
 
-    fireEvent.change(screen.getByPlaceholderText('Enter current password'), { target: { value: 'wrongOldPass' } });
-    fireEvent.change(screen.getByPlaceholderText('At least 8 characters'), { target: { value: 'newSecurePass456' } });
-    fireEvent.change(screen.getByPlaceholderText('Re-enter new password'), { target: { value: 'newSecurePass456' } });
+    fireEvent.change(screen.getByPlaceholderText('Enter current password'), {
+      target: { value: 'wrongOldPass' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('At least 8 characters'), {
+      target: { value: 'newSecurePass456' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Re-enter new password'), {
+      target: { value: 'newSecurePass456' },
+    });
 
     const submitBtn = screen.getByRole('button', { name: /update password/i });
     fireEvent.click(submitBtn);
@@ -84,14 +113,20 @@ describe('ChangePasswordModal Component', () => {
   test('submits with regenerateKey option and displays new recovery key screen', async () => {
     window.api.changePassword = vi.fn().mockResolvedValue({
       success: true,
-      newRecoveryCode: 'brand-new-64-character-recovery-code-1234567890abcdef1234567890abcdef'
+      newRecoveryCode: 'brand-new-64-character-recovery-code-1234567890abcdef1234567890abcdef',
     });
 
     render(<ChangePasswordModal isOpen={true} onClose={() => {}} />);
 
-    fireEvent.change(screen.getByPlaceholderText('Enter current password'), { target: { value: 'currentPass123' } });
-    fireEvent.change(screen.getByPlaceholderText('At least 8 characters'), { target: { value: 'newSecurePass456' } });
-    fireEvent.change(screen.getByPlaceholderText('Re-enter new password'), { target: { value: 'newSecurePass456' } });
+    fireEvent.change(screen.getByPlaceholderText('Enter current password'), {
+      target: { value: 'currentPass123' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('At least 8 characters'), {
+      target: { value: 'newSecurePass456' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Re-enter new password'), {
+      target: { value: 'newSecurePass456' },
+    });
 
     // Check regenerate key box
     const checkbox = screen.getByLabelText(/also generate a new recovery key/i);
@@ -101,9 +136,15 @@ describe('ChangePasswordModal Component', () => {
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(window.api.changePassword).toHaveBeenCalledWith('currentPass123', 'newSecurePass456', true);
+      expect(window.api.changePassword).toHaveBeenCalledWith(
+        'currentPass123',
+        'newSecurePass456',
+        true
+      );
       expect(screen.getByText('Password Updated & Vault Re-Keyed!')).toBeDefined();
-      expect(screen.getByText('brand-new-64-character-recovery-code-1234567890abcdef1234567890abcdef')).toBeDefined();
+      expect(
+        screen.getByText('brand-new-64-character-recovery-code-1234567890abcdef1234567890abcdef')
+      ).toBeDefined();
     });
   });
 });

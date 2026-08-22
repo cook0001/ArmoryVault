@@ -21,19 +21,24 @@ import {
   X,
   Zap,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Accessory, Firearm } from '../types';
+import { Accessory, Firearm, StorageLocation } from '../types';
+import { getItemStorageLocation } from '../utils/StorageSync';
 import {
+  ChassisIcon,
+  GunBeltIcon,
   HolsterIcon,
   MagazineIcon,
   PicatinnyMountIcon,
   ScopeIcon,
+  StockIcon,
   SuppressorIcon,
   TacticalSlingIcon,
 } from './CustomIcons';
 import { Lightbox } from './Lightbox';
+import { StorageBadge } from './StorageBadge';
 
 interface AccessoryDetailModalProps {
   isOpen: boolean;
@@ -69,6 +74,24 @@ export const getAccessoryTypeColor = (type: string) => {
         text: '#c084fc',
         bg: 'rgba(192, 132, 252, 0.15)',
         border: 'rgba(192, 132, 252, 0.35)',
+      };
+    case 'Stock':
+      return {
+        text: '#10b981',
+        bg: 'rgba(16, 185, 129, 0.15)',
+        border: 'rgba(16, 185, 129, 0.35)',
+      };
+    case 'Chassis':
+      return {
+        text: '#06b6d4',
+        bg: 'rgba(6, 182, 212, 0.15)',
+        border: 'rgba(6, 182, 212, 0.35)',
+      };
+    case 'Belt':
+      return {
+        text: '#eab308',
+        bg: 'rgba(234, 179, 8, 0.15)',
+        border: 'rgba(234, 179, 8, 0.35)',
       };
     case 'Holster':
       return {
@@ -107,6 +130,13 @@ export const AccessoryDetailModal: React.FC<AccessoryDetailModalProps> = ({
 }) => {
   const navigate = useNavigate();
   const [activePhotoIndex, setActivePhotoIndex] = useState<number | null>(null);
+  const [locations, setLocations] = useState<StorageLocation[]>([]);
+
+  useEffect(() => {
+    if (window.api && window.api.getStorageLocations) {
+      window.api.getStorageLocations().then((locs) => setLocations(locs || []));
+    }
+  }, [isOpen]);
 
   if (!isOpen || !accessory) return null;
 
@@ -199,6 +229,12 @@ export const AccessoryDetailModal: React.FC<AccessoryDetailModalProps> = ({
                   <TacticalSlingIcon size={14} color={typeStyle.text} />
                 ) : accessory.type === 'Magazine' ? (
                   <MagazineIcon size={14} color={typeStyle.text} />
+                ) : accessory.type === 'Stock' ? (
+                  <StockIcon size={14} color={typeStyle.text} />
+                ) : accessory.type === 'Chassis' ? (
+                  <ChassisIcon size={14} color={typeStyle.text} />
+                ) : accessory.type === 'Belt' ? (
+                  <GunBeltIcon size={14} color={typeStyle.text} />
                 ) : (
                   <Package size={14} />
                 )}
@@ -577,6 +613,503 @@ export const AccessoryDetailModal: React.FC<AccessoryDetailModalProps> = ({
                   </div>
                 )}
 
+                {/* Stock & Chassis Technical Specifications */}
+                {accessory.stockType && (
+                  <div
+                    style={{
+                      background: 'rgba(0,0,0,0.25)',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
+                      Stock / Chassis Subtype
+                    </div>
+                    <strong style={{ fontSize: '0.95rem', color: '#10b981' }}>
+                      {accessory.stockType}
+                    </strong>
+                  </div>
+                )}
+
+                {accessory.actionInlet && (
+                  <div
+                    style={{
+                      background: 'rgba(0,0,0,0.25)',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
+                      Action Inlet / Platform Fits
+                    </div>
+                    <strong style={{ fontSize: '0.95rem', color: '#38bdf8' }}>
+                      {accessory.actionInlet}
+                    </strong>
+                  </div>
+                )}
+
+                {accessory.bufferTubeType && (
+                  <div
+                    style={{
+                      background: 'rgba(0,0,0,0.25)',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
+                      Mounting Interface / Buffer Tube
+                    </div>
+                    <strong style={{ fontSize: '0.95rem', color: '#60a5fa' }}>
+                      {accessory.bufferTubeType}
+                    </strong>
+                  </div>
+                )}
+
+                {accessory.tcForendSpacing && (
+                  <div
+                    style={{
+                      background: 'rgba(0,0,0,0.25)',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
+                      T/C Forend Spacing &amp; Contour
+                    </div>
+                    <strong style={{ fontSize: '0.95rem', color: '#f59e0b' }}>
+                      {accessory.tcForendSpacing}
+                    </strong>
+                  </div>
+                )}
+
+                {accessory.lengthOfPull && (
+                  <div
+                    style={{
+                      background: 'rgba(0,0,0,0.25)',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
+                      Length of Pull (LOP)
+                    </div>
+                    <strong style={{ fontSize: '0.95rem', color: '#34d399' }}>
+                      {accessory.lengthOfPull}
+                    </strong>
+                  </div>
+                )}
+
+                {accessory.combHeight && (
+                  <div
+                    style={{
+                      background: 'rgba(0,0,0,0.25)',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
+                      Comb / Cheek Riser Height
+                    </div>
+                    <strong style={{ fontSize: '0.95rem', color: '#fbbf24' }}>
+                      {accessory.combHeight}
+                    </strong>
+                  </div>
+                )}
+
+                {accessory.magCompatibility && (
+                  <div
+                    style={{
+                      background: 'rgba(0,0,0,0.25)',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
+                      Magazine Compatibility
+                    </div>
+                    <strong style={{ fontSize: '0.95rem', color: '#c084fc' }}>
+                      {accessory.magCompatibility}
+                    </strong>
+                  </div>
+                )}
+
+                {accessory.forendRail && (
+                  <div
+                    style={{
+                      background: 'rgba(0,0,0,0.25)',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
+                      Forend Interface
+                    </div>
+                    <strong style={{ fontSize: '0.95rem', color: '#06b6d4' }}>
+                      {accessory.forendRail}
+                    </strong>
+                  </div>
+                )}
+
+                {accessory.isFolding && (
+                  <div
+                    style={{
+                      background: 'rgba(0,0,0,0.25)',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
+                      Folding Mechanism
+                    </div>
+                    <strong style={{ fontSize: '0.95rem', color: '#ec4899' }}>
+                      Folding Stock / Adapter
+                    </strong>
+                  </div>
+                )}
+
+                {/* Gun Belt & Western Cartridge Rig Specifications */}
+                {accessory.beltType && (
+                  <div
+                    style={{
+                      background: 'rgba(0,0,0,0.25)',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
+                      Belt Subtype / Rig Style
+                    </div>
+                    <strong style={{ fontSize: '0.95rem', color: '#eab308' }}>
+                      {accessory.beltType}
+                    </strong>
+                  </div>
+                )}
+
+                {accessory.dropLoopType && (
+                  <div
+                    style={{
+                      background: 'rgba(0,0,0,0.25)',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
+                      Western Drop Loop / Configuration
+                    </div>
+                    <strong style={{ fontSize: '0.95rem', color: '#f59e0b' }}>
+                      {accessory.dropLoopType}
+                    </strong>
+                  </div>
+                )}
+
+                {(accessory.cartridgeLoopCaliber || accessory.cartridgeLoopCount) && (
+                  <div
+                    style={{
+                      background: 'rgba(0,0,0,0.25)',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
+                      Integrated Cartridge Loops
+                    </div>
+                    <strong style={{ fontSize: '0.95rem', color: '#fbbf24' }}>
+                      {accessory.cartridgeLoopCount ? `${accessory.cartridgeLoopCount}x ` : ''}
+                      {accessory.cartridgeLoopCaliber || 'Cartridge Loops'}
+                    </strong>
+                  </div>
+                )}
+
+                {accessory.beltWidth && (
+                  <div
+                    style={{
+                      background: 'rgba(0,0,0,0.25)',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
+                      Belt Width
+                    </div>
+                    <strong style={{ fontSize: '0.95rem', color: '#38bdf8' }}>
+                      {accessory.beltWidth}
+                    </strong>
+                  </div>
+                )}
+
+                {accessory.buckleType && (
+                  <div
+                    style={{
+                      background: 'rgba(0,0,0,0.25)',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
+                      Buckle Mechanism
+                    </div>
+                    <strong style={{ fontSize: '0.95rem', color: '#a78bfa' }}>
+                      {accessory.buckleType}
+                    </strong>
+                  </div>
+                )}
+
+                {accessory.stiffenerCore && (
+                  <div
+                    style={{
+                      background: 'rgba(0,0,0,0.25)',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
+                      Internal Stiffener Core
+                    </div>
+                    <strong style={{ fontSize: '0.95rem', color: '#34d399' }}>
+                      {accessory.stiffenerCore}
+                    </strong>
+                  </div>
+                )}
+
+                {accessory.attachmentSystem && (
+                  <div
+                    style={{
+                      background: 'rgba(0,0,0,0.25)',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
+                      Attachment Interface / MOLLE
+                    </div>
+                    <strong style={{ fontSize: '0.95rem', color: '#06b6d4' }}>
+                      {accessory.attachmentSystem}
+                    </strong>
+                  </div>
+                )}
+
+                {accessory.waistSize && (
+                  <div
+                    style={{
+                      background: 'rgba(0,0,0,0.25)',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
+                      Waist Sizing Range
+                    </div>
+                    <strong style={{ fontSize: '0.95rem' }}>{accessory.waistSize}</strong>
+                  </div>
+                )}
+
+                {accessory.innerBeltType && (
+                  <div
+                    style={{
+                      background: 'rgba(0,0,0,0.25)',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
+                      Inner Belt System
+                    </div>
+                    <strong style={{ fontSize: '0.95rem' }}>{accessory.innerBeltType}</strong>
+                  </div>
+                )}
+
+                {accessory.colorPattern && (
+                  <div
+                    style={{
+                      background: 'rgba(0,0,0,0.25)',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
+                      Color / Pattern / Tooling
+                    </div>
+                    <strong style={{ fontSize: '0.95rem' }}>{accessory.colorPattern}</strong>
+                  </div>
+                )}
+
+                {accessory.material && (
+                  <div
+                    style={{
+                      background: 'rgba(0,0,0,0.25)',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
+                      Material &amp; Construction
+                    </div>
+                    <strong style={{ fontSize: '0.95rem' }}>{accessory.material}</strong>
+                  </div>
+                )}
+
+                {accessory.weight && (
+                  <div
+                    style={{
+                      background: 'rgba(0,0,0,0.25)',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
+                      Weight
+                    </div>
+                    <strong style={{ fontSize: '0.95rem' }}>{accessory.weight}</strong>
+                  </div>
+                )}
+
                 {accessory.serialNumber && (
                   <div
                     style={{
@@ -649,6 +1182,35 @@ export const AccessoryDetailModal: React.FC<AccessoryDetailModalProps> = ({
                       <span style={{ color: '#4ade80' }}>In Storage ({quantity})</span>
                     )}
                   </strong>
+                </div>
+
+                <div
+                  style={{
+                    background: 'rgba(0,0,0,0.25)',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255,255,255,0.05)',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: '0.75rem',
+                      color: 'var(--text-secondary)',
+                      marginBottom: '0.2rem',
+                    }}
+                  >
+                    Storage Location / Container
+                  </div>
+                  <div>
+                    <StorageBadge
+                      location={getItemStorageLocation('accessory', accessory.id, locations)}
+                      onClick={() => {
+                        onClose();
+                        navigate('/storage');
+                      }}
+                      size="sm"
+                    />
+                  </div>
                 </div>
               </div>
             </div>

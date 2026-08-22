@@ -5,7 +5,18 @@ export interface AccessoryMount {
 
 export interface Accessory {
   id?: number;
-  type: 'Optic' | 'Suppressor' | 'Light' | 'Holster' | 'Mount' | 'Sling' | 'Magazine' | 'Other';
+  type:
+    | 'Optic'
+    | 'Suppressor'
+    | 'Light'
+    | 'Holster'
+    | 'Mount'
+    | 'Sling'
+    | 'Magazine'
+    | 'Stock'
+    | 'Chassis'
+    | 'Belt'
+    | 'Other';
   manufacturer: string;
   model: string;
 
@@ -15,6 +26,33 @@ export interface Accessory {
   supportedModels?: string;
   caliber?: string;
   capacity?: number;
+
+  // Stock, Chassis & T/C Furniture Fields
+  stockType?: string;
+  actionInlet?: string;
+  bufferTubeType?: string;
+  tcForendSpacing?: string;
+  lengthOfPull?: string;
+  combHeight?: string;
+  magCompatibility?: string;
+  forendRail?: string;
+  isFolding?: boolean;
+
+  // Gun Belt & Rig Fields
+  beltType?: string;
+  dropLoopType?: string;
+  cartridgeLoopCaliber?: string;
+  cartridgeLoopCount?: number;
+  beltWidth?: string;
+  buckleType?: string;
+  stiffenerCore?: string;
+  attachmentSystem?: string;
+  waistSize?: string;
+  innerBeltType?: string;
+  colorPattern?: string;
+
+  material?: string;
+  weight?: string;
 
   quantity?: number;
   serialNumber?: string;
@@ -28,6 +66,7 @@ export interface Accessory {
   photo?: string | null;
   photos?: string[];
   upc_code?: string;
+  storageLocationId?: number;
 
   // NFA Info
   is_nfa?: boolean;
@@ -93,6 +132,7 @@ export interface Ammo {
   isPlusP?: boolean;
   target_stock_goal?: number;
   alert_percentage?: number;
+  storageLocationId?: number;
 }
 
 export interface Firearm {
@@ -136,6 +176,7 @@ export interface Firearm {
   stamp_status?: 'Pending' | 'Approved';
   stamp_submitted_date?: string;
   stamp_approved_date?: string;
+  storageLocationId?: number;
 }
 
 export interface ReloadingComponent {
@@ -182,6 +223,7 @@ export interface ReloadingComponent {
   // Bullet Specific
   bulletType?: string; // e.g. "FMJ", "JHP"
   grain?: number; // Bullet weight
+  storageLocationId?: number;
 }
 
 export interface CustomSkuItem {
@@ -209,11 +251,20 @@ export interface CustomSkuItem {
     | 'Mount'
     | 'Sling'
     | 'Magazine'
+    | 'Stock'
+    | 'Chassis'
+    | 'Belt'
     | 'Other';
   model?: string;
   value?: number;
   serialNumber?: string;
   supportedModels?: string;
+  stockType?: string;
+  actionInlet?: string;
+  bufferTubeType?: string;
+  beltType?: string;
+  beltWidth?: string;
+  buckleType?: string;
 
   // Reloading Component Fields
   componentType?: 'Powder' | 'Brass' | 'Bullet' | 'Primer';
@@ -407,8 +458,19 @@ declare global {
       addBallisticProfile: (bp: BallisticProfile) => Promise<number>;
       updateBallisticProfile: (id: number, bp: BallisticProfile) => Promise<number>;
       deleteBallisticProfile: (id: number) => Promise<number>;
+
+      getActivityLog: () => Promise<ActivityLogEntry[]>;
     };
   }
+}
+
+export interface ActivityLogEntry {
+  action: 'add' | 'delete' | 'update' | 'range_session' | 'manufacture' | string;
+  entityType: 'firearm' | 'ammo' | 'accessory' | 'component' | 'storage' | string;
+  entityId?: number | string;
+  detail?: string;
+  timestamp?: string;
+  source?: 'desktop' | 'mobile' | string;
 }
 
 // ─── Range Session Malfunction Telemetry ────────────────────────────
@@ -455,10 +517,12 @@ export interface StorageLocation {
   name: string;
   type: 'Safe' | 'Cabinet' | 'AmmoCan' | 'Case' | 'Vehicle' | 'Other';
   capacity?: number;
+  capacityMode?: 'firearms' | 'ammo' | 'all';
   notes?: string;
   firearmIds?: number[];
   accessoryIds?: number[];
   ammoIds?: number[];
+  componentIds?: number[];
 }
 
 // ─── Load Development Ladder Test ───────────────────────────────────

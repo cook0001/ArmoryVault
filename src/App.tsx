@@ -1,13 +1,12 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { HashRouter, Route, Routes } from 'react-router-dom';
+import { CommandPalette } from './components/CommandPalette';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Layout } from './components/Layout';
+import { UndoToastProvider } from './components/UndoToast';
 import { Accessories } from './pages/Accessories';
-import { AmmoDashboard } from './pages/AmmoDashboard';
 import { BallisticsCalculator } from './pages/BallisticsCalculator';
 import { BoundBook } from './pages/BoundBook';
-import { Dashboard } from './pages/Dashboard';
-import { FirearmDetails } from './pages/FirearmDetails';
 import { FirearmForm } from './pages/FirearmForm';
 import { LoadDevelopment } from './pages/LoadDevelopment';
 import { MaintenanceDashboard } from './pages/MaintenanceDashboard';
@@ -16,6 +15,34 @@ import { ReloadingComponents } from './pages/ReloadingComponents';
 import { StorageOrganizer } from './pages/StorageOrganizer';
 import { SyncInbox } from './pages/SyncInbox';
 import { VaultLogin } from './pages/VaultLogin';
+
+// Code-split modules with >1,000 lines
+const Dashboard = React.lazy(() =>
+  import('./pages/Dashboard').then((m) => ({ default: m.Dashboard }))
+);
+const AmmoDashboard = React.lazy(() =>
+  import('./pages/AmmoDashboard').then((m) => ({ default: m.AmmoDashboard }))
+);
+const FirearmDetails = React.lazy(() =>
+  import('./pages/FirearmDetails').then((m) => ({ default: m.FirearmDetails }))
+);
+
+const PageLoader = () => (
+  <div
+    style={{
+      height: '60vh',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: 'var(--text-secondary, #94a3b8)',
+      gap: 12,
+    }}
+  >
+    <div className="vault-spinner" />
+    <span style={{ fontSize: 13, opacity: 0.7 }}>Loading module...</span>
+  </div>
+);
 
 const AUTO_LOCK_MS = 15 * 60 * 1000; // 15 minutes of inactivity
 
@@ -104,25 +131,30 @@ function App() {
   return (
     <HashRouter>
       <ErrorBoundary>
-        <Routes>
-          <Route path="/" element={<Layout onLockVault={lockVault} />}>
-            <Route index element={<Dashboard />} />
-            <Route path="add" element={<FirearmForm />} />
-            <Route path="edit/:id" element={<FirearmForm />} />
-            <Route path="details/:id" element={<FirearmDetails />} />
-            <Route path="firearms/:id" element={<FirearmDetails />} />
-            <Route path="bound-book" element={<BoundBook />} />
-            <Route path="ammo" element={<AmmoDashboard />} />
-            <Route path="components" element={<ReloadingComponents />} />
-            <Route path="accessories" element={<Accessories />} />
-            <Route path="maintenance" element={<MaintenanceDashboard />} />
-            <Route path="sync" element={<SyncInbox />} />
-            <Route path="ballistics" element={<BallisticsCalculator />} />
-            <Route path="storage" element={<StorageOrganizer />} />
-            <Route path="load-development" element={<LoadDevelopment />} />
-            <Route path="nfa-tracker" element={<NfaTracker />} />
-          </Route>
-        </Routes>
+        <UndoToastProvider>
+          <CommandPalette />
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/" element={<Layout onLockVault={lockVault} />}>
+                <Route index element={<Dashboard />} />
+                <Route path="add" element={<FirearmForm />} />
+                <Route path="edit/:id" element={<FirearmForm />} />
+                <Route path="details/:id" element={<FirearmDetails />} />
+                <Route path="firearms/:id" element={<FirearmDetails />} />
+                <Route path="bound-book" element={<BoundBook />} />
+                <Route path="ammo" element={<AmmoDashboard />} />
+                <Route path="components" element={<ReloadingComponents />} />
+                <Route path="accessories" element={<Accessories />} />
+                <Route path="maintenance" element={<MaintenanceDashboard />} />
+                <Route path="sync" element={<SyncInbox />} />
+                <Route path="ballistics" element={<BallisticsCalculator />} />
+                <Route path="storage" element={<StorageOrganizer />} />
+                <Route path="load-development" element={<LoadDevelopment />} />
+                <Route path="nfa-tracker" element={<NfaTracker />} />
+              </Route>
+            </Routes>
+          </Suspense>
+        </UndoToastProvider>
       </ErrorBoundary>
     </HashRouter>
   );

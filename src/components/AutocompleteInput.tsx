@@ -57,14 +57,18 @@ export const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
   });
 
   // Find currently selected option for display
-  const currentOption = normalizedOptions.find((opt) => opt.value === value || opt.label === value);
+  const strValue =
+    typeof value === 'string' ? value : value !== null && value !== undefined ? String(value) : '';
+  const currentOption = normalizedOptions.find(
+    (opt) => opt.value === strValue || opt.label === strValue
+  );
   const displayValue =
-    mode === 'select' ? (currentOption ? currentOption.label : value || '') : value;
+    mode === 'select' ? (currentOption ? currentOption.label : strValue) : strValue;
 
   // Filter options based on typed query
   const filteredOptions = normalizedOptions.filter((opt) => {
     if (mode === 'select') return true;
-    const query = (value || '').trim().toLowerCase();
+    const query = strValue.trim().toLowerCase();
     if (!query) return true;
     return (
       opt.label.toLowerCase().includes(query) ||
@@ -262,7 +266,7 @@ export const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
         >
           {filteredOptions.map((opt, idx) => {
             const isSelected =
-              opt.value === value || opt.label.toLowerCase() === (value || '').trim().toLowerCase();
+              opt.value === strValue || opt.label.toLowerCase() === strValue.trim().toLowerCase();
             const isHighlighted = idx === highlightedIndex;
 
             return (

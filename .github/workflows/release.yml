@@ -161,3 +161,11 @@ jobs:
           fi
 
           echo "🎉 All multi-platform installers verified and release published successfully!"
+
+      - name: Prune Superseded Releases (2 Stable + 1 Nightly)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🧹 Running automated release retention pruning (Policy: 2 Stable + 1 Nightly)..."
+          node scripts/prune-releases.js || echo "⚠️ Non-fatal pruning notice: continuing."
+

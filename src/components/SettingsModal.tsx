@@ -1,4 +1,5 @@
 import {
+  Activity,
   BookOpen,
   CheckCircle,
   Database,
@@ -26,6 +27,7 @@ interface SettingsModalProps {
   onOpenSkuManager: () => void;
   onOpenChangePassword: () => void;
   onOpenRecoveryKey: () => void;
+  onOpenActivityLog?: () => void;
   onSettingsSaved?: () => void;
 }
 
@@ -37,6 +39,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = React.memo(
     onOpenSkuManager,
     onOpenChangePassword,
     onOpenRecoveryKey,
+    onOpenActivityLog,
     onSettingsSaved,
   }) => {
     const [backupPath, setBackupPath] = useState<string | null>(null);
@@ -540,22 +543,46 @@ export const SettingsModal: React.FC<SettingsModalProps> = React.memo(
                 Manage custom inventory mappings and configure view options.
               </p>
 
-              <button
-                className="btn-secondary"
-                onClick={onOpenSkuManager}
+              <div
                 style={{
-                  width: '100%',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  gap: '0.5rem',
-                  alignItems: 'center',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                  gap: '0.75rem',
                   marginBottom: '1rem',
-                  padding: '0.65rem 1rem',
-                  fontSize: '0.85rem',
                 }}
               >
-                <Database size={16} /> Open Custom SKU & Barcode Manager
-              </button>
+                <button
+                  className="btn-secondary"
+                  onClick={onOpenSkuManager}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    alignItems: 'center',
+                    padding: '0.65rem 1rem',
+                    fontSize: '0.85rem',
+                  }}
+                >
+                  <Database size={16} /> SKU & Barcode Manager
+                </button>
+                {onOpenActivityLog && (
+                  <button
+                    className="btn-secondary"
+                    onClick={onOpenActivityLog}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      gap: '0.5rem',
+                      alignItems: 'center',
+                      padding: '0.65rem 1rem',
+                      fontSize: '0.85rem',
+                      color: '#60a5fa',
+                    }}
+                  >
+                    <Activity size={16} /> Activity Audit Log
+                  </button>
+                )}
+              </div>
 
               <div
                 style={{

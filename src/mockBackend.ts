@@ -367,6 +367,9 @@ export function setupMockBackend() {
       addBallisticProfile: async (profile: any) => 1,
       updateBallisticProfile: async (id: number, profile: any) => 1,
       deleteBallisticProfile: async (id: number) => 1,
+
+      // ── Activity Log ──
+      getActivityLog: async () => [],
     };
   }
 }

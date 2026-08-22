@@ -1,24 +1,27 @@
 /**
  * @vitest-environment jsdom
  */
-import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
+import { describe, expect, test, vi } from 'vitest';
 import { FirearmForm } from './FirearmForm';
-import { expect, test, describe, vi } from 'vitest';
 
 describe('FirearmForm Component', () => {
-  test('renders form fields', () => {
+  test('renders form fields', async () => {
     render(
       <MemoryRouter>
         <FirearmForm />
       </MemoryRouter>
     );
 
-    expect(screen.getByLabelText('Make')).toBeDefined();
-    expect(screen.getByLabelText('Model')).toBeDefined();
-    expect(screen.getAllByRole('button', { name: /save firearm/i }).length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(screen.getByLabelText('Make')).toBeDefined();
+      expect(screen.getByLabelText('Model')).toBeDefined();
+      expect(screen.getAllByRole('button', { name: /save firearm/i }).length).toBeGreaterThan(0);
+    });
   });
 
   test('submits form with correct data', async () => {
@@ -38,10 +41,12 @@ describe('FirearmForm Component', () => {
     fireEvent.click(submitBtns[0]);
 
     await waitFor(() => {
-      expect(window.api.addFirearm).toHaveBeenCalledWith(expect.objectContaining({
-        make: 'Smith & Wesson',
-        model: 'M&P 9',
-      }));
+      expect(window.api.addFirearm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          make: 'Smith & Wesson',
+          model: 'M&P 9',
+        })
+      );
     });
   });
 
@@ -68,14 +73,15 @@ describe('FirearmForm Component', () => {
     fireEvent.click(submitBtns[0]);
 
     await waitFor(() => {
-      expect(window.api.addFirearm).toHaveBeenCalledWith(expect.objectContaining({
-        make: 'Winchester',
-        model: 'Model 1895',
-        caliber: '.30-06 Springfield',
-        firearm_type: 'Curio & Relic (C&R) Rifle',
-        condition: 'NRA Fine (90-95%)'
-      }));
+      expect(window.api.addFirearm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          make: 'Winchester',
+          model: 'Model 1895',
+          caliber: '.30-06 Springfield',
+          firearm_type: 'Curio & Relic (C&R) Rifle',
+          condition: 'NRA Fine (90-95%)',
+        })
+      );
     });
   }, 15000);
 });
-

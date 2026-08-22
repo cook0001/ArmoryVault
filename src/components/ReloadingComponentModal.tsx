@@ -2,12 +2,18 @@ import { Scale, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { ReloadingComponent } from '../types';
+import { ReloadingComponent, StorageLocation } from '../types';
 import { parseBarcodeData } from '../utils/BarcodeEngine';
 import { COMPREHENSIVE_BULLET_TYPES } from '../utils/caliberHelpers';
 import { CALIBER_OPTIONS } from '../utils/formOptions';
 import { calcCostPerGrain, formatPowderMultiUnit } from '../utils/powderUnits';
+import {
+  assignItemToStorage,
+  getItemStorageLocation,
+  saveStorageLocations,
+} from '../utils/StorageSync';
 import { AutocompleteInput } from './AutocompleteInput';
+import { StorageLocationSelect } from './StorageBadge';
 
 interface ReloadingComponentModalProps {
   isOpen: boolean;
@@ -43,6 +49,8 @@ export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = (
   initialData,
 }) => {
   const [formData, setFormData] = useState<Partial<ReloadingComponent>>(defaultFormData);
+  const [locations, setLocations] = useState<StorageLocation[]>([]);
+  const [storageLocationId, setStorageLocationId] = useState<number | null>(null);
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [lookupStatus, setLookupStatus] = useState<{
     message: string;
@@ -125,20 +133,34 @@ export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = (
   };
 
   useEffect(() => {
+    if (window.api && window.api.getStorageLocations) {
+      window.api.getStorageLocations().then((locs) => {
+        setLocations(locs || []);
+        if (editingId) {
+          const matched = getItemStorageLocation('component', editingId, locs || []);
+          if (matched) setStorageLocationId(matched.id || null);
+        }
+      });
+    }
+
     if (isOpen) {
       if (initialData && Object.keys(initialData).length > 0) {
         setFormData({ ...defaultFormData, ...initialData });
       } else {
         setFormData(defaultFormData);
       }
+      if (!editingId) {
+        setStorageLocationId(null);
+      }
     }
-  }, [isOpen, initialData]);
+  }, [isOpen, initialData, editingId]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!window.api || !window.api.addComponent || !window.api.updateComponent) return;
 
     const newComp = { ...formData } as ReloadingComponent;
+    let savedId = editingId;
 
     if (editingId) {
       await window.api.updateComponent(editingId, newComp);
@@ -164,13 +186,35 @@ export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = (
             mergedData.upc_code = newComp.upc_code;
           }
           await window.api.updateComponent(duplicate.id!, mergedData);
+          savedId = duplicate.id || null;
           merged = true;
         }
       }
 
       if (!merged) {
-        await window.api.addComponent(newComp);
+        const res = await window.api.addComponent(newComp);
+        if (typeof res === 'number') {
+          savedId = res;
+        } else if (res && typeof (res as any).id === 'number') {
+          savedId = (res as any).id;
+        } else {
+          const fresh = await window.api.getComponents();
+          if (fresh && fresh.length > 0) {
+            savedId = Math.max(...fresh.map((c: any) => c.id || 0));
+          }
+        }
       }
+    }
+
+    // Bi-directional Storage Sync
+    if (savedId && locations.length > 0) {
+      const updatedLocations = assignItemToStorage(
+        'component',
+        savedId,
+        storageLocationId,
+        locations
+      );
+      await saveStorageLocations(updatedLocations);
     }
 
     onSave();
@@ -265,21 +309,32 @@ export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = (
             )}
           </div>
 
-          <div className="form-group">
-            <label>Component Type</label>
-            <AutocompleteInput
-              mode="select"
-              name="type"
-              value={formData.type || 'Powder'}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
-              options={[
-                { value: 'Powder', label: 'Powder' },
-                { value: 'Brass', label: 'Brass / Hulls' },
-                { value: 'Bullet', label: 'Bullets / Projectiles' },
-                { value: 'Primer', label: 'Primers' },
-              ]}
-              disabled={!!editingId}
-            />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="form-group">
+              <label>Component Type</label>
+              <AutocompleteInput
+                mode="select"
+                name="type"
+                value={formData.type || 'Powder'}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+                options={[
+                  { value: 'Powder', label: 'Powder' },
+                  { value: 'Brass', label: 'Brass / Hulls' },
+                  { value: 'Bullet', label: 'Bullets / Projectiles' },
+                  { value: 'Primer', label: 'Primers' },
+                ]}
+                disabled={!!editingId}
+              />
+            </div>
+            <div className="form-group">
+              <label>Storage Location / Container</label>
+              <StorageLocationSelect
+                value={storageLocationId}
+                onChange={(locId) => setStorageLocationId(locId)}
+                locations={locations}
+                placeholder="Select Safe / Locker / Shelf..."
+              />
+            </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>

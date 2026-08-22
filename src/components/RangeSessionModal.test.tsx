@@ -11,7 +11,9 @@ describe('RangeSessionModal Component', () => {
   test('renders modal when open', async () => {
     render(<RangeSessionModal isOpen={true} onClose={() => {}} />);
     expect(screen.getByText('Log Range Session')).toBeDefined();
-    expect(screen.getByText('Save & Log Range Trip')).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByText('Save & Log Range Trip')).toBeDefined();
+    });
   });
 
   test('populates firearms and submits range session', async () => {

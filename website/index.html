@@ -1182,7 +1182,7 @@
             </button>
             <button class="channel-tab-btn" data-channel="nightly" id="tab-channel-nightly">
               <span class="channel-indicator-dot nightly"></span>
-              <span>⚡ Nightly &amp; Beta Preview (<strong class="nightly-version-tag">v2.8.0-nightly.1</strong>)</span>
+              <span>⚡ Nightly &amp; Beta Preview (<strong class="nightly-version-tag">v2.8.0-nightly.6</strong>)</span>
             </button>
           </div>
           <div class="channel-banner" id="channel-banner-nightly" style="display: none;">
@@ -1261,31 +1261,54 @@
               </a>
             </div>
           </div>
+
+          <!-- Android Mobile Companion Card -->
+          <div class="download-card" id="download-mobile">
+            <div class="os-icon" style="color: var(--accent-emerald);">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9993.4482.9993.9993.0001.5511-.4483.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5902 8.4111 13.8533 8.125 12 8.125s-3.5902.2861-5.1368.8247L4.8409 5.4467a.4161.4161 0 00-.5677-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396"/>
+              </svg>
+            </div>
+            <div class="download-os">Android Companion</div>
+            <div class="download-specs">Direct .apk &bull; Scan QR or Click</div>
+            <div class="download-btn-group">
+              <a href="https://github.com/cook0001/ArmoryVault-Companion-App/releases/latest/download/app-release.apk" id="btn-download-android-card" class="btn btn-emerald btn-sm">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span class="btn-subtext">Download .apk</span>
+              </a>
+              <a href="#download-mobile-spotlight" class="btn btn-secondary btn-sm" style="font-size: 0.75rem; padding: 0.4rem 0.6rem;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"></path></svg>
+                <span>Scan Phone QR</span>
+              </a>
+            </div>
+          </div>
         </div>
 
         <!-- Android Mobile Companion Spotlight Banner with Direct QR Code -->
         <div class="mobile-download-spotlight" id="download-mobile-spotlight">
           <div class="mobile-spotlight-info">
-            <div class="badge badge-pill" style="align-self: flex-start;">
+            <div class="badge badge-pill" style="align-self: flex-start; display: flex; align-items: center; gap: 0.45rem;">
               <span>Android Mobile Companion</span>
+              <span class="mobile-version-tag" style="background: rgba(16, 185, 129, 0.25); color: #34d399; font-weight: 700; padding: 0.1rem 0.45rem; border-radius: 4px; font-size: 0.75rem;">v2.6.0</span>
             </div>
             <h3 class="mobile-spotlight-title">
               <img src="assets/mobile-icon.png" alt="ArmoryVault Companion Mobile Icon" style="width: 38px; height: 38px; border-radius: 9px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); flex-shrink: 0;" />
-              <span>Install ArmoryVault on Your Phone</span>
+              <span>Install ArmoryVault Directly on Your Phone</span>
             </h3>
             <p class="mobile-spotlight-desc">
-              Scan the QR code with your smartphone camera to download the Android APK directly. Enjoy offline encrypted vault inspection, barcode scanning, DOPE trajectory tables, and instant local Wi-Fi sync.
+              Scan the QR code below with your smartphone camera to download the Android APK directly to your device. No PC cables or file moving required. Enjoy offline encrypted vault inspection, barcode scanning, DOPE trajectory tables, and instant local Wi-Fi sync.
             </p>
             <div class="mobile-spotlight-features">
               <span class="mobile-spotlight-tag">📱 100% Zero-Cloud P2P</span>
               <span class="mobile-spotlight-tag">📷 Universal Barcode &amp; FL DL Scanner</span>
               <span class="mobile-spotlight-tag">🔒 Remote Desktop Lock</span>
               <span class="mobile-spotlight-tag">🎯 DOPE Ballistics</span>
+              <span class="mobile-spotlight-tag">⚡ Direct Phone Download</span>
             </div>
             <div style="margin-top: 0.5rem; display: flex; gap: 0.75rem; flex-wrap: wrap;">
-              <a href="https://github.com/cook0001/ArmoryVault-Companion-App/releases/latest" id="btn-download-mobile" class="btn btn-emerald btn-sm">
+              <a href="https://github.com/cook0001/ArmoryVault-Companion-App/releases/latest/download/app-release.apk" id="btn-download-mobile" class="btn btn-emerald btn-sm">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                <span class="btn-subtext">Download .apk Directly</span>
+                <span class="btn-subtext">Download v2.6.0 (.apk)</span>
               </a>
               <a href="https://github.com/cook0001/ArmoryVault-Companion-App/releases" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">
                 <span>Release Notes &amp; Hashes</span>
@@ -1293,16 +1316,16 @@
             </div>
           </div>
 
-          <!-- Scannable QR Code Card -->
+          <!-- Scannable Direct APK QR Code Card -->
           <div class="apk-qr-card">
             <div class="qr-scan-box">
-              <img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=https%3A%2F%2Fgithub.com%2Fcook0001%2FArmoryVault-Companion-App%2Freleases%2Flatest&bgcolor=ffffff&color=090d16&margin=0" alt="Scan QR Code to Download ArmoryVault APK" class="apk-qr-image" id="mobile-apk-qr-img" />
+              <img src="https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=https%3A%2F%2Fgithub.com%2Fcook0001%2FArmoryVault-Companion-App%2Freleases%2Flatest%2Fdownload%2Fapp-release.apk&bgcolor=ffffff&color=090d16&margin=0" alt="Scan QR Code to Download ArmoryVault APK directly to phone" class="apk-qr-image" id="mobile-apk-qr-img" />
             </div>
             <div class="qr-scan-caption">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"></path></svg>
-              <span>Scan with Phone Camera</span>
+              <span>Scan to Download Directly to Phone</span>
             </div>
-            <span class="qr-scan-subtext">Direct .APK Download Link</span>
+            <span class="qr-scan-subtext">Direct .APK Download Link (No PC Required)</span>
           </div>
         </div>
 
@@ -1385,7 +1408,7 @@
               <div class="form-group">
                 <label for="feedback-version">App Version / Channel</label>
                 <select id="feedback-version">
-                  <option value="v2.8.0-nightly.1 (Nightly Preview)">⚡ v2.8.0-nightly.1 (Nightly Preview)</option>
+                  <option value="v2.8.0-nightly.6 (Nightly Preview)">⚡ v2.8.0-nightly.6 (Nightly Preview)</option>
                   <option value="v2.7.1 (Stable Release)" selected>🎯 v2.7.1 (Stable Release)</option>
                   <option value="v2.7.0 (Stable Release)">v2.7.0 (Stable Release)</option>
                   <option value="v2.6.x (Legacy)">v2.6.x (Legacy)</option>

@@ -9,6 +9,8 @@ import {
   ChevronRight,
   Crosshair,
   DollarSign,
+  Eye,
+  EyeOff,
   Flame,
   Flashlight,
   LayoutGrid,
@@ -28,6 +30,7 @@ import { getAccessoryTypeColor } from '../components/AccessoryDetailModal';
 import { AutocompleteInput } from '../components/AutocompleteInput';
 import {
   CartridgesIcon,
+  ChassisIcon,
   HandgunIcon,
   HolsterIcon,
   MagazineIcon,
@@ -36,10 +39,17 @@ import {
   RifleIcon,
   ScopeIcon,
   ShotgunIcon,
+  StockIcon,
   SuppressorIcon,
   TacticalSlingIcon,
 } from '../components/CustomIcons';
-import { Accessory, Ammo, Firearm, ReloadingComponent } from '../types';
+import { renderStorageIcon, StorageBadge } from '../components/StorageBadge';
+import { Accessory, Ammo, Firearm, ReloadingComponent, StorageLocation } from '../types';
+import {
+  getItemStorageLocation,
+  getStorageCapacityUtilization,
+  getStorageTypeTheme,
+} from '../utils/StorageSync';
 
 type SortKey = 'make' | 'model' | 'caliber' | 'serial_number' | 'rounds' | 'status';
 type SortDir = 'asc' | 'desc';
@@ -66,7 +76,11 @@ export const Dashboard = () => {
   const [ammoList, setAmmoList] = useState<Ammo[]>([]);
   const [accessories, setAccessories] = useState<Accessory[]>([]);
   const [components, setComponents] = useState<ReloadingComponent[]>([]);
+  const [storageLocations, setStorageLocations] = useState<StorageLocation[]>([]);
   const [showCollectionAnalytics, setShowCollectionAnalytics] = useState(false);
+  const [showStorageValuations, setShowStorageValuations] = useState<boolean>(() => {
+    return localStorage.getItem('armoryvault_storage_valuations') !== 'false';
+  });
 
   const [search, setSearch] = useState('');
   const [filterSold, setFilterSold] = useState<'all' | 'available' | 'sold'>('all');
@@ -101,20 +115,26 @@ export const Dashboard = () => {
 
   const loadData = async () => {
     if (window.api) {
-      const [firearmData, ammoData, accsData, compsData] = await Promise.all([
+      const [firearmData, ammoData, accsData, compsData, locsData] = await Promise.all([
         window.api.getFirearms(),
         window.api.getAmmo ? window.api.getAmmo() : Promise.resolve([]),
         window.api.getAccessories ? window.api.getAccessories() : Promise.resolve([]),
         window.api.getComponents ? window.api.getComponents() : Promise.resolve([]),
+        window.api.getStorageLocations ? window.api.getStorageLocations() : Promise.resolve([]),
       ]);
       setFirearms(firearmData || []);
       setAmmoList(ammoData || []);
       setAccessories(accsData || []);
       setComponents(compsData || []);
+      setStorageLocations(locsData || []);
 
       if (window.api.getConfig) {
         const showAnalytics = await window.api.getConfig('showCollectionAnalytics');
         setShowCollectionAnalytics(!!showAnalytics);
+        const storedValPref = await window.api.getConfig('showStorageValuations');
+        if (storedValPref !== undefined && storedValPref !== null) {
+          setShowStorageValuations(!!storedValPref);
+        }
       }
     }
   };
@@ -876,6 +896,243 @@ export const Dashboard = () => {
         </div>
       )}
 
+      {/* Storage & Security Overview Card */}
+      {storageLocations.length > 0 && (
+        <div
+          className="card"
+          style={{
+            padding: '1.25rem 1.5rem',
+            marginBottom: '1.75rem',
+            border: '1px solid var(--border-highlight)',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '1rem',
+              borderBottom: '1px solid var(--border-subtle)',
+              paddingBottom: '0.6rem',
+              flexWrap: 'wrap',
+              gap: '0.5rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Shield size={18} style={{ color: 'var(--accent)' }} />
+              <h3 style={{ margin: 0, fontSize: '1rem' }}>
+                Storage &amp; Physical Security Overview
+              </h3>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                ({storageLocations.length} Containers Active)
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  const newVal = !showStorageValuations;
+                  setShowStorageValuations(newVal);
+                  localStorage.setItem('armoryvault_storage_valuations', String(newVal));
+                  if (window.api?.setConfig) window.api.setConfig('showStorageValuations', newVal);
+                }}
+                style={{
+                  fontSize: '0.75rem',
+                  padding: '0.25rem 0.6rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                }}
+                title={
+                  showStorageValuations
+                    ? 'Hide financial dollar values'
+                    : 'Show financial dollar values'
+                }
+              >
+                {showStorageValuations ? <Eye size={13} /> : <EyeOff size={13} />}
+                <span>{showStorageValuations ? 'Valuations Visible' : 'Valuations Hidden'}</span>
+              </button>
+
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => navigate('/storage')}
+                style={{
+                  fontSize: '0.75rem',
+                  padding: '0.25rem 0.6rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                }}
+              >
+                <span>Storage Organizer</span>
+                <ChevronRight size={13} />
+              </button>
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+              gap: '0.85rem',
+            }}
+          >
+            {storageLocations.slice(0, 4).map((loc) => {
+              const theme = getStorageTypeTheme(loc.type);
+              const fCount = loc.firearmIds?.length || 0;
+              const accCount = loc.accessoryIds?.length || 0;
+              const ammoCount = loc.ammoIds?.length || 0;
+              const compCount = loc.componentIds?.length || 0;
+              const capUtil = getStorageCapacityUtilization(
+                loc,
+                fCount,
+                accCount,
+                ammoCount,
+                compCount
+              );
+
+              // Calculate valuation for this storage container
+              const locFirearmsVal = firearms
+                .filter((f) => loc.firearmIds?.includes(f.id!))
+                .reduce((sum, f) => sum + (f.purchase_price || 0), 0);
+              const locAccsVal = accessories
+                .filter((a) => loc.accessoryIds?.includes(a.id!))
+                .reduce((sum, a) => sum + (a.value || 0) * (a.quantity || 1), 0);
+              const locAmmoVal = ammoList
+                .filter((am) => loc.ammoIds?.includes(am.id!))
+                .reduce((sum, am) => sum + (am.count || 0) * (am.costPerRound || 0), 0);
+              const locCompsVal = components
+                .filter((c) => loc.componentIds?.includes(c.id!))
+                .reduce((sum, c) => sum + (c.cost || 0), 0);
+              const locTotalVal = locFirearmsVal + locAccsVal + locAmmoVal + locCompsVal;
+
+              return (
+                <div
+                  key={loc.id}
+                  onClick={() => navigate('/storage')}
+                  style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    padding: '0.85rem 1rem',
+                    borderRadius: '8px',
+                    border: `1px solid ${theme.border}`,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  title={`View ${loc.name} in Storage Organizer`}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '0.4rem',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                      {renderStorageIcon(loc.type, 16)}
+                      <strong style={{ fontSize: '0.95rem', color: theme.text }}>{loc.name}</strong>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: '0.7rem',
+                        padding: '0.1rem 0.4rem',
+                        borderRadius: '4px',
+                        background: theme.bg,
+                        color: theme.text,
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      {loc.type}
+                    </span>
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: '0.75rem',
+                      color: 'var(--text-secondary)',
+                      marginBottom: '0.4rem',
+                    }}
+                  >
+                    {fCount} Guns • {accCount} Accs • {ammoCount} Ammo • {compCount} Powders
+                  </div>
+
+                  {capUtil.max !== null && (
+                    <div style={{ marginBottom: '0.4rem' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          fontSize: '0.7rem',
+                          color: 'var(--text-muted)',
+                          marginBottom: '2px',
+                        }}
+                      >
+                        <span>{capUtil.unitLabel} Capacity</span>
+                        <span
+                          style={{
+                            fontWeight: 600,
+                            color:
+                              capUtil.isOverCapacity || (capUtil.percent && capUtil.percent >= 90)
+                                ? 'var(--danger)'
+                                : 'var(--text-primary)',
+                          }}
+                        >
+                          {capUtil.used} / {capUtil.max} {capUtil.unitLabel} ({capUtil.percent}%)
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          width: '100%',
+                          height: '4px',
+                          background: 'rgba(255,255,255,0.1)',
+                          borderRadius: '2px',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: `${Math.min(100, capUtil.percent || 0)}%`,
+                            height: '100%',
+                            background:
+                              capUtil.isOverCapacity || (capUtil.percent && capUtil.percent >= 90)
+                                ? '#ef4444'
+                                : theme.text,
+                            transition: 'width 0.3s ease',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      fontSize: '0.8rem',
+                      marginTop: '0.3rem',
+                    }}
+                  >
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>
+                      Stored Value:
+                    </span>
+                    <strong style={{ color: 'var(--success)' }}>
+                      {showStorageValuations
+                        ? `$${locTotalVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                        : '•••••'}
+                    </strong>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Unified Dashboard Control Deck */}
       <div className="dashboard-control-deck">
         {/* Left: Category Filter Chips */}
@@ -1047,9 +1304,18 @@ export const Dashboard = () => {
 
                   {/* Badges Overlay */}
                   <div className="tactical-card-badges-overlay">
-                    <span className={`status-badge ${f.is_sold ? 'sold' : 'available'}`}>
-                      {f.is_sold ? 'Sold' : 'In Safe'}
-                    </span>
+                    {f.is_sold ? (
+                      <span className="status-badge sold">Sold</span>
+                    ) : (
+                      <StorageBadge
+                        location={getItemStorageLocation('firearm', f.id, storageLocations)}
+                        onClick={(e) => {
+                          e?.stopPropagation();
+                          navigate('/storage');
+                        }}
+                        size="sm"
+                      />
+                    )}
                     <div style={{ display: 'flex', gap: '0.35rem' }}>
                       {f.is_nfa && (
                         <span
@@ -1136,6 +1402,10 @@ export const Dashboard = () => {
                               <TacticalSlingIcon size={11} color={tc.text} />
                             ) : a.type === 'Magazine' ? (
                               <MagazineIcon size={11} color={tc.text} />
+                            ) : a.type === 'Stock' ? (
+                              <StockIcon size={11} color={tc.text} />
+                            ) : a.type === 'Chassis' ? (
+                              <ChassisIcon size={11} color={tc.text} />
                             ) : (
                               <Package size={11} />
                             )}{' '}

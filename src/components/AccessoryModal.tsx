@@ -2,9 +2,15 @@ import { AlertTriangle, Camera, Target, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Accessory, Firearm } from '../types';
+import { Accessory, Firearm, StorageLocation } from '../types';
 import { parseBarcodeData } from '../utils/BarcodeEngine';
+import {
+  assignItemToStorage,
+  getItemStorageLocation,
+  saveStorageLocations,
+} from '../utils/StorageSync';
 import { AutocompleteInput } from './AutocompleteInput';
+import { StorageLocationSelect } from './StorageBadge';
 
 interface AccessoryModalProps {
   isOpen: boolean;
@@ -45,6 +51,8 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({
   firearms,
 }) => {
   const [formData, setFormData] = useState<Partial<Accessory>>(defaultFormData);
+  const [locations, setLocations] = useState<StorageLocation[]>([]);
+  const [storageLocationId, setStorageLocationId] = useState<number | null>(null);
   const [upcInput, setUpcInput] = useState('');
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [lookupStatus, setLookupStatus] = useState<{
@@ -53,6 +61,35 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({
   } | null>(null);
   const [saveToSkuDb, setSaveToSkuDb] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (window.api && window.api.getStorageLocations) {
+      window.api.getStorageLocations().then((locs) => {
+        setLocations(locs || []);
+        if (editingId) {
+          const matched = getItemStorageLocation('accessory', editingId, locs || []);
+          if (matched) setStorageLocationId(matched.id || null);
+        }
+      });
+    }
+
+    if (isOpen) {
+      setUpcInput('');
+      setLookupStatus(null);
+      setSaveToSkuDb(false);
+      if (initialData) {
+        setFormData({ ...defaultFormData, ...initialData });
+      } else {
+        setFormData(defaultFormData);
+      }
+      if (initialUpc) {
+        setUpcInput(initialUpc);
+        if (!initialData || !initialData.manufacturer) {
+          lookupUPC(initialUpc);
+        }
+      }
+    }
+  }, [isOpen, initialData, initialUpc, editingId]);
 
   const lookupUPC = async (upc: string) => {
     if (!upc || !window.api) return;
@@ -182,10 +219,13 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({
     'Optic',
     'Suppressor',
     'Light',
+    'Magazine',
+    'Stock',
+    'Chassis',
+    'Belt',
     'Holster',
     'Mount',
     'Sling',
-    'Magazine',
     'Other',
   ];
 
@@ -207,6 +247,7 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({
       newAcc.upc_code = upcInput.trim().toUpperCase();
     }
 
+    let savedId = editingId;
     if (editingId) {
       await window.api.updateAccessory(editingId, newAcc);
     } else {
@@ -231,13 +272,35 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({
             mergedData.upc_code = newAcc.upc_code;
           }
           await window.api.updateAccessory(duplicate.id!, mergedData);
+          savedId = duplicate.id || null;
           merged = true;
         }
       }
 
       if (!merged) {
-        await window.api.addAccessory(newAcc);
+        const res: any = await window.api.addAccessory(newAcc);
+        if (typeof res === 'number') {
+          savedId = res;
+        } else if (res && typeof res.id === 'number') {
+          savedId = res.id;
+        } else {
+          const fresh = await window.api.getAccessories();
+          if (fresh && fresh.length > 0) {
+            savedId = Math.max(...fresh.map((a: any) => a.id || 0));
+          }
+        }
       }
+    }
+
+    // Bi-directional Storage Sync
+    if (savedId && locations.length > 0) {
+      const updatedLocations = assignItemToStorage(
+        'accessory',
+        savedId,
+        storageLocationId,
+        locations
+      );
+      await saveStorageLocations(updatedLocations);
     }
 
     // Save to Custom SKU database if requested
@@ -266,7 +329,11 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({
 
   return createPortal(
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '640px' }}>
+      <div
+        className="modal"
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxWidth: '780px', width: '100%' }}
+      >
         <div className="modal-header">
           <h2 style={{ margin: 0 }}>{editingId ? 'Edit Accessory' : 'Add Accessory'}</h2>
           <button type="button" className="btn-icon" onClick={onClose} title="Close modal">
@@ -325,13 +392,13 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({
                     gap: '0.5rem',
                     padding: '0.8rem',
                     borderRadius: '8px',
-                    fontSize: '0.9rem',
+                    fontSize: '0.85rem',
                     background:
-                      lookupStatus.type === 'error'
-                        ? 'rgba(239, 68, 68, 0.1)'
-                        : 'rgba(34, 197, 94, 0.1)',
-                    color: lookupStatus.type === 'error' ? '#ef4444' : '#22c55e',
-                    border: `1px solid ${lookupStatus.type === 'error' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(34, 197, 94, 0.2)'}`,
+                      lookupStatus.type === 'success'
+                        ? 'rgba(16, 185, 129, 0.15)'
+                        : 'rgba(239, 68, 68, 0.15)',
+                    color: lookupStatus.type === 'success' ? '#34d399' : '#f87171',
+                    border: `1px solid ${lookupStatus.type === 'success' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
                   }}
                 >
                   <AlertTriangle size={16} />
@@ -341,19 +408,44 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({
             </div>
           )}
 
-          <div className="form-group">
-            <label>Accessory Type</label>
-            <AutocompleteInput
-              mode="select"
-              name="type"
-              value={formData.type || 'Optic'}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
-              options={accessoryTypes}
-            />
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '1rem',
+              marginBottom: '1.25rem',
+            }}
+          >
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label>Accessory Type</label>
+              <AutocompleteInput
+                mode="select"
+                name="type"
+                value={formData.type || 'Optic'}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+                options={accessoryTypes}
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label>Storage Location / Container</label>
+              <StorageLocationSelect
+                value={storageLocationId}
+                onChange={(locId) => setStorageLocationId(locId)}
+                locations={locations}
+                placeholder="Select Safe / Case / Container..."
+              />
+            </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div className="form-group">
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '1rem',
+              marginBottom: '1.25rem',
+            }}
+          >
+            <div className="form-group" style={{ marginBottom: 0 }}>
               <label>Manufacturer</label>
               <input
                 required
@@ -363,7 +455,7 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({
                 onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
               />
             </div>
-            <div className="form-group">
+            <div className="form-group" style={{ marginBottom: 0 }}>
               <label>Model</label>
               <input
                 required
@@ -375,9 +467,10 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({
             </div>
           </div>
 
+          {/* Type-Specific Fields */}
           {formData.type === 'Optic' && (
-            <div className="form-group">
-              <label>Magnification (e.g. 1-6x24, 3-9x40, or 1x for Red Dot)</label>
+            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+              <label>Magnification / Reticle (e.g. 1-6x24, 3 MOA Dot)</label>
               <input
                 type="text"
                 className="form-input"
@@ -388,8 +481,8 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({
           )}
 
           {formData.type === 'Suppressor' && (
-            <div className="form-group">
-              <label>Rated Calibers (e.g. .30 Cal, 5.56mm, Multi-cal)</label>
+            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+              <label>Rated Calibers (e.g. Up to .300 Win Mag)</label>
               <input
                 type="text"
                 className="form-input"
@@ -400,11 +493,10 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({
           )}
 
           {formData.type === 'Light' && (
-            <div className="form-group">
+            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
               <label>Lumens</label>
               <input
                 type="number"
-                min="0"
                 className="form-input"
                 value={formData.lumens === undefined ? '' : formData.lumens}
                 onChange={(e) =>
@@ -417,9 +509,44 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({
             </div>
           )}
 
+          {formData.type === 'Magazine' && (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '1rem',
+                marginBottom: '1.25rem',
+              }}
+            >
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>Caliber</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={formData.caliber || ''}
+                  onChange={(e) => setFormData({ ...formData, caliber: e.target.value })}
+                />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>Capacity</label>
+                <input
+                  type="number"
+                  className="form-input"
+                  value={formData.capacity === undefined ? '' : formData.capacity}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      capacity: e.target.value === '' ? undefined : parseInt(e.target.value),
+                    })
+                  }
+                />
+              </div>
+            </div>
+          )}
+
           {formData.type === 'Holster' && (
-            <div className="form-group">
-              <label>Fits / Supported Models (e.g. Glock 19 Gen 5)</label>
+            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+              <label>Supported Models / Platform</label>
               <input
                 type="text"
                 className="form-input"
@@ -429,35 +556,585 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({
             </div>
           )}
 
-          {formData.type === 'Magazine' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <div className="form-group">
-                <label>Caliber (e.g. 9mm, 5.56 NATO)</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  value={formData.caliber || ''}
-                  onChange={(e) => setFormData({ ...formData, caliber: e.target.value })}
-                />
+          {/* Stock & Chassis Technical Specifications Panel */}
+          {(formData.type === 'Stock' || formData.type === 'Chassis') && (
+            <div
+              style={{
+                background:
+                  formData.type === 'Chassis'
+                    ? 'rgba(6, 182, 212, 0.05)'
+                    : 'rgba(16, 185, 129, 0.05)',
+                border: `1px solid ${formData.type === 'Chassis' ? 'rgba(6, 182, 212, 0.25)' : 'rgba(16, 185, 129, 0.25)'}`,
+                borderRadius: '12px',
+                padding: '1.25rem',
+                marginTop: '1.25rem',
+                marginBottom: '1.25rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1rem',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  color: formData.type === 'Chassis' ? '#06b6d4' : '#10b981',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                }}
+              >
+                <span>
+                  {formData.type === 'Chassis'
+                    ? 'Precision Chassis Specifications'
+                    : 'Stock & Furniture Specifications'}
+                </span>
               </div>
-              <div className="form-group">
-                <label>Capacity</label>
-                <input
-                  type="number"
-                  min="0"
-                  className="form-input"
-                  value={
-                    formData.capacity === undefined || formData.capacity === null
-                      ? ''
-                      : formData.capacity
-                  }
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      capacity: e.target.value === '' ? undefined : parseInt(e.target.value),
-                    })
-                  }
-                />
+
+              {/* Subtype & Action Inlet */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label>Furniture / Stock Subtype</label>
+                  <select
+                    className="form-input"
+                    value={formData.stockType || ''}
+                    onChange={(e) => setFormData({ ...formData, stockType: e.target.value })}
+                  >
+                    <option value="">Select Subtype...</option>
+                    <option value="Precision Rifle Chassis">
+                      Precision Rifle Chassis (MDT, KRG, MPA)
+                    </option>
+                    <option value="T/C Rifle Buttstock">
+                      T/C Rifle Buttstock (Encore / Pro Hunter / Contender)
+                    </option>
+                    <option value="T/C Pistol Grip / Adapter">
+                      T/C Pistol Grip / 1913 Adapter (Pachmayr / Sharps Bros)
+                    </option>
+                    <option value="T/C Forend (Pistol / Rifle)">
+                      T/C Forend (10" Bull, Super 14", Heavy Rifle)
+                    </option>
+                    <option value="Adjustable Carbine Stock">
+                      Adjustable Carbine Stock (CTR, B5 Bravo, SOPMOD)
+                    </option>
+                    <option value="Precision PRS / DMR Stock">
+                      Precision PRS / DMR Stock (PRS Gen3, SRS)
+                    </option>
+                    <option value="Pistol Stabilizing Brace">
+                      Pistol Stabilizing Brace (SBA3, SBA4, Tailhook)
+                    </option>
+                    <option value="1913 Picatinny Folding Stock">
+                      1913 Picatinny Folding Stock (SIG Minimalist, MI)
+                    </option>
+                    <option value="Traditional / Hunting Stock">
+                      Traditional / Hunting Stock (McMillan, Manners, Boyd's)
+                    </option>
+                    <option value="Shotgun Stock / Adapter">
+                      Shotgun Stock / Adapter (Magpul SGA)
+                    </option>
+                    <option value="Fixed Rifle (A2)">Fixed Rifle (A2 Standard)</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Action Inlet / Platform Fits</label>
+                  <AutocompleteInput
+                    name="actionInlet"
+                    value={formData.actionInlet || formData.supportedModels || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData({ ...formData, actionInlet: val, supportedModels: val });
+                    }}
+                    options={[
+                      'Thompson/Center Encore / Pro Hunter / Endeavor',
+                      'Thompson/Center Contender (G1 / Armor Alloy)',
+                      'Thompson/Center G2 Contender / SSK-50',
+                      'Remington 700 Short Action',
+                      'Remington 700 Long Action',
+                      'Tikka T3 / T3x',
+                      'Savage 10 / 110 (Short Action)',
+                      'Savage 110 (Long Action)',
+                      'Howa 1500 / Weatherby Vanguard',
+                      'Ruger American (Short Action)',
+                      'Ruger 10/22',
+                      'AR-15 / M4 / M16',
+                      'AR-10 / SR-25 / DPMS .308',
+                      'Mossberg 500 / 590',
+                      'Remington 870',
+                      'AK-47 / AKM (Stamped Trunnion)',
+                      'SIG MCX / MPX / 1913 Rail',
+                    ]}
+                    placeholder="e.g. T/C Encore, Rem 700 SA, AR-15"
+                  />
+                </div>
+              </div>
+
+              {/* Mounting Interface & T/C Forend Spacing */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label>Mounting Interface / Buffer Standard</label>
+                  <select
+                    className="form-input"
+                    value={formData.bufferTubeType || ''}
+                    onChange={(e) => setFormData({ ...formData, bufferTubeType: e.target.value })}
+                  >
+                    <option value="">Select Interface...</option>
+                    <option value='Mil-Spec Buffer Tube (1.14" OD)'>
+                      Mil-Spec Buffer Tube (1.14" OD)
+                    </option>
+                    <option value='Commercial Buffer Tube (1.17" OD)'>
+                      Commercial Buffer Tube (1.17" OD)
+                    </option>
+                    <option value="T/C Encore Frame Bolt Interface">
+                      T/C Encore Frame Bolt Interface
+                    </option>
+                    <option value="T/C Contender (G1) Frame Interface">
+                      T/C Contender (G1) Frame Interface
+                    </option>
+                    <option value="T/C G2 / SSK-50 Frame Interface">
+                      T/C G2 / SSK-50 Frame Interface
+                    </option>
+                    <option value="Picatinny 1913 Rail Mount">
+                      Picatinny 1913 Rail Mount (Sharps / SIG)
+                    </option>
+                    <option value="Direct Action V-Block Bedding">
+                      Direct Action V-Block Bedding (Chassis)
+                    </option>
+                    <option value="A2 Fixed Rifle Extension">A2 Fixed Rifle Extension</option>
+                    <option value="AK Fixed/Folding Trunnion">AK Fixed/Folding Trunnion</option>
+                    <option value="Shotgun Receiver Adapter">Shotgun Receiver Adapter</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>T/C Forend Spacing / Contour</label>
+                  <select
+                    className="form-input"
+                    value={formData.tcForendSpacing || ''}
+                    onChange={(e) => setFormData({ ...formData, tcForendSpacing: e.target.value })}
+                  >
+                    <option value="">N/A or Standard Forend</option>
+                    <option value="Single Screw (Pistol/Carbine)">
+                      Single Screw (Pistol/Carbine)
+                    </option>
+                    <option value="Double Screw (Standard Spacing)">
+                      Double Screw (Standard Spacing)
+                    </option>
+                    <option value="Double Screw (Wide Spacing)">Double Screw (Wide Spacing)</option>
+                    <option value="Heavy / Bull Barrel Contour">Heavy / Bull Barrel Contour</option>
+                    <option value="Tapered Standard Contour">Tapered Standard Contour</option>
+                    <option value="Free-Floating Hanger Bar">
+                      Free-Floating Hanger Bar (EABCO / Tony's)
+                    </option>
+                    <option value="Muzzleloader (w/ Ramrod Channel)">
+                      Muzzleloader (w/ Ramrod Channel)
+                    </option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Material & Weight */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label>Material &amp; Construction</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={formData.material || ''}
+                    onChange={(e) => setFormData({ ...formData, material: e.target.value })}
+                    placeholder="e.g. 6061-T6 Billet Aluminum, Carbon Fiber, Walnut"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Component Weight</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={formData.weight || ''}
+                    onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
+                    placeholder="e.g. 3.8 lbs, 12.5 oz, 9.5 oz"
+                  />
+                </div>
+              </div>
+
+              {/* Folding Stock Checkbox */}
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                    margin: 0,
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={!!formData.isFolding}
+                    onChange={(e) => setFormData({ ...formData, isFolding: e.target.checked })}
+                    style={{ width: '1.15rem', height: '1.15rem', accentColor: '#10b981' }}
+                  />
+                  <span>Side-Folding Stock / Mechanism</span>
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* Gun Belt & Western Cartridge Rig Form Section */}
+          {formData.type === 'Belt' && (
+            <div
+              style={{
+                background: 'rgba(234, 179, 8, 0.05)',
+                border: '1px solid rgba(234, 179, 8, 0.25)',
+                borderRadius: '12px',
+                padding: '1.25rem',
+                marginTop: '1.25rem',
+                marginBottom: '1.25rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1rem',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  color: '#eab308',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                }}
+              >
+                <span>Gun Belt &amp; Tactical Rig Specifications</span>
+              </div>
+
+              {/* Subtype & Belt Width */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label>Belt Subtype / Rig Style</label>
+                  <select
+                    className="form-input"
+                    value={formData.beltType || ''}
+                    onChange={(e) => setFormData({ ...formData, beltType: e.target.value })}
+                  >
+                    <option value="">Select Subtype...</option>
+                    <option value="Western Buscadero Drop Belt (Single/Double)">
+                      Western Buscadero Drop Belt (Hunter 150/155, Triple K)
+                    </option>
+                    <option value="Straight Western Cartridge Belt">
+                      Straight Western Cartridge Belt (Hunter 158, Kirkpatrick)
+                    </option>
+                    <option value="Cross-Chest Bandolier / Cartridge Belt">
+                      Cross-Chest Bandolier / Ammo Belt (Triple K, Galco)
+                    </option>
+                    <option value="Folded Leather Money Belt / Prairie Belt">
+                      Folded Leather Money Belt / Prairie Belt (SASS / Frontier)
+                    </option>
+                    <option value="Two-Piece MOLLE Battle Belt">
+                      Two-Piece MOLLE Battle Belt (Blue Alpha, AWS, Ronin)
+                    </option>
+                    <option value="EDC Concealed Carry Ratchet Belt">
+                      EDC Concealed Carry Ratchet Belt (Kore, Nexbelt)
+                    </option>
+                    <option value="Low-Profile EDC Nylon Belt">
+                      Low-Profile EDC Nylon Belt (Tenicor Zero, Blue Alpha)
+                    </option>
+                    <option value="Reinforced Leather Gun Belt (Steel/Poly Core)">
+                      Reinforced Leather Gun Belt (Daltech Steel Core, Bigfoot)
+                    </option>
+                    <option value="Competition Rig (USPSA / IPSC / 3-Gun)">
+                      Competition Rig (DAA Lynx, Safariland ELS)
+                    </option>
+                    <option value="Duty / Law Enforcement Belt">
+                      Duty / Law Enforcement Belt (Safariland 7920, Bianchi)
+                    </option>
+                    <option value="Padded War Belt / Sleeve">
+                      Padded War Belt / Sleeve (HSGI, Viking Tactics)
+                    </option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Belt Width</label>
+                  <select
+                    className="form-input"
+                    value={formData.beltWidth || ''}
+                    onChange={(e) => setFormData({ ...formData, beltWidth: e.target.value })}
+                  >
+                    <option value="">Select Width...</option>
+                    <option value='1.5" (Standard EDC / Concealed Carry)'>
+                      1.5" (Standard EDC / Concealed Carry)
+                    </option>
+                    <option value='1.75" (Tactical / Battle Belt / Riggers)'>
+                      1.75" (Tactical / Battle Belt / Riggers)
+                    </option>
+                    <option value='2.0" (Heavy Duty / Western Cartridge)'>
+                      2.0" (Heavy Duty / Western Cartridge)
+                    </option>
+                    <option value='2.25" (Standard Duty / Police / LE)'>
+                      2.25" (Standard Duty / Police / LE)
+                    </option>
+                    <option value='2.75" - 3.0" (Western Buscadero Drop Belt)'>
+                      2.75" - 3.0" (Western Buscadero Drop Belt)
+                    </option>
+                    <option value='1.25" (Dress / Low-Profile EDC)'>
+                      1.25" (Dress / Low-Profile EDC)
+                    </option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Western Drop Configuration & Cartridge Loops */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label>Western Drop Loop</label>
+                  <select
+                    className="form-input"
+                    value={formData.dropLoopType || ''}
+                    onChange={(e) => setFormData({ ...formData, dropLoopType: e.target.value })}
+                  >
+                    <option value="">N/A / Standard Straight</option>
+                    <option value="Single Drop (Right-Hand Strong Side)">
+                      Single Drop (Right-Hand Strong Side)
+                    </option>
+                    <option value="Single Drop (Left-Hand Strong Side)">
+                      Single Drop (Left-Hand Strong Side)
+                    </option>
+                    <option value="Double Drop (Dual Strong / Cross Draw)">
+                      Double Drop (Dual Strong / Cross Draw)
+                    </option>
+                    <option value="Straight Non-Drop / Standard Rise">
+                      Straight Non-Drop / Standard Rise
+                    </option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Cartridge Loops (Caliber &amp; Count)</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.5rem' }}>
+                    <select
+                      className="form-input"
+                      value={formData.cartridgeLoopCaliber || ''}
+                      onChange={(e) =>
+                        setFormData({ ...formData, cartridgeLoopCaliber: e.target.value })
+                      }
+                    >
+                      <option value="">None / Smooth Leather</option>
+                      <option value=".22 LR / .22 WMR">.22 LR / .22 WMR</option>
+                      <option value=".38 Special / .357 Magnum">.38 Special / .357 Magnum</option>
+                      <option value=".44 Special / .44 Magnum / .45 Colt">
+                        .44 Special / .44 Magnum / .45 Colt
+                      </option>
+                      <option value=".45-70 Government / Big Bore Rifle">
+                        .45-70 Government / Big Bore Rifle
+                      </option>
+                      <option value="12 Gauge / 20 Gauge Shotshells">
+                        12 Gauge / 20 Gauge Shotshells
+                      </option>
+                      <option value="Multi-Caliber / Elastic Loops">
+                        Multi-Caliber / Elastic Loops
+                      </option>
+                    </select>
+                    <input
+                      type="number"
+                      min="0"
+                      className="form-input"
+                      value={
+                        formData.cartridgeLoopCount === undefined ? '' : formData.cartridgeLoopCount
+                      }
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          cartridgeLoopCount:
+                            e.target.value === '' ? undefined : parseInt(e.target.value),
+                        })
+                      }
+                      placeholder="Qty (25)"
+                      title="Number of ammunition loops"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Buckle Mechanism & Stiffener Core */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label>Buckle Mechanism</label>
+                  <select
+                    className="form-input"
+                    value={formData.buckleType || ''}
+                    onChange={(e) => setFormData({ ...formData, buckleType: e.target.value })}
+                  >
+                    <option value="">Select Buckle...</option>
+                    <option value="AustriAlpin Cobra Quick-Release">
+                      AustriAlpin Cobra Quick-Release (Alloy/D-Ring)
+                    </option>
+                    <option value='Micro-Adjustable Ratchet / Track (1/4" Steps)'>
+                      Micro-Adjustable Ratchet / Track (1/4" Steps)
+                    </option>
+                    <option value="Classic Western Clipped-Corner / Nickel Buckle">
+                      Classic Western Clipped-Corner / Nickel Buckle
+                    </option>
+                    <option value="Classic Dual-Prong Roller Buckle">
+                      Classic Dual-Prong Roller Buckle
+                    </option>
+                    <option value="Single-Prong Solid Brass / Steel Buckle">
+                      Single-Prong Solid Brass / Steel Buckle
+                    </option>
+                    <option value="Low-Profile Friction / G-Hook">
+                      Low-Profile Friction / G-Hook
+                    </option>
+                    <option value="Modular Interlock Links (DAA Lynx)">
+                      Modular Interlock Links (DAA Lynx)
+                    </option>
+                    <option value="Hook-and-Loop Overlap">Hook-and-Loop Overlap</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Internal Stiffener Core</label>
+                  <select
+                    className="form-input"
+                    value={formData.stiffenerCore || ''}
+                    onChange={(e) => setFormData({ ...formData, stiffenerCore: e.target.value })}
+                  >
+                    <option value="">Select Stiffener...</option>
+                    <option value="Tegris / Curv Thermoplastic Composite">
+                      Tegris / Curv Thermoplastic Composite
+                    </option>
+                    <option value="Reinforced Polymer (Power-Core / HDPE)">
+                      Reinforced Polymer (Power-Core / HDPE)
+                    </option>
+                    <option value="Dual-Layer Spring Steel Core">
+                      Dual-Layer Spring Steel Core
+                    </option>
+                    <option value="Double-Layer Heavy Saddle Leather">
+                      Double-Layer Heavy Saddle Leather
+                    </option>
+                    <option value="Double-Layer Scuba Webbing">Double-Layer Scuba Webbing</option>
+                    <option value="Multi-Layer Ballistic Nylon">Multi-Layer Ballistic Nylon</option>
+                    <option value="None / Flexible Unlined">None / Flexible Unlined</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Attachment System & Waist Size */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label>Attachment System / Interface</label>
+                  <select
+                    className="form-input"
+                    value={formData.attachmentSystem || ''}
+                    onChange={(e) => setFormData({ ...formData, attachmentSystem: e.target.value })}
+                  >
+                    <option value="">Select Attachment...</option>
+                    <option value="Integrated Western Drop Slot (Hunter 1060/1100/2200 Holsters)">
+                      Integrated Western Drop Slot (Hunter 1060/1100/2200)
+                    </option>
+                    <option value="Laser-Cut Micro-MOLLE / PALS Slots">
+                      Laser-Cut Micro-MOLLE / PALS Slots
+                    </option>
+                    <option value='Standard 1/2" Tactical MOLLE Webbing'>
+                      Standard 1/2" Tactical MOLLE Webbing
+                    </option>
+                    <option value="Safariland ELS / QLS Fork Mounting Plate">
+                      Safariland ELS / QLS Fork Mounting Plate
+                    </option>
+                    <option value='Direct Holster Clip / 1.5"-1.75" Loops'>
+                      Direct Holster Clip / 1.5"-1.75" Loops
+                    </option>
+                    <option value="Inner Loop / Hook Velcro (2-Piece)">
+                      Inner Loop / Hook Velcro (2-Piece)
+                    </option>
+                    <option value="Belt Keepers (4-Point Duty)">Belt Keepers (4-Point Duty)</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Waist Sizing Range</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={formData.waistSize || ''}
+                    onChange={(e) => setFormData({ ...formData, waistSize: e.target.value })}
+                    placeholder='e.g. 32" - 36" (Size M), 40" - 44" (Western Hip), Trim-to-Fit'
+                  />
+                </div>
+              </div>
+
+              {/* Inner Belt & Color Pattern */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label>Inner Belt System</label>
+                  <select
+                    className="form-input"
+                    value={formData.innerBeltType || ''}
+                    onChange={(e) => setFormData({ ...formData, innerBeltType: e.target.value })}
+                  >
+                    <option value="">Select Inner Belt...</option>
+                    <option value='Loop Inner Belt (Standard 1.5" Loop Velcro)'>
+                      Loop Inner Belt (Standard 1.5" Loop)
+                    </option>
+                    <option value="Hook Inner Belt (Outer has Loop)">
+                      Hook Inner Belt (Outer has Loop)
+                    </option>
+                    <option value="Low-Profile EDC / G-Hook Inner Belt">
+                      Low-Profile EDC / G-Hook Inner
+                    </option>
+                    <option value="Padded Non-Slip Neoprene Grip Pad">
+                      Padded Non-Slip Neoprene Grip Pad
+                    </option>
+                    <option value="Not Applicable / Single-Belt System">
+                      Not Applicable / Single-Belt System
+                    </option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Color / Pattern / Tooling</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={formData.colorPattern || ''}
+                    onChange={(e) => setFormData({ ...formData, colorPattern: e.target.value })}
+                    placeholder="e.g. Chestnut Brown Leather, Antique Floral Tooled, Multicam"
+                  />
+                </div>
+              </div>
+
+              {/* Material & Weight */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group">
+                  <label>Material &amp; Construction</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={formData.material || ''}
+                    onChange={(e) => setFormData({ ...formData, material: e.target.value })}
+                    placeholder="e.g. Full-Grain Saddle Leather, 1000D Cordura + Tegris"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Component Weight</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={formData.weight || ''}
+                    onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
+                    placeholder="e.g. 18.5 oz, 11.2 oz, 6.5 oz"
+                  />
+                </div>
               </div>
             </div>
           )}

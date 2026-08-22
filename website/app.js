@@ -40,7 +40,7 @@ function initNavbar() {
       navToggle.setAttribute('aria-expanded', mobileMenu.classList.contains('open'));
     });
 
-    mobileLinks.forEach(link => {
+    mobileLinks.forEach((link) => {
       link.addEventListener('click', () => {
         mobileMenu.classList.remove('open');
       });
@@ -53,7 +53,7 @@ let currentDetectedOsCard = 'mac-arm';
 function initOsDetection() {
   const userAgent = navigator.userAgent.toLowerCase();
   const platform = navigator.platform?.toLowerCase() || '';
-  
+
   let detectedOs = 'windows'; // fallback
   currentDetectedOsCard = 'windows';
 
@@ -62,19 +62,22 @@ function initOsDetection() {
     currentDetectedOsCard = 'mac-arm'; // default modern Mac
     // Test for Apple Silicon / M-series
     if (navigator.userAgentData) {
-      navigator.userAgentData.getHighEntropyValues(['architecture']).then(ua => {
-        if (ua.architecture === 'arm') {
-          currentDetectedOsCard = 'mac-arm';
+      navigator.userAgentData
+        .getHighEntropyValues(['architecture'])
+        .then((ua) => {
+          if (ua.architecture === 'arm') {
+            currentDetectedOsCard = 'mac-arm';
+            highlightDownloadCard('mac-arm');
+          } else {
+            currentDetectedOsCard = 'mac-intel';
+            highlightDownloadCard('mac-intel');
+          }
+          updateSmartHeroCta();
+        })
+        .catch(() => {
           highlightDownloadCard('mac-arm');
-        } else {
-          currentDetectedOsCard = 'mac-intel';
-          highlightDownloadCard('mac-intel');
-        }
-        updateSmartHeroCta();
-      }).catch(() => {
-        highlightDownloadCard('mac-arm');
-        updateSmartHeroCta();
-      });
+          updateSmartHeroCta();
+        });
     } else {
       highlightDownloadCard('mac-arm');
       updateSmartHeroCta();
@@ -89,7 +92,11 @@ function initOsDetection() {
     currentDetectedOsCard = 'linux';
     highlightDownloadCard('linux');
     updateSmartHeroCta();
-  } else if (userAgent.includes('android') || userAgent.includes('iphone') || userAgent.includes('ipad')) {
+  } else if (
+    userAgent.includes('android') ||
+    userAgent.includes('iphone') ||
+    userAgent.includes('ipad')
+  ) {
     detectedOs = 'mobile';
     currentDetectedOsCard = 'mobile';
     highlightDownloadCard('mobile');
@@ -108,11 +115,14 @@ function initOsDetection() {
 
 function highlightDownloadCard(cardId) {
   currentDetectedOsCard = cardId;
-  document.querySelectorAll('.download-card').forEach(card => {
+  document.querySelectorAll('.download-card').forEach((card) => {
     card.classList.remove('recommended');
     const existingBadge = card.querySelector('.download-badge-rec');
     if (existingBadge) existingBadge.remove();
   });
+
+  const spotlight = document.getElementById('download-mobile-spotlight');
+  if (spotlight) spotlight.classList.remove('recommended');
 
   const targetCard = document.getElementById(`download-${cardId}`);
   if (targetCard) {
@@ -122,18 +132,23 @@ function highlightDownloadCard(cardId) {
     badge.textContent = 'Detected For Your System';
     targetCard.prepend(badge);
   }
+
+  if (cardId === 'mobile' && spotlight) {
+    spotlight.classList.add('recommended');
+  }
+
   updateSmartHeroCta();
 }
 
 /* ==========================================================================
    3. Live GitHub Release Asset Resolution & Channel Switching
    ========================================================================== */
-let globalReleases = {
+const globalReleases = {
   stable: null,
   nightly: null,
   mobileStable: null,
   mobileNightly: null,
-  activeChannel: 'stable'
+  activeChannel: 'stable',
 };
 
 // Caching fetch with 15-minute TTL to prevent GitHub rate-limiting (60 req/hr)
@@ -170,21 +185,23 @@ async function initReleaseData() {
   const repoOwner = 'cook0001';
   const repoName = 'ArmoryVault';
   const companionRepo = 'ArmoryVault-Companion-App';
-  
+
   const desktopApiUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/releases`;
   const mobileApiUrl = `https://api.github.com/repos/${repoOwner}/${companionRepo}/releases`;
 
   const fallbackStableTag = 'v2.7.1';
-  const fallbackNightlyTag = 'v2.8.0-nightly.1';
-  const fallbackMobileStable = 'v2.5.0';
-  const fallbackMobileNightly = 'v2.6.0-nightly.1';
+  const fallbackNightlyTag = 'v2.8.0-nightly.6';
+  const fallbackMobileStable = 'v2.6.0';
+  const fallbackMobileNightly = 'v2.6.0-nightly.42';
 
   try {
     // 1. Fetch Desktop Releases with caching
     const releases = await fetchWithCache(desktopApiUrl);
     if (releases && Array.isArray(releases) && releases.length > 0) {
-      const stable = releases.find(r => !r.prerelease && !r.draft) || releases[0];
-      const nightly = releases.find(r => r.prerelease || r.tag_name?.includes('nightly') || r.tag_name?.includes('beta'));
+      const stable = releases.find((r) => !r.prerelease && !r.draft) || releases[0];
+      const nightly = releases.find(
+        (r) => r.prerelease || r.tag_name?.includes('nightly') || r.tag_name?.includes('beta')
+      );
       globalReleases.stable = stable || { tag_name: fallbackStableTag, assets: [] };
       globalReleases.nightly = nightly || { tag_name: fallbackNightlyTag, assets: [] };
     } else {
@@ -195,8 +212,10 @@ async function initReleaseData() {
     // 2. Fetch Mobile Companion Releases with caching
     const mobReleases = await fetchWithCache(mobileApiUrl);
     if (mobReleases && Array.isArray(mobReleases) && mobReleases.length > 0) {
-      const mobStable = mobReleases.find(r => !r.prerelease && !r.draft) || mobReleases[0];
-      const mobNightly = mobReleases.find(r => r.prerelease || r.tag_name?.includes('nightly') || r.tag_name?.includes('beta'));
+      const mobStable = mobReleases.find((r) => !r.prerelease && !r.draft) || mobReleases[0];
+      const mobNightly = mobReleases.find(
+        (r) => r.prerelease || r.tag_name?.includes('nightly') || r.tag_name?.includes('beta')
+      );
       globalReleases.mobileStable = mobStable || { tag_name: fallbackMobileStable, assets: [] };
       globalReleases.mobileNightly = mobNightly || { tag_name: fallbackMobileNightly, assets: [] };
     } else {
@@ -205,12 +224,16 @@ async function initReleaseData() {
     }
 
     // Update tag text in headers
-    document.querySelectorAll('.release-version-tag').forEach(el => {
+    document.querySelectorAll('.release-version-tag').forEach((el) => {
       el.textContent = globalReleases.stable.tag_name || fallbackStableTag;
     });
 
-    document.querySelectorAll('.nightly-version-tag').forEach(el => {
+    document.querySelectorAll('.nightly-version-tag').forEach((el) => {
       el.textContent = globalReleases.nightly.tag_name || fallbackNightlyTag;
+    });
+
+    document.querySelectorAll('.mobile-version-tag').forEach((el) => {
+      el.textContent = globalReleases.mobileStable.tag_name || fallbackMobileStable;
     });
 
     // Update feedback version dropdown options
@@ -218,19 +241,20 @@ async function initReleaseData() {
     if (feedbackVersionSelect) {
       const stableTag = globalReleases.stable.tag_name || fallbackStableTag;
       const nightlyTag = globalReleases.nightly.tag_name || fallbackNightlyTag;
+      const mobStableTag = globalReleases.mobileStable?.tag_name || fallbackMobileStable;
+      const mobNightlyTag = globalReleases.mobileNightly?.tag_name || fallbackMobileNightly;
       feedbackVersionSelect.innerHTML = `
         <option value="${nightlyTag} (Nightly Preview)">⚡ ${nightlyTag} (Nightly Preview)</option>
         <option value="${stableTag} (Stable Release)" selected>🎯 ${stableTag} (Stable Release)</option>
         <option value="v2.7.0 (Stable Release)">v2.7.0 (Stable Release)</option>
         <option value="v2.6.x (Legacy)">v2.6.x (Legacy)</option>
-        <option value="Mobile Companion (v${globalReleases.mobileNightly?.tag_name || fallbackMobileNightly})">📱 Mobile Companion (Nightly)</option>
-        <option value="Mobile Companion (v${globalReleases.mobileStable?.tag_name || fallbackMobileStable})">📱 Mobile Companion (Stable)</option>
+        <option value="Mobile Companion (${mobNightlyTag})">📱 Mobile Companion (Nightly - ${mobNightlyTag})</option>
+        <option value="Mobile Companion (${mobStableTag})">📱 Mobile Companion (Stable - ${mobStableTag})</option>
         <option value="Dev / Source Build">🛠️ Dev / Source Build</option>
       `;
     }
 
     applyChannelAssets('stable');
-
   } catch (err) {
     console.log('Using default release fallback urls:', err.message);
     globalReleases.stable = { tag_name: fallbackStableTag, assets: [] };
@@ -277,11 +301,12 @@ async function initReleaseData() {
 }
 
 function applyChannelAssets(channel) {
-  const rel = channel === 'nightly' ? globalReleases.nightly : globalReleases.stable;
-  const mobRel = channel === 'nightly' ? globalReleases.mobileNightly : globalReleases.mobileStable;
+  const isNightly = channel === 'nightly';
+  const rel = isNightly ? globalReleases.nightly : globalReleases.stable;
+  const mobRel = isNightly ? globalReleases.mobileNightly : globalReleases.mobileStable;
 
-  const tagName = rel?.tag_name || (channel === 'nightly' ? 'v2.8.0-nightly.1' : 'v2.7.1');
-  const mobTagName = mobRel?.tag_name || (channel === 'nightly' ? 'v2.6.0-nightly.1' : 'v2.5.0');
+  const tagName = rel?.tag_name || (isNightly ? 'v2.8.0-nightly.6' : 'v2.7.1');
+  const mobTagName = mobRel?.tag_name || (isNightly ? 'v2.6.0-nightly.42' : 'v2.6.0');
 
   const assets = rel?.assets || [];
   const mobAssets = mobRel?.assets || [];
@@ -290,54 +315,84 @@ function applyChannelAssets(channel) {
   const mobRepoBase = 'https://github.com/cook0001/ArmoryVault-Companion-App/releases';
 
   // Match desktop assets
-  const macArmAsset = assets.find(a => a.name.endsWith('.dmg') && (a.name.includes('arm64') || a.name.includes('aarch64')));
-  const macIntelAsset = assets.find(a => a.name.endsWith('.dmg') && (a.name.includes('x64') || a.name.includes('x86_64') || (!a.name.includes('arm64') && !a.name.includes('aarch64'))));
-  const winAsset = assets.find(a => a.name.endsWith('.exe'));
-  const linuxAsset = assets.find(a => a.name.endsWith('.AppImage'));
+  const macArmAsset = assets.find(
+    (a) => a.name.endsWith('.dmg') && (a.name.includes('arm64') || a.name.includes('aarch64'))
+  );
+  const macIntelAsset = assets.find(
+    (a) =>
+      a.name.endsWith('.dmg') &&
+      (a.name.includes('x64') ||
+        a.name.includes('x86_64') ||
+        (!a.name.includes('arm64') && !a.name.includes('aarch64')))
+  );
+  const winAsset = assets.find((a) => a.name.endsWith('.exe'));
+  const linuxAsset = assets.find((a) => a.name.endsWith('.AppImage'));
 
-  // Match mobile companion APK asset
-  const apkAsset = mobAssets.find(a => a.name?.endsWith('.apk')) || assets.find(a => a.name?.endsWith('.apk'));
+  // Match mobile companion APK asset or direct binary download fallback
+  const apkAsset =
+    mobAssets.find((a) => a.name?.endsWith('.apk')) || assets.find((a) => a.name?.endsWith('.apk'));
+  const directStableApkUrl =
+    'https://github.com/cook0001/ArmoryVault-Companion-App/releases/latest/download/app-release.apk';
+  const directTagApkUrl = `${mobRepoBase}/download/${mobTagName}/app-release.apk`;
+  const mobileApkUrl = apkAsset
+    ? apkAsset.browser_download_url
+    : isNightly
+      ? directTagApkUrl
+      : directStableApkUrl;
 
-  const isNightly = channel === 'nightly';
-  const tagShort = isNightly ? (tagName.replace('v', '').split('-')[0] + '-nightly') : tagName;
-  const mobTagShort = isNightly ? (mobTagName.replace('v', '').split('-')[0] + '-nightly') : mobTagName;
+  const tagShort = isNightly ? tagName.replace('v', '').split('-')[0] + '-nightly' : tagName;
+  const mobTagShort = isNightly
+    ? mobTagName.replace('v', '').split('-')[0] + '-nightly'
+    : mobTagName;
 
   updateDownloadBtn(
-    'btn-download-mac-arm', 
-    macArmAsset ? macArmAsset.browser_download_url : `${repoBase}/tag/${tagName}`, 
+    'btn-download-mac-arm',
+    macArmAsset ? macArmAsset.browser_download_url : `${repoBase}/tag/${tagName}`,
     isNightly ? `${tagShort} (ARM64)` : `${tagName} (Apple Silicon)`
   );
-  
+
   updateDownloadBtn(
-    'btn-download-mac-intel', 
-    macIntelAsset ? macIntelAsset.browser_download_url : `${repoBase}/tag/${tagName}`, 
+    'btn-download-mac-intel',
+    macIntelAsset ? macIntelAsset.browser_download_url : `${repoBase}/tag/${tagName}`,
     isNightly ? `${tagShort} (Intel x64)` : `${tagName} (Intel x64)`
   );
 
   updateDownloadBtn(
-    'btn-download-win', 
-    winAsset ? winAsset.browser_download_url : `${repoBase}/tag/${tagName}`, 
+    'btn-download-win',
+    winAsset ? winAsset.browser_download_url : `${repoBase}/tag/${tagName}`,
     isNightly ? `${tagShort} (Windows .exe)` : `${tagName} (Windows .exe)`
   );
 
   updateDownloadBtn(
-    'btn-download-linux', 
-    linuxAsset ? linuxAsset.browser_download_url : `${repoBase}/tag/${tagName}`, 
+    'btn-download-linux',
+    linuxAsset ? linuxAsset.browser_download_url : `${repoBase}/tag/${tagName}`,
     isNightly ? `${tagShort} (Linux .AppImage)` : `${tagName} (Linux .AppImage)`
   );
 
-  const mobileApkUrl = apkAsset ? apkAsset.browser_download_url : `${mobRepoBase}/tag/${mobTagName}`;
-
+  // Update spotlight direct download button
   updateDownloadBtn(
-    'btn-download-mobile', 
-    mobileApkUrl, 
+    'btn-download-mobile',
+    mobileApkUrl,
+    isNightly ? `Download ${mobTagShort} (.apk)` : `Download ${mobTagName} (.apk)`
+  );
+
+  // Update grid card download button
+  updateDownloadBtn(
+    'btn-download-android-card',
+    mobileApkUrl,
     isNightly ? `${mobTagShort} (.apk)` : `${mobTagName} (.apk)`
   );
 
-  // Update dynamic APK QR code image
+  // Update all mobile version text indicators
+  document.querySelectorAll('.mobile-version-tag').forEach((el) => {
+    el.textContent = mobTagName;
+  });
+
+  // Update dynamic APK QR code image with direct APK download URL
   const qrImg = document.getElementById('mobile-apk-qr-img');
   if (qrImg) {
-    qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(mobileApkUrl)}&bgcolor=ffffff&color=090d16&margin=0`;
+    qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(mobileApkUrl)}&bgcolor=ffffff&color=090d16&margin=0`;
+    qrImg.alt = `Scan QR Code to Download ArmoryVault APK (${mobTagName}) directly to your phone`;
   }
 
   updateSmartHeroCta();
@@ -359,21 +414,39 @@ function updateSmartHeroCta() {
   if (!btn || !textEl) return;
 
   const channel = globalReleases.activeChannel || 'stable';
-  const rel = channel === 'nightly' ? globalReleases.nightly : globalReleases.stable;
-  const mobRel = channel === 'nightly' ? globalReleases.mobileNightly : globalReleases.mobileStable;
-  const tagName = rel?.tag_name || (channel === 'nightly' ? 'v2.8.0-nightly.1' : 'v2.7.1');
-  const mobTagName = mobRel?.tag_name || (channel === 'nightly' ? 'v2.6.0-nightly.1' : 'v2.5.0');
+  const isNightly = channel === 'nightly';
+  const rel = isNightly ? globalReleases.nightly : globalReleases.stable;
+  const mobRel = isNightly ? globalReleases.mobileNightly : globalReleases.mobileStable;
+  const tagName = rel?.tag_name || (isNightly ? 'v2.8.0-nightly.6' : 'v2.7.1');
+  const mobTagName = mobRel?.tag_name || (isNightly ? 'v2.6.0-nightly.42' : 'v2.6.0');
   const assets = rel?.assets || [];
   const mobAssets = mobRel?.assets || [];
 
   const repoBase = 'https://github.com/cook0001/ArmoryVault/releases';
   const mobRepoBase = 'https://github.com/cook0001/ArmoryVault-Companion-App/releases';
 
-  const macArmAsset = assets.find(a => a.name.endsWith('.dmg') && (a.name.includes('arm64') || a.name.includes('aarch64')));
-  const macIntelAsset = assets.find(a => a.name.endsWith('.dmg') && (a.name.includes('x64') || a.name.includes('x86_64') || (!a.name.includes('arm64') && !a.name.includes('aarch64'))));
-  const winAsset = assets.find(a => a.name.endsWith('.exe'));
-  const linuxAsset = assets.find(a => a.name.endsWith('.AppImage'));
-  const apkAsset = mobAssets.find(a => a.name?.endsWith('.apk')) || assets.find(a => a.name?.endsWith('.apk'));
+  const macArmAsset = assets.find(
+    (a) => a.name.endsWith('.dmg') && (a.name.includes('arm64') || a.name.includes('aarch64'))
+  );
+  const macIntelAsset = assets.find(
+    (a) =>
+      a.name.endsWith('.dmg') &&
+      (a.name.includes('x64') ||
+        a.name.includes('x86_64') ||
+        (!a.name.includes('arm64') && !a.name.includes('aarch64')))
+  );
+  const winAsset = assets.find((a) => a.name.endsWith('.exe'));
+  const linuxAsset = assets.find((a) => a.name.endsWith('.AppImage'));
+  const apkAsset =
+    mobAssets.find((a) => a.name?.endsWith('.apk')) || assets.find((a) => a.name?.endsWith('.apk'));
+  const directStableApkUrl =
+    'https://github.com/cook0001/ArmoryVault-Companion-App/releases/latest/download/app-release.apk';
+  const directTagApkUrl = `${mobRepoBase}/download/${mobTagName}/app-release.apk`;
+  const mobileApkUrl = apkAsset
+    ? apkAsset.browser_download_url
+    : isNightly
+      ? directTagApkUrl
+      : directStableApkUrl;
 
   if (currentDetectedOsCard === 'mac-arm') {
     btn.href = macArmAsset ? macArmAsset.browser_download_url : `${repoBase}/tag/${tagName}`;
@@ -392,7 +465,7 @@ function updateSmartHeroCta() {
     textEl.textContent = `Download for Linux (${tagName} .AppImage)`;
     if (badgeEl) badgeEl.textContent = `⚡ Auto-detected: Linux (.AppImage)`;
   } else if (currentDetectedOsCard === 'mobile') {
-    btn.href = apkAsset ? apkAsset.browser_download_url : `${mobRepoBase}/tag/${mobTagName}`;
+    btn.href = mobileApkUrl;
     textEl.textContent = `Download Companion APK (${mobTagName})`;
     if (badgeEl) badgeEl.textContent = `⚡ Auto-detected: Android Mobile`;
   }
@@ -408,9 +481,9 @@ function initShowcaseTabs() {
   const stableShowcase = document.getElementById('showcase-stable');
   const mobileShowcase = document.getElementById('showcase-mobile');
 
-  heroTabs.forEach(btn => {
+  heroTabs.forEach((btn) => {
     btn.addEventListener('click', () => {
-      heroTabs.forEach(t => t.classList.remove('active'));
+      heroTabs.forEach((t) => t.classList.remove('active'));
       btn.classList.add('active');
 
       const target = btn.dataset.target;
@@ -434,13 +507,13 @@ function initShowcaseTabs() {
   const nightlyNavBtns = document.querySelectorAll('.nightly-nav-btn');
   const nightlyPanels = document.querySelectorAll('.nightly-screen-panel');
 
-  nightlyNavBtns.forEach(btn => {
+  nightlyNavBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
-      nightlyNavBtns.forEach(b => b.classList.remove('active'));
+      nightlyNavBtns.forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
 
       const screenId = btn.dataset.screen;
-      nightlyPanels.forEach(panel => {
+      nightlyPanels.forEach((panel) => {
         if (panel.id === screenId) {
           panel.style.display = 'block';
           panel.classList.add('active');
@@ -457,15 +530,15 @@ function initShowcaseTabs() {
   const cardItems = document.querySelectorAll('#nightly-card-grid .inventory-item');
   const tableRows = document.querySelectorAll('#nightly-table-rows tr');
 
-  filterChips.forEach(chip => {
+  filterChips.forEach((chip) => {
     chip.addEventListener('click', () => {
-      filterChips.forEach(c => c.classList.remove('active'));
+      filterChips.forEach((c) => c.classList.remove('active'));
       chip.classList.add('active');
 
       const cat = chip.dataset.category;
 
       // Filter Cards
-      cardItems.forEach(item => {
+      cardItems.forEach((item) => {
         if (cat === 'all') {
           item.style.display = 'flex';
         } else if (cat === 'servicedue') {
@@ -476,7 +549,7 @@ function initShowcaseTabs() {
       });
 
       // Filter Table Rows
-      tableRows.forEach(row => {
+      tableRows.forEach((row) => {
         if (cat === 'all') {
           row.style.display = '';
         } else if (cat === 'servicedue') {
@@ -512,22 +585,22 @@ function initShowcaseTabs() {
 
   // Depot Sub-Tabs (Live vs Reloading vs Overview)
   const depotTabs = document.querySelectorAll('.depot-tab');
-  depotTabs.forEach(tab => {
+  depotTabs.forEach((tab) => {
     tab.addEventListener('click', () => {
-      depotTabs.forEach(t => t.classList.remove('active'));
+      depotTabs.forEach((t) => t.classList.remove('active'));
       tab.classList.add('active');
     });
   });
 }
 
 // Global helper for quick range sim switch
-window.triggerRangeSimQuick = function() {
+window.triggerRangeSimQuick = function () {
   const rangeNavBtn = document.querySelector('.nightly-nav-btn[data-screen="nightly-range"]');
   if (rangeNavBtn) rangeNavBtn.click();
 };
 
 // Global helper for interactive batch manufacture simulation
-window.executeBatchManufactureSim = function() {
+window.executeBatchManufactureSim = function () {
   const powderEl = document.getElementById('sim-powder-val');
   const primerEl = document.getElementById('sim-primer-val');
   const bulletEl = document.getElementById('sim-bullet-val');
@@ -557,7 +630,8 @@ window.executeBatchManufactureSim = function() {
   if (primerEl) primerEl.textContent = currentPrimers.toLocaleString();
   if (bulletEl) bulletEl.textContent = currentBullets.toLocaleString();
   if (ammo9mmEl) ammo9mmEl.textContent = `${current9mm.toLocaleString()} rds`;
-  if (totalAmmoEl) totalAmmoEl.innerHTML = `${currentTotal.toLocaleString()} <span style="font-size: 0.75rem; font-weight: 500;">rds</span>`;
+  if (totalAmmoEl)
+    totalAmmoEl.innerHTML = `${currentTotal.toLocaleString()} <span style="font-size: 0.75rem; font-weight: 500;">rds</span>`;
 
   if (btn) {
     const orig = btn.innerHTML;
@@ -571,7 +645,7 @@ window.executeBatchManufactureSim = function() {
 };
 
 // Global helper for simulated vault locking animation
-window.simulateVaultLockAnimation = function() {
+window.simulateVaultLockAnimation = function () {
   const container = document.getElementById('showcase-nightly');
   if (!container) return;
 
@@ -580,7 +654,8 @@ window.simulateVaultLockAnimation = function() {
 
   const lockOverlay = document.createElement('div');
   lockOverlay.id = 'sim-lock-overlay';
-  lockOverlay.style.cssText = 'position: absolute; top: 48px; left: 0; right: 0; bottom: 0; background: rgba(11, 15, 25, 0.95); backdrop-filter: blur(20px); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 50; padding: 2rem; text-align: center; animation: fadeIn 0.25s ease-out;';
+  lockOverlay.style.cssText =
+    'position: absolute; top: 48px; left: 0; right: 0; bottom: 0; background: rgba(11, 15, 25, 0.95); backdrop-filter: blur(20px); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 50; padding: 2rem; text-align: center; animation: fadeIn 0.25s ease-out;';
   lockOverlay.innerHTML = `
     <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
@@ -610,9 +685,32 @@ function initRangeSimulator() {
 
   // Interactive state
   const state = {
-    'glock19': { name: 'Glock 19 Gen 5', caliber: '9mm Luger', roundsFired: 1250, ammoStock: 2450, serviceInterval: 2500, countElId: 'nightly-gun-glock-rounds', ammoElId: 'depot-9mm-count' },
-    'ddm4': { name: 'Daniel Defense DDM4 V7', caliber: '5.56 NATO', roundsFired: 3100, ammoStock: 1800, serviceInterval: 5000, countElId: 'nightly-gun-ddm4-rounds', ammoElId: 'depot-556-count' },
-    'm1garand': { name: 'M1 Garand (Springfield)', caliber: '.30-06 Springfield', roundsFired: 640, ammoStock: 820, serviceInterval: 1000, countElId: 'nightly-gun-m1-rounds' }
+    glock19: {
+      name: 'Glock 19 Gen 5',
+      caliber: '9mm Luger',
+      roundsFired: 1250,
+      ammoStock: 2450,
+      serviceInterval: 2500,
+      countElId: 'nightly-gun-glock-rounds',
+      ammoElId: 'depot-9mm-count',
+    },
+    ddm4: {
+      name: 'Daniel Defense DDM4 V7',
+      caliber: '5.56 NATO',
+      roundsFired: 3100,
+      ammoStock: 1800,
+      serviceInterval: 5000,
+      countElId: 'nightly-gun-ddm4-rounds',
+      ammoElId: 'depot-556-count',
+    },
+    m1garand: {
+      name: 'M1 Garand (Springfield)',
+      caliber: '.30-06 Springfield',
+      roundsFired: 640,
+      ammoStock: 820,
+      serviceInterval: 1000,
+      countElId: 'nightly-gun-m1-rounds',
+    },
   };
 
   function updateDisplay() {
@@ -625,7 +723,7 @@ function initRangeSimulator() {
 
     if (roundsCountEl) roundsCountEl.textContent = item.roundsFired.toLocaleString();
     if (ammoStockEl) ammoStockEl.textContent = `${item.ammoStock.toLocaleString()} rds`;
-    
+
     if (totalRoundsEl) {
       const totalAll = Object.values(state).reduce((sum, g) => sum + g.roundsFired, 13660);
       totalRoundsEl.textContent = totalAll.toLocaleString();
@@ -672,7 +770,9 @@ function initRangeSimulator() {
 
     // Button pulse animation
     fireLogBtn.style.transform = 'scale(0.96)';
-    setTimeout(() => { fireLogBtn.style.transform = ''; }, 150);
+    setTimeout(() => {
+      fireLogBtn.style.transform = '';
+    }, 150);
   });
 }
 
@@ -693,9 +793,9 @@ function initFeedbackHub() {
 
   let currentType = 'feature'; // 'feature' or 'bug'
 
-  tabBtns.forEach(btn => {
+  tabBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
-      tabBtns.forEach(b => b.classList.remove('active'));
+      tabBtns.forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
 
       currentType = btn.dataset.type;
@@ -707,11 +807,14 @@ function initFeedbackHub() {
       if (currentType === 'feature') {
         if (titleLabel) titleLabel.textContent = 'Feature Title';
         if (descLabel) descLabel.textContent = 'What problem does this solve & how should it work?';
-        if (titleInput) titleInput.placeholder = 'e.g., Add support for custom bullet grain weights in quick filter';
+        if (titleInput)
+          titleInput.placeholder =
+            'e.g., Add support for custom bullet grain weights in quick filter';
       } else {
         if (titleLabel) titleLabel.textContent = 'Bug Summary';
         if (descLabel) descLabel.textContent = 'Steps to reproduce the bug & expected behavior';
-        if (titleInput) titleInput.placeholder = 'e.g., CSV export double quotes issue on Windows 11';
+        if (titleInput)
+          titleInput.placeholder = 'e.g., CSV export double quotes issue on Windows 11';
       }
 
       updateMarkdownPreview();
@@ -723,7 +826,10 @@ function initFeedbackHub() {
     const category = categorySelect?.value || 'General';
     const os = osSelect?.value || 'Not specified';
     const desc = descInput?.value.trim() || 'No description provided.';
-    const appVersion = versionSelect?.value || document.querySelector('.release-version-tag')?.textContent || 'v2.7.1';
+    const appVersion =
+      versionSelect?.value ||
+      document.querySelector('.release-version-tag')?.textContent ||
+      'v2.7.1';
 
     if (currentType === 'feature') {
       return `### 💡 Feature Suggestion: ${title}
@@ -758,7 +864,7 @@ ${desc}
     }
   }
 
-  [titleInput, categorySelect, osSelect, versionSelect, descInput].forEach(el => {
+  [titleInput, categorySelect, osSelect, versionSelect, descInput].forEach((el) => {
     if (el) {
       el.addEventListener('input', updateMarkdownPreview);
       el.addEventListener('change', updateMarkdownPreview);
@@ -812,14 +918,14 @@ ${desc}
 function initFaqAccordion() {
   const faqItems = document.querySelectorAll('.faq-item');
 
-  faqItems.forEach(item => {
+  faqItems.forEach((item) => {
     const questionBtn = item.querySelector('.faq-question');
     if (questionBtn) {
       questionBtn.addEventListener('click', () => {
         const isActive = item.classList.contains('active');
 
         // Close other items for single-open accordion feel
-        faqItems.forEach(otherItem => {
+        faqItems.forEach((otherItem) => {
           otherItem.classList.remove('active');
         });
 
@@ -837,7 +943,7 @@ function initFaqAccordion() {
 function initClipboardButtons() {
   const copyButtons = document.querySelectorAll('.btn-copy-cmd');
 
-  copyButtons.forEach(btn => {
+  copyButtons.forEach((btn) => {
     btn.addEventListener('click', async () => {
       const cmdText = btn.dataset.cmd;
       if (!cmdText) return;
@@ -861,7 +967,7 @@ function initClipboardButtons() {
 /* ==========================================================================
    9. In-Frame Showcase Modal Simulator (Add Firearm & Bound Book Print)
    ========================================================================== */
-window.openShowcaseModal = function(type) {
+window.openShowcaseModal = function (type) {
   const overlay = document.getElementById('showcase-modal-overlay');
   const addModal = document.getElementById('modal-sim-add-firearm');
   const printModal = document.getElementById('modal-sim-print-boundbook');
@@ -877,12 +983,12 @@ window.openShowcaseModal = function(type) {
   }
 };
 
-window.closeShowcaseModal = function() {
+window.closeShowcaseModal = function () {
   const overlay = document.getElementById('showcase-modal-overlay');
   if (overlay) overlay.style.display = 'none';
 };
 
-window.saveSimulatedFirearmRecord = function() {
+window.saveSimulatedFirearmRecord = function () {
   closeShowcaseModal();
   const feedbackBox = document.getElementById('sim-feedback');
   if (feedbackBox) {
@@ -911,13 +1017,17 @@ function initBackToTop() {
   const btn = document.getElementById('btn-back-to-top');
   if (!btn) return;
 
-  window.addEventListener('scroll', () => {
-    if (window.scrollY > 400) {
-      btn.classList.add('visible');
-    } else {
-      btn.classList.remove('visible');
-    }
-  }, { passive: true });
+  window.addEventListener(
+    'scroll',
+    () => {
+      if (window.scrollY > 400) {
+        btn.classList.add('visible');
+      } else {
+        btn.classList.remove('visible');
+      }
+    },
+    { passive: true }
+  );
 
   btn.addEventListener('click', () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -953,9 +1063,9 @@ function initDonationDeck() {
   }
 
   // Handle Preset Chips
-  chips.forEach(chip => {
+  chips.forEach((chip) => {
     chip.addEventListener('click', () => {
-      chips.forEach(c => c.classList.remove('active'));
+      chips.forEach((c) => c.classList.remove('active'));
       chip.classList.add('active');
       if (customInput) customInput.value = '';
       const amount = chip.dataset.amount;
@@ -968,7 +1078,7 @@ function initDonationDeck() {
     customInput.addEventListener('input', () => {
       const val = customInput.value.trim();
       if (val) {
-        chips.forEach(c => c.classList.remove('active'));
+        chips.forEach((c) => c.classList.remove('active'));
         setDonationAmount(val);
       } else {
         // If empty, revert to default preset $25
