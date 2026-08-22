@@ -805,29 +805,13 @@ app.whenReady().then(() => {
 
   function startLocalServer() {
     const expressApp = express();
-    expressApp.use(
-      cors({
-        origin: (origin, callback) => {
-          // Allow requests with no origin (mobile apps, curl, etc.)
-          if (!origin) return callback(null, true);
-          // Allow local network origins
-          if (
-            /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/.test(
-              origin
-            )
-          ) {
-            return callback(null, true);
-          }
-          callback(new Error('CORS not allowed'));
-        },
-      })
-    );
+    expressApp.use(cors({ origin: true, credentials: true }));
     expressApp.use(express.json({ limit: '50mb' }));
 
     // ─── Rate Limiting ─────────────────────────────────────────────────
     const readLimiter = rateLimit({
       windowMs: 60 * 1000, // 1 minute
-      max: 60,
+      max: 300,
       standardHeaders: true,
       legacyHeaders: false,
       message: { success: false, error: 'Too many requests. Please try again later.' },
@@ -835,7 +819,7 @@ app.whenReady().then(() => {
 
     const writeLimiter = rateLimit({
       windowMs: 60 * 1000,
-      max: 30,
+      max: 120,
       standardHeaders: true,
       legacyHeaders: false,
       message: { success: false, error: 'Too many write requests. Please try again later.' },
@@ -843,6 +827,12 @@ app.whenReady().then(() => {
 
     // ─── Authentication Middleware ──────────────────────────────────────
     const authenticateCompanion = (req, res, next) => {
+      const serverToken = db.getPairingToken();
+      if (!serverToken) {
+        // Vault has no pairing token generated yet — allow request
+        return next();
+      }
+
       const authHeader = req.headers['authorization'] || '';
       const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
