@@ -62,16 +62,56 @@ export const FirearmForm = () => {
       window.api.getFirearms().then((all) => {
         const found = all.find((f) => f.id === Number(id));
         if (found) {
-          setFormData(found);
-          if (found.photos && found.photos.length > 0) {
-            setPreviews(
-              found.photos.map((p) => ({ url: `local-file://${p}`, isExisting: true, path: p }))
-            );
-          } else if (found.image_path) {
-            setPreviews([
-              { url: `local-file://${found.image_path}`, isExisting: true, path: found.image_path },
-            ]);
+          const p = location.state?.parsedData || {};
+          const merged: Partial<Firearm> = {
+            ...found,
+            make: p.make || found.make,
+            model: p.model || found.model,
+            serial_number: p.serial_number !== undefined ? p.serial_number : found.serial_number,
+            caliber: p.caliber || found.caliber,
+            barrel_length: p.barrel_length !== undefined ? p.barrel_length : found.barrel_length,
+            action_type: p.action_type || found.action_type,
+            finish: p.finish !== undefined ? p.finish : found.finish,
+            notes: p.notes !== undefined ? p.notes : found.notes,
+            purchase_price:
+              p.purchase_price !== undefined ? p.purchase_price : found.purchase_price,
+            purchase_date: p.purchase_date !== undefined ? p.purchase_date : found.purchase_date,
+            condition: p.condition || found.condition,
+            purchased_from:
+              p.purchased_from !== undefined ? p.purchased_from : found.purchased_from,
+            firearm_type: p.firearm_type || found.firearm_type,
+          };
+          setFormData(merged);
+
+          if (p.storageLocationId) {
+            setStorageLocationId(Number(p.storageLocationId));
           }
+
+          const currentPreviews: { url: string; isExisting: boolean; path?: string }[] = [];
+          if (found.photos && found.photos.length > 0) {
+            found.photos.forEach((photoPath: string) => {
+              currentPreviews.push({
+                url: `local-file://${photoPath}`,
+                isExisting: true,
+                path: photoPath,
+              });
+            });
+          } else if (found.image_path) {
+            currentPreviews.push({
+              url: `local-file://${found.image_path}`,
+              isExisting: true,
+              path: found.image_path,
+            });
+          }
+
+          if (p.photosBase64 && Array.isArray(p.photosBase64)) {
+            p.photosBase64.forEach((b64: string) => {
+              currentPreviews.push({ url: b64, isExisting: false });
+            });
+          } else if (p.photoBase64) {
+            currentPreviews.push({ url: p.photoBase64, isExisting: false });
+          }
+          setPreviews(currentPreviews);
         }
       });
     } else if (location.state?.parsedData) {
@@ -92,8 +132,16 @@ export const FirearmForm = () => {
         purchased_from: p.purchased_from || prev.purchased_from,
         firearm_type: p.firearm_type || prev.firearm_type,
       }));
-      if (p.photoBase64) {
-        setPreviews([{ url: p.photoBase64, isExisting: false }]);
+      const currentPreviews: { url: string; isExisting: boolean; path?: string }[] = [];
+      if (p.photosBase64 && Array.isArray(p.photosBase64)) {
+        p.photosBase64.forEach((b64: string) => {
+          currentPreviews.push({ url: b64, isExisting: false });
+        });
+      } else if (p.photoBase64) {
+        currentPreviews.push({ url: p.photoBase64, isExisting: false });
+      }
+      if (currentPreviews.length > 0) {
+        setPreviews(currentPreviews);
       }
     }
   }, [id, location.state]);

@@ -1611,7 +1611,7 @@ export const SyncInbox = () => {
                           <button
                             className="btn-secondary"
                             onClick={() =>
-                              navigate('/firearms/new', {
+                              navigate('/add', {
                                 state: {
                                   parsedData: data,
                                   syncItemId: item.id,
@@ -1758,7 +1758,7 @@ export const SyncInbox = () => {
                             <button
                               className="btn-secondary"
                               onClick={() =>
-                                navigate(`/details/${firearm.id}`, {
+                                navigate(`/edit/${firearm.id}`, {
                                   state: {
                                     parsedData: data,
                                     syncItemId: item.id,
@@ -1767,7 +1767,7 @@ export const SyncInbox = () => {
                               }
                               style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
                             >
-                              <Edit3 size={15} /> Review
+                              <Edit3 size={15} /> Review & Edit
                             </button>
                           )}
                           <button
