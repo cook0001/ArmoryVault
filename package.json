@@ -87,7 +87,7 @@
     "electron-log": "^5.4.4",
     "electron-updater": "^6.8.9",
     "express": "^5.2.1",
-    "express-rate-limit": "^7.5.1",
+    "express-rate-limit": "^8.6.2",
     "html5-qrcode": "^2.3.8",
     "lucide-react": "^1.33.0",
     "qrcode": "^1.5.4",
