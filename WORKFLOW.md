@@ -111,14 +111,13 @@ ArmoryVault handles sensitive inventory records, serial numbers, and regulatory 
 
 ---
 
-## 🚀 Release & Channel Distribution
+## 🚀 Release & Distribution
 
-ArmoryVault uses a **Dual-Channel Strategy** (Nightly Previews + Stable Releases) mapped to `VersionControl`.
+ArmoryVault uses a **Unified Release Strategy** mapped to semantic versioning (`VersionControl`).
 
-| Channel | Target Tag | Audience | Build Output |
+| Stream | Target Tag | Audience | Build Output |
 | :--- | :--- | :--- | :--- |
-| **Nightly Preview** | `vX.Y.Z-nightly.N` | Community Testers | `dist-electron/nightly/` |
-| **Stable Release** | `vX.Y.Z` | General Production | `dist-electron/stable/` |
+| **Official Release** | `vX.Y.Z` (e.g. `v2.8.0`) | General Production | `dist-electron/release/` |
 
 ### Step-by-Step Release Flow
 
@@ -132,7 +131,7 @@ ArmoryVault uses a **Dual-Channel Strategy** (Nightly Previews + Stable Releases
    ```bash
    npm run release:prep
    ```
-   Prompts for release type (`major`, `minor`, `patch`, or `nightly`) and updates `package.json`.
+   Prompts for release type (`major`, `minor`, or `patch`) and updates `package.json`.
 
 3. **Generate Changelog Snippet**:
    ```bash
@@ -172,5 +171,7 @@ ArmoryVault uses a **Dual-Channel Strategy** (Nightly Previews + Stable Releases
 | **`npm run changelog:draft`** | `node scripts/generate-changelog-draft.js` | Generates changelog draft from Git history |
 | **`npm run clean:fresh`** | `node scripts/clean-fresh.js` | Wipes transient build caches and test files |
 | **`npm run release:prep`** | `node scripts/prepare-release.js` | Bumps version and verifies build |
-| **`npm run package:stable:mac`** | `node scripts/build-stable.js --mac` | Packages macOS stable release locally |
-| **`npm run package:nightly:mac`** | `node scripts/build-nightly.js --mac` | Packages macOS nightly release locally |
+| **`npm run package:mac`** | `node scripts/build-release.js --mac` | Packages macOS official release locally |
+| **`npm run package:win`** | `node scripts/build-release.js --win` | Packages Windows official release locally |
+| **`npm run package:linux`** | `node scripts/build-release.js --linux` | Packages Linux official release locally |
+| **`npm run release`** | `node scripts/build-release.js --publish always` | Builds and publishes official release binaries |

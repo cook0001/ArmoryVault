@@ -4,21 +4,13 @@ const path = require('path');
 
 const rootDir = path.resolve(__dirname, '..');
 const tagName = process.env.TAG_NAME || process.env.GITHUB_REF_NAME || '';
-const isPrereleaseInput = process.env.IS_PRERELEASE === 'true';
-
-const isNightly =
-  tagName.includes('nightly') ||
-  tagName.includes('beta') ||
-  tagName.includes('alpha') ||
-  tagName.includes('rc') ||
-  isPrereleaseInput;
 
 console.log('========================================================');
 console.log(`📦 CI Build Dispatch for tag: "${tagName}"`);
-console.log(`🚀 Mode: ${isNightly ? 'NIGHTLY PREVIEW' : 'STABLE RELEASE'}`);
+console.log(`🚀 Mode: OFFICIAL RELEASE`);
 console.log('========================================================\n');
 
-const command = isNightly ? 'npm run release:nightly' : 'npm run release:stable';
+const command = 'npm run release';
 console.log(`Executing: ${command}\n`);
 
 try {

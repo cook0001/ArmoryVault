@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.8.0] - 2026-09-12 (Official Unified Release)
+### Unification & Modernization
+- **Unified Desktop Codebase**:
+  - Promoted all features and architectural improvements to the official production release stream (`v2.8.0`). Permanently retired the Nightly channel.
+  - Streamlined release packaging and CI scripts (`scripts/build-release.js`), eliminating nightly branching, flags, and retention filters.
+  - Multi-platform packaging builds and publishes verified macOS, Windows, and Linux installers directly as official releases.
+- **Master Features Promoted**:
+  - Mobile Firearm Intake & Spec Updates Ingestion (`src/pages/SyncInbox.tsx`) with 1-tap card ingest, photo storage, and deduplication.
+  - Modular Database Engine & Schema Versioning (`VaultEncryption.js`, `BackupManager.js`, `MediaManager.js`) with monotonic IDs and atomic saves.
+  - Cryptographically secure local Wi-Fi pairing token authentication with instant QR code token ingestion.
+  - Global Command Palette (`Cmd+K` / `Ctrl+K`) and 10-second undo toast for deletions.
+  - First-class accessory categories for Gun Belts, Western Drop Belts, Stocks, Chassis, and Thompson/Center modular furniture.
+  - Full automated test suite (117 tests passing).
+
 ## [2.8.0-nightly.8] - 2026-08-22 (Nightly Test Build)
 ### Added
 - **Mobile Firearm Intake & Spec Updates Ingestion (`src/pages/SyncInbox.tsx`)**:

@@ -33,7 +33,8 @@
 - **Custom & Vector Icons Only**: Always use dedicated custom SVG icon components (e.g., from `src/components/CustomIcons.tsx` or `app/components/CustomIcons.tsx`) or standard vector icon libraries (`lucide-react` on Desktop, `@expo/vector-icons` / Ionicons on Mobile). Maintain consistent theme colors, stroke weights, and sizing across all views.
 
 ## 8. Android Native VersionCode Monotonic Increase (Strict)
-- **Strict VersionCode Increment**: In `android/app/build.gradle` and `app.json`, `versionCode` MUST strictly increment with every build and NEVER be decremented, reset, or set below the established production baseline (currently `>= 300`). Setting a `versionCode` lower than or equal to an installed build causes Android PackageInstaller and the in-app OTA updater to immediately reject APK installations with `INSTALL_FAILED_VERSION_DOWNGRADE` ("App not installed / Update not installed").
-- **Stable vs Nightly Offset**: The Stable release build `versionCode` MUST strictly stay exactly one code version lower than the corresponding Nightly build (e.g., Nightly `versionCode 301` → Stable `versionCode 300`).
+- **Strict VersionCode Increment**: In `android/app/build.gradle` and `app.json`, `versionCode` MUST strictly increment with every build and NEVER be decremented, reset, or set below the established production baseline (currently `>= 309`). Setting a `versionCode` lower than or equal to an installed build causes Android PackageInstaller and the in-app OTA updater to immediately reject APK installations with `INSTALL_FAILED_VERSION_DOWNGRADE` ("App not installed / Update not installed").
+- **Unified Release Stream**: All builds belong to a single, unified release stream with strictly monotonic version numbers and version codes. Nightly channels and offset rules have been permanently deprecated.
+
 
 

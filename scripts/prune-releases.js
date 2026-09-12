@@ -4,16 +4,15 @@
  * ArmoryVault - Automated Release Pruning Engine
  *
  * Enforces the release retention policy:
- * - Keeps exactly the 2 most current Stable releases.
- * - Keeps exactly the 1 most current Nightly (Pre-release) build.
- * - Automatically prunes/deletes any older superseded releases from GitHub.
+ * - Keeps the 3 most current releases.
+ * - Automatically prunes/deletes older superseded releases from GitHub.
  *
  * Usage:
  *   node scripts/prune-releases.js                     # Prune current repo (cook0001/ArmoryVault)
  *   node scripts/prune-releases.js --all               # Prune Desktop + Mobile Companion repos
  *   node scripts/prune-releases.js --repo owner/repo   # Prune specific repo
  *   node scripts/prune-releases.js --dry-run           # Preview without deleting
- *   node scripts/prune-releases.js --keep-stable 2 --keep-nightly 1
+ *   node scripts/prune-releases.js --keep 3
  */
 
 const { execSync } = require('child_process');
@@ -27,8 +26,7 @@ function parseArgs() {
     all: false,
     repo: null,
     dryRun: false,
-    keepStable: 2,
-    keepNightly: 1,
+    keep: 3,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -39,10 +37,8 @@ function parseArgs() {
       options.dryRun = true;
     } else if (arg === '--repo' && args[i + 1]) {
       options.repo = args[++i];
-    } else if (arg === '--keep-stable' && args[i + 1]) {
-      options.keepStable = parseInt(args[++i], 10) || 2;
-    } else if (arg === '--keep-nightly' && args[i + 1]) {
-      options.keepNightly = parseInt(args[++i], 10) || 1;
+    } else if ((arg === '--keep' || arg === '--keep-stable') && args[i + 1]) {
+      options.keep = parseInt(args[++i], 10) || 3;
     }
   }
 
@@ -65,7 +61,7 @@ function fetchReleasesForRepo(repo) {
 function pruneRepo(repo, options) {
   console.log(`\n======================================================`);
   console.log(`🔍 Checking Release Retention for: ${repo}`);
-  console.log(`   Policy: Keep ${options.keepStable} Stable + ${options.keepNightly} Nightly`);
+  console.log(`   Policy: Keep ${options.keep} Most Recent Official Releases`);
   if (options.dryRun) console.log(`   [DRY RUN MODE: No releases will be deleted]`);
   console.log(`======================================================`);
 
@@ -85,58 +81,25 @@ function pruneRepo(repo, options) {
     return dateB - dateA;
   });
 
-  const stableReleases = [];
-  const nightlyReleases = [];
+  const kept = published.slice(0, options.keep);
+  const toDelete = published.slice(options.keep);
 
-  for (const rel of published) {
-    const tag = (rel.tagName || '').toLowerCase();
-    const isPrerelease =
-      rel.isPrerelease ||
-      tag.includes('nightly') ||
-      tag.includes('beta') ||
-      tag.includes('alpha') ||
-      tag.includes('rc');
-
-    if (isPrerelease) {
-      nightlyReleases.push(rel);
-    } else {
-      stableReleases.push(rel);
-    }
-  }
-
-  const keptStable = stableReleases.slice(0, options.keepStable);
-  const deleteStable = stableReleases.slice(options.keepStable);
-
-  const keptNightly = nightlyReleases.slice(0, options.keepNightly);
-  const deleteNightly = nightlyReleases.slice(options.keepNightly);
-
-  console.log(`\n🟢 Retained Releases:`);
-  console.log(`   Stable (${keptStable.length}/${options.keepStable}):`);
-  keptStable.forEach((r) =>
+  console.log(`\n🟢 Retained Releases (${kept.length}/${options.keep}):`);
+  kept.forEach((r) =>
     console.log(
       `     ✓ ${r.tagName} (${new Date(r.publishedAt || r.createdAt).toISOString().split('T')[0]})`
     )
   );
-
-  console.log(`   Nightly (${keptNightly.length}/${options.keepNightly}):`);
-  keptNightly.forEach((r) =>
-    console.log(
-      `     ✓ ${r.tagName} (${new Date(r.publishedAt || r.createdAt).toISOString().split('T')[0]})`
-    )
-  );
-
-  const toDelete = [...deleteStable, ...deleteNightly];
 
   if (toDelete.length === 0) {
     console.log(`\n✨ Repository ${repo} is already clean! No releases to prune.`);
-    return { kept: [...keptStable, ...keptNightly], deleted: [] };
+    return { kept, deleted: [] };
   }
 
   console.log(`\n🔴 Superseded Releases to Prune (${toDelete.length}):`);
   toDelete.forEach((r) => {
-    const type = r.isPrerelease || (r.tagName || '').includes('nightly') ? 'Nightly' : 'Stable';
     console.log(
-      `     ✗ ${r.tagName} [${type}] (${new Date(r.publishedAt || r.createdAt).toISOString().split('T')[0]})`
+      `     ✗ ${r.tagName} (${new Date(r.publishedAt || r.createdAt).toISOString().split('T')[0]})`
     );
   });
 
@@ -158,7 +121,7 @@ function pruneRepo(repo, options) {
     console.log(`\n[DRY RUN] Skipped actual deletion.`);
   }
 
-  return { kept: [...keptStable, ...keptNightly], deleted: toDelete };
+  return { kept, deleted: toDelete };
 }
 
 function main() {
@@ -174,7 +137,6 @@ function main() {
   } else if (options.all) {
     targetRepos.push(DEFAULT_DESKTOP_REPO, DEFAULT_COMPANION_REPO);
   } else {
-    // Default to Desktop repo if in desktop repo or no repo specified
     targetRepos.push(DEFAULT_DESKTOP_REPO);
   }
 

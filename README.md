@@ -75,32 +75,31 @@ To run ArmoryVault locally on your machine for development:
 
 > 📖 **Full Developer & Release Guide**: See [WORKFLOW.md](WORKFLOW.md) for detailed guidelines on branching, ATF Bound Book compliance, pre-commit hooks, and the release pipeline.
 
-## 📦 Building for Production & Release Channels
+## 📦 Building for Production & Releases
 
-ArmoryVault uses `electron-builder` with dedicated output separation between **Stable** and **Nightly / Preview** release channels:
+ArmoryVault uses `electron-builder` to produce verified multi-platform production artifacts:
 
-- **Stable Builds**: Generated into `dist-electron/stable/`
-- **Nightly Builds**: Generated into `dist-electron/nightly/`
+- **Official Release Builds**: Generated into `dist-electron/release/`
 
 ### Local Packaging Commands
 
-| Command | Channel | Output Target |
+| Command | Platform | Output Target |
 | :--- | :--- | :--- |
-| `npm run package:stable:mac` / `win` / `linux` | Stable | `dist-electron/stable/` |
-| `npm run package:nightly:mac` / `win` / `linux` | Nightly Preview | `dist-electron/nightly/` |
-| `npm run release:stable` | Stable Release | `dist-electron/stable/` + GitHub |
-| `npm run release:nightly` | Nightly Release | `dist-electron/nightly/` + GitHub |
+| `npm run package:mac` | macOS Universal (`.dmg` + `.zip`) | `dist-electron/release/` |
+| `npm run package:win` | Windows Setup (`.exe`) | `dist-electron/release/` |
+| `npm run package:linux` | Linux (`.AppImage`) | `dist-electron/release/` |
+| `npm run release` | All Platforms | Builds and publishes official binaries to GitHub |
 
 ### Automated CI/CD Pipeline
 You do not need to manually compile the application on your local machine. The repository is configured with GitHub Actions workflows:
 - **Continuous Integration (`.github/workflows/ci.yml`)**: Automatically lints, builds, and runs unit tests on every Pull Request and push.
-- **Desktop Releases (`.github/workflows/release.yml`)**: Compiles multi-platform installers (macOS Apple Silicon/Intel, Windows, Linux) and automatically detects whether the tag is a pre-release (`*nightly*`, `*beta*`, etc.) to publish to the proper release channel.
+- **Desktop Releases (`.github/workflows/release.yml`)**: Compiles multi-platform installers (macOS Apple Silicon/Intel, Windows, Linux) and uploads verified release installers directly to GitHub Releases.
 - **Website Portal (`.github/workflows/website.yml`)**: The official website source lives in `website/` and automatically deploys to [GitHub Pages](https://cook0001.github.io/ArmoryVault/) upon push to `main`.
 
 To trigger a new production build:
 1. Run `npm run verify:preflight` to execute the automated 7-point health check.
-2. Run `npm run release:prep` to bump your version (`major`, `minor`, `patch`, or `nightly`).
+2. Run `npm run release:prep` to bump your version (`major`, `minor`, or `patch`).
 3. Run `npm run changelog:draft` to extract commit notes and update `CHANGELOG.md`.
-4. Commit your changes and push a git tag matching the version (e.g., `git tag v2.8.0` or `git tag v2.8.0-nightly.2` && `git push origin --tags`).
+4. Commit your changes and push a git tag matching the version (e.g., `git tag v2.8.0 && git push origin --tags`).
 5. GitHub Actions handles multi-platform compilation and uploads all installers automatically!
 

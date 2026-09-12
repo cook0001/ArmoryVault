@@ -4,16 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Tag name for the release (e.g. v2.8.0-nightly.1 or v2.8.0)'
+        description: 'Tag name for the release (e.g. v2.8.0)'
         required: false
         default: ''
-      is_prerelease:
-        description: 'Mark as Pre-release / Nightly'
-        type: boolean
-        default: false
   push:
     tags:
-      - 'v*' # Trigger on version tags (e.g. v1.0.0, v2.8.0-nightly.1)
+      - 'v*' # Trigger on version tags (e.g. v2.8.0)
 
 permissions:
   contents: write
@@ -35,30 +31,16 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG_NAME="${{ inputs.tag_name || github.ref_name }}"
-          echo "Preparing release for tag: $TAG_NAME"
-          
-          IS_PRERELEASE="false"
-          if [[ "$TAG_NAME" == *"nightly"* ]] || [[ "$TAG_NAME" == *"beta"* ]] || [[ "$TAG_NAME" == *"alpha"* ]] || [[ "$TAG_NAME" == *"rc"* ]] || [ "${{ inputs.is_prerelease }}" = "true" ]; then
-            IS_PRERELEASE="true"
-            echo "Release flagged as PRE-RELEASE / NIGHTLY."
-          fi
+          echo "Preparing official release for tag: $TAG_NAME"
 
           # Delete any partial/stale release for this tag if it exists without assets
           if gh release view "$TAG_NAME" >/dev/null 2>&1; then
             echo "Release $TAG_NAME already exists, converting to draft or reusing."
           else
-            if [ "$IS_PRERELEASE" = "true" ]; then
-              gh release create "$TAG_NAME" \
-                --draft \
-                --prerelease \
-                --title "ArmoryVault $TAG_NAME (Nightly Preview)" \
-                --generate-notes || true
-            else
-              gh release create "$TAG_NAME" \
-                --draft \
-                --title "ArmoryVault $TAG_NAME" \
-                --generate-notes || true
-            fi
+            gh release create "$TAG_NAME" \
+              --draft \
+              --title "ArmoryVault $TAG_NAME" \
+              --generate-notes || true
           fi
 
   # Step 2: Build on all OS platforms and upload assets directly to the existing draft
@@ -91,7 +73,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: ${{ inputs.tag_name || github.ref_name }}
-          IS_PRERELEASE: ${{ inputs.is_prerelease }}
         run: node scripts/build-ci.js
 
   # Step 3: Publish the release and verify all OS assets exist
@@ -110,17 +91,8 @@ jobs:
           TAG_NAME="${{ inputs.tag_name || github.ref_name }}"
           echo "Verifying published assets for $TAG_NAME..."
 
-          IS_PRERELEASE="false"
-          if [[ "$TAG_NAME" == *"nightly"* ]] || [[ "$TAG_NAME" == *"beta"* ]] || [[ "$TAG_NAME" == *"alpha"* ]] || [[ "$TAG_NAME" == *"rc"* ]] || [ "${{ inputs.is_prerelease }}" = "true" ]; then
-            IS_PRERELEASE="true"
-          fi
-
-          # Publish release (remove draft status, preserve prerelease flag if applicable)
-          if [ "$IS_PRERELEASE" = "true" ]; then
-            gh release edit "$TAG_NAME" --draft=false --prerelease=true || true
-          else
-            gh release edit "$TAG_NAME" --draft=false --prerelease=false || true
-          fi
+          # Publish release (remove draft status)
+          gh release edit "$TAG_NAME" --draft=false --prerelease=false || true
 
           # Fetch asset list
           ASSETS=$(gh release view "$TAG_NAME" --json assets -q '.assets[].name')
@@ -162,10 +134,9 @@ jobs:
 
           echo "🎉 All multi-platform installers verified and release published successfully!"
 
-      - name: Prune Superseded Releases (2 Stable + 1 Nightly)
+      - name: Prune Superseded Releases (Retain 3 Most Recent)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "🧹 Running automated release retention pruning (Policy: 2 Stable + 1 Nightly)..."
+          echo "🧹 Running automated release retention pruning (Policy: 3 Latest Releases)..."
           node scripts/prune-releases.js || echo "⚠️ Non-fatal pruning notice: continuing."
-

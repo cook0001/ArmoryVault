@@ -6,11 +6,8 @@ const path = require('path');
 const rootDir = path.resolve(__dirname, '..');
 const pkg = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
 const tag = `v${pkg.version}`;
-const isNightly = tag.includes('nightly') || tag.includes('beta') || tag.includes('alpha');
 
-console.log(
-  `\n🏷️  Preparing to tag and publish release: ${tag} (${isNightly ? 'Nightly Preview' : 'Stable'})\n`
-);
+console.log(`\n🏷️  Preparing to tag and publish official release: ${tag}\n`);
 
 try {
   console.log('1. Running full pre-flight verification...');
@@ -22,10 +19,10 @@ try {
     execSync(`git tag -d ${tag}`, { cwd: rootDir, stdio: 'pipe' });
   } catch (_) {}
 
-  execSync(
-    `git tag -a ${tag} -m "ArmoryVault ${tag} (${isNightly ? 'Nightly Preview' : 'Stable Release'})"`,
-    { cwd: rootDir, stdio: 'inherit' }
-  );
+  execSync(`git tag -a ${tag} -m "ArmoryVault ${tag} (Official Release)"`, {
+    cwd: rootDir,
+    stdio: 'inherit',
+  });
 
   console.log(`\n3. Pushing tag ${tag} to GitHub...`);
   // Push with tag deletion fallback
