@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.8.2] - 2026-09-12
+### Fixed
+- **Mobile Inventory Cache Ammunition Data Synchronization (`electron/main.js`)**:
+  - Updated `/api/inventory/cache` endpoint to include all ammunition specification fields (`category`, `shell_length`, `shot_size`, `oz_payload`, `pellet_count`, `powder`, `powderCharge`, `primer`, `primer_type`, `notes`, `storageLocationId`, `costPerRound`, `bullet_manufacturer`).
+  - Resolved regression where shotgun shells synced to mobile companion clients lacked shell length, shot size, pellet count, and payload attributes.
+
 ## [2.8.1] - 2026-09-12
 ### Added
 - **Bill of Sale Document Archival & Desktop Synchronization**:
