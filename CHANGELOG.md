@@ -10,6 +10,13 @@
     - Appends ATF Bound Book disposition string to `notes` for regulatory compliance.
   - Replaced raw emoji placeholders with Lucide vector icons (`FileText`).
 
+### Fixed
+- **Ammo Card Header Layout & Text Overflow**:
+  - Restructured ammo cards in `AmmoDashboard.tsx` to use a dedicated flex top bar for storage location badges and quick action buttons (`Tag`, `Printer`, `Save QR`, `Edit`, `Delete`).
+  - Allocated full card width for caliber titles (e.g., `.30-06 Springfield`, `.45-70 Government`), completely eliminating visual clipping and collisions between location tags and action buttons.
+  - Added defensive text truncation (`text-overflow: ellipsis`) to `StorageBadge.tsx` for extra-long storage container names.
+  - Improved layout flow in reloading component cards to prevent manufacturer and action button overlap.
+
 ## [2.8.0] - 2026-09-12 (Official Unified Release)
 ### Unification & Modernization
 - **Unified Desktop Codebase**:

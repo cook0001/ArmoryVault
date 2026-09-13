@@ -85,7 +85,17 @@ export const StorageBadge: React.FC<StorageBadgeProps> = ({
       }
     >
       {renderStorageIcon(location.type, size === 'sm' ? 12 : 14)}
-      <span style={{ fontWeight: 600 }}>{location.name}</span>
+      <span
+        style={{
+          fontWeight: 600,
+          maxWidth: '130px',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {location.name}
+      </span>
     </span>
   );
 };

@@ -1695,154 +1695,187 @@ export const AmmoDashboard = () => {
                           background: isLow ? 'rgba(239, 68, 68, 0.03)' : undefined,
                         }}
                       >
-                        <div
-                          style={{
-                            position: 'absolute',
-                            top: '1rem',
-                            right: '1rem',
-                            display: 'flex',
-                            gap: '0.35rem',
-                          }}
-                        >
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setLabelModalAmmo(ammo);
-                            }}
-                            style={{
-                              background: 'transparent',
-                              border: 'none',
-                              color: '#38bdf8',
-                              cursor: 'pointer',
-                              padding: '0.2rem',
-                            }}
-                            title="Print Can / Box Sticker Label"
-                          >
-                            <Tag size={15} />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handlePrintAmmoQR(ammo);
-                            }}
-                            style={{
-                              background: 'transparent',
-                              border: 'none',
-                              color: '#60a5fa',
-                              cursor: 'pointer',
-                              padding: '0.2rem',
-                            }}
-                            title="Print Standard QR Sheet"
-                          >
-                            <Printer size={15} />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleSaveAmmoQR(ammo);
-                            }}
-                            style={{
-                              background: 'transparent',
-                              border: 'none',
-                              color: '#60a5fa',
-                              cursor: 'pointer',
-                              padding: '0.2rem',
-                            }}
-                            title="Save QR Image"
-                          >
-                            <Upload size={15} />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openEditAmmoModal(ammo);
-                            }}
-                            style={{
-                              background: 'transparent',
-                              border: 'none',
-                              color: 'var(--text-secondary)',
-                              cursor: 'pointer',
-                              padding: '0.2rem',
-                            }}
-                          >
-                            <Edit size={15} />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteAmmo(ammo.id!);
-                            }}
-                            style={{
-                              background: 'transparent',
-                              border: 'none',
-                              color: 'var(--danger)',
-                              cursor: 'pointer',
-                              padding: '0.2rem',
-                            }}
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-
+                        {/* Top Header Row: Storage & Status Badges on left, Quick Actions on right */}
                         <div
                           style={{
                             display: 'flex',
+                            justifyContent: 'space-between',
                             alignItems: 'center',
                             gap: '0.5rem',
-                            marginBottom: '0.25rem',
-                            flexWrap: 'wrap',
+                            marginBottom: '0.45rem',
+                            minHeight: '1.75rem',
                           }}
                         >
-                          <h3
+                          <div
                             style={{
-                              fontSize: '1.2rem',
-                              margin: 0,
                               display: 'flex',
                               alignItems: 'center',
                               gap: '0.4rem',
+                              flexWrap: 'wrap',
+                              minWidth: 0,
                             }}
                           >
-                            {ammo.caliber}
-                            {ammo.isPlusP && (
+                            <StorageBadge
+                              location={getItemStorageLocation('ammo', ammo.id, storageLocations)}
+                              onClick={(e) => {
+                                e?.stopPropagation();
+                                navigate('/storage');
+                              }}
+                              size="sm"
+                            />
+                            {isLow && (
                               <span
                                 style={{
-                                  fontSize: '0.7rem',
-                                  padding: '0.1rem 0.35rem',
                                   background: 'rgba(239, 68, 68, 0.15)',
-                                  color: '#ef4444',
-                                  borderRadius: '4px',
+                                  color: '#f87171',
                                   border: '1px solid rgba(239, 68, 68, 0.3)',
+                                  padding: '0.1rem 0.4rem',
+                                  borderRadius: '4px',
+                                  fontSize: '0.7rem',
                                   fontWeight: 'bold',
                                 }}
                               >
-                                +P
+                                Low Stock
                               </span>
                             )}
-                          </h3>
-                          {isLow && (
+                          </div>
+
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              flexShrink: 0,
+                            }}
+                          >
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setLabelModalAmmo(ammo);
+                              }}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#38bdf8',
+                                cursor: 'pointer',
+                                padding: '0.2rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                              title="Print Can / Box Sticker Label"
+                            >
+                              <Tag size={15} />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePrintAmmoQR(ammo);
+                              }}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#60a5fa',
+                                cursor: 'pointer',
+                                padding: '0.2rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                              title="Print Standard QR Sheet"
+                            >
+                              <Printer size={15} />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSaveAmmoQR(ammo);
+                              }}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#60a5fa',
+                                cursor: 'pointer',
+                                padding: '0.2rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                              title="Save QR Image"
+                            >
+                              <Upload size={15} />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEditAmmoModal(ammo);
+                              }}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: 'var(--text-secondary)',
+                                cursor: 'pointer',
+                                padding: '0.2rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                              title="Edit Ammo"
+                            >
+                              <Edit size={15} />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteAmmo(ammo.id!);
+                              }}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: 'var(--danger)',
+                                cursor: 'pointer',
+                                padding: '0.2rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                              title="Delete Ammo"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Caliber Heading */}
+                        <h3
+                          style={{
+                            fontSize: '1.25rem',
+                            margin: '0 0 0.25rem 0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            color: 'var(--text-primary)',
+                            letterSpacing: '-0.01em',
+                            wordBreak: 'break-word',
+                          }}
+                        >
+                          {ammo.caliber}
+                          {ammo.isPlusP && (
                             <span
                               style={{
-                                background: 'rgba(239, 68, 68, 0.15)',
-                                color: '#f87171',
-                                border: '1px solid rgba(239, 68, 68, 0.3)',
-                                padding: '0.1rem 0.4rem',
-                                borderRadius: '4px',
                                 fontSize: '0.7rem',
+                                padding: '0.1rem 0.35rem',
+                                background: 'rgba(239, 68, 68, 0.15)',
+                                color: '#ef4444',
+                                borderRadius: '4px',
+                                border: '1px solid rgba(239, 68, 68, 0.3)',
                                 fontWeight: 'bold',
                               }}
                             >
-                              Low Stock
+                              +P
                             </span>
                           )}
-                          <StorageBadge
-                            location={getItemStorageLocation('ammo', ammo.id, storageLocations)}
-                            onClick={(e) => {
-                              e?.stopPropagation();
-                              navigate('/storage');
-                            }}
-                            size="sm"
-                          />
-                        </div>
+                        </h3>
 
                         <p
                           style={{
@@ -2164,51 +2197,64 @@ export const AmmoDashboard = () => {
                           background: isLow ? 'rgba(239, 68, 68, 0.03)' : undefined,
                         }}
                       >
+                        {/* Top Header: Manufacturer on left, Edit/Delete on right */}
                         <div
                           style={{
-                            position: 'absolute',
-                            top: '1rem',
-                            right: '1rem',
                             display: 'flex',
-                            gap: '0.35rem',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: '0.2rem',
                           }}
                         >
-                          <button
-                            onClick={() => openEditComponentModal(c)}
+                          <div
                             style={{
-                              background: 'transparent',
-                              border: 'none',
-                              color: 'var(--text-secondary)',
-                              cursor: 'pointer',
-                              padding: '0.2rem',
+                              fontSize: '0.75rem',
+                              color: 'var(--accent)',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.05em',
+                              fontWeight: 700,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
                             }}
                           >
-                            <Edit size={15} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteComponent(c.id!)}
-                            style={{
-                              background: 'transparent',
-                              border: 'none',
-                              color: 'var(--danger)',
-                              cursor: 'pointer',
-                              padding: '0.2rem',
-                            }}
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
+                            {c.manufacturer}
+                          </div>
 
-                        <div
-                          style={{
-                            fontSize: '0.75rem',
-                            color: 'var(--accent)',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.05em',
-                            fontWeight: 700,
-                          }}
-                        >
-                          {c.manufacturer}
+                          <div
+                            style={{
+                              display: 'flex',
+                              gap: '0.35rem',
+                              flexShrink: 0,
+                            }}
+                          >
+                            <button
+                              onClick={() => openEditComponentModal(c)}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: 'var(--text-secondary)',
+                                cursor: 'pointer',
+                                padding: '0.2rem',
+                              }}
+                              title="Edit Component"
+                            >
+                              <Edit size={15} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteComponent(c.id!)}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: 'var(--danger)',
+                                cursor: 'pointer',
+                                padding: '0.2rem',
+                              }}
+                              title="Delete Component"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
                         </div>
 
                         <h3
