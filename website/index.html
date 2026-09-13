@@ -78,6 +78,7 @@
 
       <ul class="nav-links">
         <li><a href="#features" class="nav-link">Features</a></li>
+        <li><a href="#docs" class="nav-link">Guides &amp; Wiki</a></li>
         <li><a href="#security" class="nav-link">Security</a></li>
         <li><a href="#downloads" class="nav-link">Downloads</a></li>
         <li><a href="https://armstrader.store" target="_blank" rel="noopener" class="nav-link" style="color: var(--accent-cyan);">ArmsTrader Web Tools ↗</a></li>
@@ -97,7 +98,9 @@
           </svg>
           <span>GitHub</span>
         </a>
-        <button class="nav-toggle" aria-label="Toggle navigation menu">☰</button>
+        <button class="nav-toggle" aria-label="Toggle navigation menu">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
       </div>
     </div>
   </header>
@@ -105,6 +108,7 @@
   <!-- Mobile Drawer -->
   <div class="mobile-nav-menu">
     <a href="#features" class="mobile-nav-link">Features</a>
+    <a href="#docs" class="mobile-nav-link">Guides &amp; Wiki</a>
     <a href="#security" class="mobile-nav-link">Security & Privacy</a>
     <a href="#downloads" class="mobile-nav-link">Downloads</a>
     <a href="https://armstrader.store" target="_blank" rel="noopener" class="mobile-nav-link" style="color: var(--accent-cyan);">ArmsTrader Web Tools ↗</a>
@@ -630,6 +634,427 @@
       </div>
     </section>
 
+    <!-- Comprehensive User Guide & Knowledge Base Section -->
+    <section class="section docs-section" id="docs">
+      <div class="container">
+        <div class="section-header text-center">
+          <div class="badge-pill">
+            <span class="badge-dot"></span>
+            <span>Official Knowledge Base</span>
+          </div>
+          <h2 class="section-title">User Guides &amp; Wiki</h2>
+          <p class="section-subtitle">
+            Comprehensive step-by-step guides for installing ArmoryVault across all desktop platforms, sideloading the mobile companion APK, pairing over local Wi-Fi, and securing air-gapped vault backups.
+          </p>
+        </div>
+
+        <!-- Documentation Controls & Search Bar -->
+        <div class="doc-search-container">
+          <div class="doc-search-box">
+            <svg class="doc-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="doc-search-input" class="doc-search-input" placeholder="Search guides, commands, or troubleshooting (e.g. 'pairing', 'xattr', '+P', 'backup')..." aria-label="Search documentation guides">
+            <button id="doc-search-clear" class="doc-search-clear" aria-label="Clear search query" style="display: none;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+          </div>
+
+          <!-- Category Filter Pills -->
+          <div class="doc-category-pills" role="tablist" aria-label="Documentation categories">
+            <button type="button" class="doc-pill active" data-category="all" role="tab" aria-selected="true">All Topics</button>
+            <button type="button" class="doc-pill" data-category="getting-started" role="tab" aria-selected="false">Installation &amp; Setup</button>
+            <button type="button" class="doc-pill" data-category="pairing" role="tab" aria-selected="false">Local Sync &amp; Pairing</button>
+            <button type="button" class="doc-pill" data-category="inventory" role="tab" aria-selected="false">Inventory &amp; Storage</button>
+            <button type="button" class="doc-pill" data-category="range-compliance" role="tab" aria-selected="false">Range &amp; ATF Compliance</button>
+            <button type="button" class="doc-pill" data-category="security" role="tab" aria-selected="false">Vault Security &amp; Backups</button>
+          </div>
+        </div>
+
+        <!-- Documentation Cards Group -->
+        <div class="docs-accordion-group" id="docs-accordion-list">
+
+          <!-- 1. macOS Gatekeeper Setup -->
+          <details class="doc-item" name="armory-kb" data-category="getting-started" id="guide-mac-install">
+            <summary class="doc-summary">
+              <div class="doc-summary-left">
+                <span class="doc-icon-badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                </span>
+                <div class="doc-header-text">
+                  <h3 class="doc-item-title">macOS Installation &amp; Gatekeeper Notice Resolution</h3>
+                  <span class="doc-item-meta">Installation &middot; macOS Apple Silicon &amp; Intel</span>
+                </div>
+              </div>
+              <span class="doc-badge doc-badge-blue">Installation</span>
+              <svg class="doc-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </summary>
+            <div class="doc-content">
+              <p>
+                ArmoryVault distributes universal native installers for Apple Silicon (<code class="doc-inline-code">arm64.dmg</code>) and Intel Macs (<code class="doc-inline-code">.dmg</code>). Because ArmoryVault is an open-source community tool built without costly enterprise certificate fees, macOS Gatekeeper may present an "unidentified developer" notice upon first launch.
+              </p>
+              <h4>Step-by-Step Installation:</h4>
+              <ol class="doc-steps">
+                <li>Download the appropriate <code class="doc-inline-code">.dmg</code> for your Mac architecture from the <a href="#downloads">Downloads section</a>.</li>
+                <li>Double-click the disk image and drag <strong style="color: var(--text-primary);">ArmoryVault.app</strong> directly into your <strong style="color: var(--text-primary);">Applications</strong> folder.</li>
+                <li><strong>Option A (GUI)</strong>: In Finder, navigate to Applications, right-click (or Control-click) <strong style="color: var(--text-primary);">ArmoryVault.app</strong>, click <strong style="color: var(--text-primary);">Open</strong>, and confirm <strong style="color: var(--text-primary);">Open</strong> in the system prompt.</li>
+                <li><strong>Option B (Terminal Fix)</strong>: Open Terminal and run the quarantine clearing command:</li>
+              </ol>
+              <div class="doc-code-block">
+                <code>xattr -cr /Applications/ArmoryVault.app</code>
+                <button type="button" class="btn-copy-cmd" data-cmd="xattr -cr /Applications/ArmoryVault.app" aria-label="Copy terminal command">Copy Command</button>
+              </div>
+              <div class="doc-callout doc-callout-tip">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                <div><strong>Tip:</strong> Once executed once, macOS remembers the approval and launches ArmoryVault instantaneously on subsequent boots.</div>
+              </div>
+            </div>
+          </details>
+
+          <!-- 2. Windows 11 & 10 Installation -->
+          <details class="doc-item" name="armory-kb" data-category="getting-started" id="guide-windows-install">
+            <summary class="doc-summary">
+              <div class="doc-summary-left">
+                <span class="doc-icon-badge" style="background: rgba(0, 210, 255, 0.15); color: #00d2ff;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                </span>
+                <div class="doc-header-text">
+                  <h3 class="doc-item-title">Windows 11 / 10 Installation &amp; SmartScreen Guide</h3>
+                  <span class="doc-item-meta">Installation &middot; Windows 64-bit EXE</span>
+                </div>
+              </div>
+              <span class="doc-badge doc-badge-cyan">Windows</span>
+              <svg class="doc-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </summary>
+            <div class="doc-content">
+              <p>
+                The official Windows installer packages a fully self-contained runtime with automatic desktop shortcut integration.
+              </p>
+              <h4>Installation Instructions:</h4>
+              <ol class="doc-steps">
+                <li>Download <code class="doc-inline-code">ArmoryVault-Setup-2.8.2.exe</code>.</li>
+                <li>Double-click the setup file to launch the installation wizard.</li>
+                <li>If Microsoft Defender SmartScreen displays <em>"Windows protected your PC"</em>:
+                  <ul style="margin-top: 6px; padding-left: 20px;">
+                    <li>Click <strong style="color: var(--text-primary);">More info</strong>.</li>
+                    <li>Click <strong style="color: var(--text-primary);">Run anyway</strong>.</li>
+                  </ul>
+                </li>
+                <li>When prompted by Windows Defender Firewall for network permissions, check <strong style="color: var(--text-primary);">Private networks</strong> to allow the Mobile Companion app to discover the desktop over local Wi-Fi.</li>
+              </ol>
+            </div>
+          </details>
+
+          <!-- 3. Linux AppImage Setup -->
+          <details class="doc-item" name="armory-kb" data-category="getting-started" id="guide-linux-install">
+            <summary class="doc-summary">
+              <div class="doc-summary-left">
+                <span class="doc-icon-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+                </span>
+                <div class="doc-header-text">
+                  <h3 class="doc-item-title">Linux Universal AppImage Execution</h3>
+                  <span class="doc-item-meta">Installation &middot; Ubuntu, Fedora, Debian, Arch</span>
+                </div>
+              </div>
+              <span class="doc-badge doc-badge-amber">Linux</span>
+              <svg class="doc-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </summary>
+            <div class="doc-content">
+              <p>
+                The AppImage is a portable binary containing all dependencies, compatible across modern Linux distributions (Ubuntu, Fedora, Debian, Linux Mint, Arch, etc.).
+              </p>
+              <h4>Running the AppImage:</h4>
+              <div class="doc-code-block">
+                <code>chmod +x ArmoryVault-2.8.2.AppImage &amp;&amp; ./ArmoryVault-2.8.2.AppImage</code>
+                <button type="button" class="btn-copy-cmd" data-cmd="chmod +x ArmoryVault-2.8.2.AppImage &amp;&amp; ./ArmoryVault-2.8.2.AppImage" aria-label="Copy Linux execution command">Copy Command</button>
+              </div>
+              <p style="margin-top: 10px; font-size: 0.9rem; color: var(--text-secondary);">
+                You may also move the AppImage to <code class="doc-inline-code">~/.local/bin/</code> or register it with AppImageLauncher for automatic desktop launcher integration.
+              </p>
+            </div>
+          </details>
+
+          <!-- 4. Android Mobile Companion APK -->
+          <details class="doc-item" name="armory-kb" data-category="getting-started" id="guide-android-install">
+            <summary class="doc-summary">
+              <div class="doc-summary-left">
+                <span class="doc-icon-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+                </span>
+                <div class="doc-header-text">
+                  <h3 class="doc-item-title">Android Companion APK Sideloading &amp; In-App Updates</h3>
+                  <span class="doc-item-meta">Setup &middot; Android APK v2.7.9 (versionCode 318)</span>
+                </div>
+              </div>
+              <span class="doc-badge doc-badge-emerald">Android</span>
+              <svg class="doc-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </summary>
+            <div class="doc-content">
+              <p>
+                The ArmoryVault Companion Android app provides offline firearm intake, camera barcode scanning, storage QR labels, and real-time LAN syncing.
+              </p>
+              <h4>First-Time Installation:</h4>
+              <ol class="doc-steps">
+                <li>Download <strong style="color: var(--text-primary);">app-release.apk</strong> directly on your Android phone from the website download card or GitHub Releases.</li>
+                <li>Tap the downloaded file. When prompted with <em>"For your security, your phone is not allowed to install unknown apps"</em>:
+                  <ul style="margin-top: 6px; padding-left: 20px;">
+                    <li>Tap <strong style="color: var(--text-primary);">Settings</strong>.</li>
+                    <li>Toggle ON <strong style="color: var(--text-primary);">Allow from this source</strong>.</li>
+                  </ul>
+                </li>
+                <li>Tap <strong style="color: var(--text-primary);">Install</strong> to complete setup.</li>
+              </ol>
+              <div class="doc-callout doc-callout-info">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                <div><strong>In-App OTA Updates:</strong> The Companion app includes an automated updater. It checks for new releases and cleanly updates in place while preserving all local vault records and pairing tokens.</div>
+              </div>
+            </div>
+          </details>
+
+          <!-- 5. LAN Wi-Fi P2P Pairing -->
+          <details class="doc-item" name="armory-kb" data-category="pairing" id="guide-lan-pairing">
+            <summary class="doc-summary">
+              <div class="doc-summary-left">
+                <span class="doc-icon-badge" style="background: rgba(0, 210, 255, 0.15); color: #00d2ff;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"></path><path d="M1.42 9a16 16 0 0 1 21.16 0"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg>
+                </span>
+                <div class="doc-header-text">
+                  <h3 class="doc-item-title">Zero-Cloud Local Wi-Fi Pairing Walkthrough</h3>
+                  <span class="doc-item-meta">Pairing &middot; Peer-to-Peer LAN Synchronization</span>
+                </div>
+              </div>
+              <span class="doc-badge doc-badge-cyan">P2P Sync</span>
+              <svg class="doc-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </summary>
+            <div class="doc-content">
+              <p>
+                ArmoryVault uses an innovative <strong>Zero-Cloud Local Sync Protocol</strong>. Your firearm and ammo records never touch an external cloud server; data synchronizes strictly inside your own home router's local subnet.
+              </p>
+              <h4>How to Pair Desktop &amp; Mobile:</h4>
+              <ol class="doc-steps">
+                <li>Connect your computer and smartphone to the <strong>same Wi-Fi router</strong> or local home network.</li>
+                <li>In ArmoryVault Desktop, click the <strong style="color: var(--text-primary);">Companion Sync</strong> tab. The desktop displays a secure QR pairing code containing an ephemeral handshake token and your local IP address.</li>
+                <li>On your phone, open ArmoryVault Companion and tap <strong style="color: var(--text-primary);">Pair Vault</strong> (or the camera scan button).</li>
+                <li>Aim your camera at the desktop screen to scan the QR code.</li>
+                <li>The devices establish an encrypted connection over your local LAN. Your firearms, ammo inventory, and storage locations will synchronize in seconds.</li>
+              </ol>
+            </div>
+          </details>
+
+          <!-- 6. Firewall & Connection Troubleshooting -->
+          <details class="doc-item" name="armory-kb" data-category="pairing" id="guide-pairing-troubleshooting">
+            <summary class="doc-summary">
+              <div class="doc-summary-left">
+                <span class="doc-icon-badge" style="background: rgba(239, 68, 68, 0.15); color: #f87171;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                </span>
+                <div class="doc-header-text">
+                  <h3 class="doc-item-title">Firewall &amp; Local Network Troubleshooting</h3>
+                  <span class="doc-item-meta">Troubleshooting &middot; Ports, Subnets &amp; Firewalls</span>
+                </div>
+              </div>
+              <span class="doc-badge doc-badge-rose">Network</span>
+              <svg class="doc-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </summary>
+            <div class="doc-content">
+              <p>If your mobile device cannot reach the desktop after scanning the QR code, review the common network checkpoints below:</p>
+              <ul class="doc-steps">
+                <li><strong>Same Subnet Check</strong>: Ensure your phone is connected to your primary home Wi-Fi and not on cellular 5G/LTE or a separate "Guest" Wi-Fi network.</li>
+                <li><strong>Router AP Client Isolation</strong>: Some routers have "Client Isolation" enabled on guest Wi-Fi, preventing local devices from talking to each other. Connect both to the standard 2.4GHz or 5GHz home SSID.</li>
+                <li><strong>Windows Defender Firewall</strong>: Search for <em>"Allow an app through Windows Firewall"</em> in Windows Settings, locate <strong>ArmoryVault</strong>, and verify that the <strong>Private</strong> checkbox is checked.</li>
+                <li><strong>macOS Local Network Prompt</strong>: Under macOS System Settings -> Privacy &amp; Security -> Local Network, ensure <strong>ArmoryVault</strong> is enabled.</li>
+              </ul>
+            </div>
+          </details>
+
+          <!-- 7. Safe & Storage Containers QR Labels -->
+          <details class="doc-item" name="armory-kb" data-category="inventory" id="guide-storage-qr">
+            <summary class="doc-summary">
+              <div class="doc-summary-left">
+                <span class="doc-icon-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                </span>
+                <div class="doc-header-text">
+                  <h3 class="doc-item-title">Storage Containers &amp; Printable QR Sticker Labels</h3>
+                  <span class="doc-item-meta">Inventory &middot; Safes, Ammo Cans &amp; Shelf Capacities</span>
+                </div>
+              </div>
+              <span class="doc-badge doc-badge-emerald">Storage</span>
+              <svg class="doc-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </summary>
+            <div class="doc-content">
+              <p>
+                Eliminate rummaging through locked safes and heavy ammo cans by generating printable QR stickers for each storage location.
+              </p>
+              <h4>Workflow:</h4>
+              <ol class="doc-steps">
+                <li>Go to the <strong style="color: var(--text-primary);">Storage Containers</strong> tab in ArmoryVault.</li>
+                <li>Create your physical containers (e.g. <em>"Liberty 48-Gun Safe"</em>, <em>"50-Cal Green Ammo Can #2"</em>, <em>"Range Bag Side Pocket"</em>).</li>
+                <li>Assign firearms, magazines, and ammo stock directly to each container.</li>
+                <li>Click <strong style="color: var(--text-primary);">Print QR Sticker</strong> to export formatted labels for standard adhesive paper.</li>
+                <li>Affix the QR sticker to the outside of your safe or ammo can.</li>
+                <li>At any time, open the Mobile Companion app camera, scan the container's sticker, and view its live contents instantly!</li>
+              </ol>
+            </div>
+          </details>
+
+          <!-- 8. Overpressure (+P / +P+) Ratings -->
+          <details class="doc-item" name="armory-kb" data-category="inventory" id="guide-ammo-overpressure">
+            <summary class="doc-summary">
+              <div class="doc-summary-left">
+                <span class="doc-icon-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                </span>
+                <div class="doc-header-text">
+                  <h3 class="doc-item-title">Overpressure (+P / +P+) Ammunition Tracking</h3>
+                  <span class="doc-item-meta">Ammunition &middot; Pressure Ratings, Safety &amp; Live Toggles</span>
+                </div>
+              </div>
+              <span class="doc-badge doc-badge-amber">Ammunition</span>
+              <svg class="doc-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </summary>
+            <div class="doc-content">
+              <p>
+                SAAMI and CIP overpressure defense ammunition (+P and +P+) requires careful tracking to avoid chambering high-pressure cartridges in non-rated vintage or lightweight firearms.
+              </p>
+              <h4>Features:</h4>
+              <ul class="doc-steps">
+                <li><strong>Visual Safety Badges</strong>: Amber <code class="doc-inline-code">+P</code> and red <code class="doc-inline-code">+P+</code> badges appear directly on inventory cards and magazine loading cards.</li>
+                <li><strong>1-Tap Mobile Rating Toggle</strong>: On the mobile companion, tap any ammunition row to quickly cycle pressure ratings between Standard, +P, and +P+.</li>
+                <li><strong>Auto-Detection Engine</strong>: The integrated BarcodeEngine automatically inspects scanned UPC barcodes, box labels, and manufacturer bullet specs (e.g. Hornady Critical Duty 135gr +P) to tag overpressure ratings automatically.</li>
+              </ul>
+            </div>
+          </details>
+
+          <!-- 9. Shotgun Shell Classification -->
+          <details class="doc-item" name="armory-kb" data-category="inventory" id="guide-shotgun-specs">
+            <summary class="doc-summary">
+              <div class="doc-summary-left">
+                <span class="doc-icon-badge" style="background: rgba(99, 102, 241, 0.15); color: #818cf8;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>
+                </span>
+                <div class="doc-header-text">
+                  <h3 class="doc-item-title">Shotgun Shell Specifications &amp; Telemetry</h3>
+                  <span class="doc-item-meta">Inventory &middot; Gauge, Shell Length, Shot Size &amp; Pellets</span>
+                </div>
+              </div>
+              <span class="doc-badge doc-badge-indigo">Shotguns</span>
+              <svg class="doc-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </summary>
+            <div class="doc-content">
+              <p>Shotgun ammunition contains unique specifications that rifle and pistol rounds lack. ArmoryVault provides dedicated fields for:</p>
+              <ul class="doc-steps">
+                <li><strong>Gauge Classification</strong>: 10ga, 12ga, 16ga, 20ga, 28ga, and .410 bore.</li>
+                <li><strong>Shell Length</strong>: 1 3/4" (Mini-shell), 2 3/4" (Standard), 3" (Magnum), 3 1/2" (Super Magnum).</li>
+                <li><strong>Shot Sizing</strong>: 000 Buck, 00 Buck, #1 Buck, #4 Buck, #7.5 Birdshot, #8 Target, Rifled Foster Slug, and Sabot Slug.</li>
+                <li><strong>Payload Specifications</strong>: Shot weight in ounces (e.g. 1 1/8 oz) and total pellet counts for patterning analysis.</li>
+              </ul>
+            </div>
+          </details>
+
+          <!-- 10. Chronograph & Range Logging -->
+          <details class="doc-item" name="armory-kb" data-category="range-compliance" id="guide-chronograph">
+            <summary class="doc-summary">
+              <div class="doc-summary-left">
+                <span class="doc-icon-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
+                </span>
+                <div class="doc-header-text">
+                  <h3 class="doc-item-title">Chronograph Velocity Strings &amp; Grouping Calculations</h3>
+                  <span class="doc-item-meta">Range Tools &middot; Ballistics, SD, ES &amp; MOA Accuracy</span>
+                </div>
+              </div>
+              <span class="doc-badge doc-badge-emerald">Ballistics</span>
+              <svg class="doc-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </summary>
+            <div class="doc-content">
+              <p>
+                Log live shooting range sessions with automated statistical calculations for handloaders and precision rifle shooters:
+              </p>
+              <ul class="doc-steps">
+                <li><strong>Velocity String Statistics</strong>: Enter shot velocity sequences (FPS) from your Garmin Xero C1 Pro, LabRadar, or optical chrony. ArmoryVault automatically calculates:
+                  <ul style="margin-top: 6px; padding-left: 20px;">
+                    <li><strong style="color: var(--text-primary);">Average Velocity (AVG)</strong></li>
+                    <li><strong style="color: var(--text-primary);">Standard Deviation (SD)</strong></li>
+                    <li><strong style="color: var(--text-primary);">Extreme Spread (ES)</strong></li>
+                  </ul>
+                </li>
+                <li><strong>Shot Grouping Calculator</strong>: Upload target photos, specify distance in yards or meters, and calculate extreme spread in inches and true Minutes of Angle (MOA).</li>
+              </ul>
+            </div>
+          </details>
+
+          <!-- 11. ATF Compliance & Bill of Sale -->
+          <details class="doc-item" name="armory-kb" data-category="range-compliance" id="guide-atf-boundbook">
+            <summary class="doc-summary">
+              <div class="doc-summary-left">
+                <span class="doc-icon-badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                </span>
+                <div class="doc-header-text">
+                  <h3 class="doc-item-title">ATF Bound Book &amp; Automated Bill of Sale Generator</h3>
+                  <span class="doc-item-meta">Compliance &middot; Acquisition &amp; Disposition (A&amp;D) Ledgers</span>
+                </div>
+              </div>
+              <span class="doc-badge doc-badge-blue">Compliance</span>
+              <svg class="doc-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </summary>
+            <div class="doc-content">
+              <p>
+                Maintain strict federal and state compliance records with automated audit-ready ledger generation:
+              </p>
+              <ul class="doc-steps">
+                <li><strong>ATF Acquisition &amp; Disposition (A&amp;D) Bound Book</strong>: Generates standard formatted ledgers tracking firearm Manufacturer, Importer, Model, Serial Number, Type, Caliber, Acquisition Date/Source, and Disposition Date/Recipient.</li>
+                <li><strong>PDF / CSV Export</strong>: 1-click generation of PDF records for offline physical binders or encrypted archival.</li>
+                <li><strong>Private Firearms Bill of Sale</strong>: Automatically compiles firearm metadata, buyer/seller credentials, and digital signature boxes into legally sound transfer agreements, stored securely in your vault database.</li>
+              </ul>
+            </div>
+          </details>
+
+          <!-- 12. Vault Encryption & Cold Backups -->
+          <details class="doc-item" name="armory-kb" data-category="security" id="guide-encrypted-backups">
+            <summary class="doc-summary">
+              <div class="doc-summary-left">
+                <span class="doc-icon-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                </span>
+                <div class="doc-header-text">
+                  <h3 class="doc-item-title">Vault Security, Recovery Keys &amp; Cold Backups</h3>
+                  <span class="doc-item-meta">Security &middot; AES-256 Encryption, USB Backups &amp; Migration</span>
+                </div>
+              </div>
+              <span class="doc-badge doc-badge-emerald">Security</span>
+              <svg class="doc-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </summary>
+            <div class="doc-content">
+              <p>
+                ArmoryVault encrypts your local database with <strong>AES-256-GCM</strong> using high-iteration <strong>PBKDF2</strong> key derivation. Because there are no cloud accounts or server recovery backdoors, following backup best practices is essential.
+              </p>
+              <h4>Best Practices for Cold Storage &amp; Migration:</h4>
+              <ol class="doc-steps">
+                <li><strong>Record Your 24-Word Recovery Key</strong>: Upon initial vault setup, write down your mnemonic recovery phrase on physical paper and store it in your fireproof safe.</li>
+                <li><strong>Export Encrypted Backups</strong>: In Settings -> Backup Vault, click <strong style="color: var(--text-primary);">Export Encrypted Database</strong>. Save the resulting encrypted <code class="doc-inline-code">.avdb</code> file to an external USB flash drive or cold storage device.</li>
+                <li><strong>Migrating to a New Computer</strong>: Install ArmoryVault on your new machine, click <strong style="color: var(--text-primary);">Restore from Backup</strong>, select your <code class="doc-inline-code">.avdb</code> file, enter your master password, and your entire collection is immediately restored.</li>
+              </ol>
+            </div>
+          </details>
+
+        </div>
+
+        <!-- No Results Fallback -->
+        <div id="doc-no-results" class="doc-no-results" style="display: none;">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--text-muted); margin-bottom: 12px;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <h4>No matching guides found</h4>
+          <p>Try searching for different keywords like <em>"install"</em>, <em>"pairing"</em>, <em>"+P"</em>, <em>"gatekeeper"</em>, or <em>"backup"</em>.</p>
+          <button type="button" id="btn-reset-doc-filters" class="btn btn-secondary btn-sm" style="margin-top: 14px;">Reset Filters</button>
+        </div>
+
+      </div>
+    </section>
+
+
     <!-- Community & Feedback Hub -->
     <section class="section" id="feedback">
       <div class="container">
@@ -791,6 +1216,7 @@
           <ul class="footer-links">
             <li><a href="#downloads" class="footer-link">Download Desktop</a></li>
             <li><a href="#download-mobile-spotlight" class="footer-link">Android APK</a></li>
+            <li><a href="#docs" class="footer-link">Guides &amp; Wiki</a></li>
             <li><a href="https://github.com/cook0001/ArmoryVault/releases" target="_blank" rel="noopener" class="footer-link">Release Notes</a></li>
             <li><a href="#showcase" class="footer-link">App Showcase</a></li>
           </ul>

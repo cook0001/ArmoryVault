@@ -14,6 +14,9 @@
   - Replaced OS text symbols on download cards with crisp Apple, Windows, and Linux vector SVGs for universal cross-platform rendering.
   - Updated feature highlights with safe container QR stickers, +P pressure rating toggles, and dedicated shotgun shell specifications.
   - Refreshed `sitemap.xml` lastmod timestamp.
+- **Interactive Official User Guide & Knowledge Base (`website/index.html`, `website/style.css`, `website/app.js`)**:
+  - Integrated interactive User Guide & Knowledge Base directly into the web portal with real-time search, category pill filters (`All Topics`, `Installation & Setup`, `Local Sync & Pairing`, `Inventory & Storage`, `Range & ATF Compliance`, `Vault Security & Backups`), deep-linking anchor support (`#guide-...`), and accessible mutually exclusive accordions.
+  - Comprehensive troubleshooting guides covering macOS Gatekeeper `xattr` fixes with 1-click clipboard copy, Windows SmartScreen bypass, Linux AppImage execution, Android APK sideloading & OTA updates, zero-cloud Wi-Fi P2P sync, firewall & AP isolation troubleshooting, safe QR labels, chronograph MOA analysis, ATF Bound Book exports, and PBKDF2/AES-256 backup restoration.
 - **Ecosystem Compatibility Synchronization (`VERSION_COMPATIBILITY.md`)**:
   - Synchronized Recommended Deployment Configuration to Desktop `v2.8.2` and Mobile Companion `v2.7.9` (`versionCode 318`).
 
