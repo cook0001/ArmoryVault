@@ -8,9 +8,9 @@ ArmoryVault maintains active security updates and patch support for the **2 most
 
 | Version | Status | Security Support |
 | :--- | :--- | :---: |
-| **`v2.8.2`** | Current Stable Production | Supported |
-| **`v2.8.1`** | Previous Stable Production | Supported |
-| **`<= v2.8.0`** | Legacy Releases (Pruned) | EOL (Upgrade Required) |
+| **`v2.9.0`** | Current Stable Production | Supported |
+| **`v2.8.2`** | Previous Stable Production | Supported |
+| **`<= v2.8.1`** | Legacy Releases (Pruned) | EOL (Upgrade Required) |
 
 ---
 
@@ -18,9 +18,17 @@ ArmoryVault maintains active security updates and patch support for the **2 most
 
 | Version | Status | Security Support |
 | :--- | :--- | :---: |
-| **`v2.7.9`** | Current Stable Production | Supported |
-| **`v2.7.8`** | Previous Stable Production | Supported |
-| **`<= v2.7.7`** | Legacy Releases (Pruned) | EOL (Upgrade Required) |
+| **`v2.7.11`** | Current Stable Production | Supported |
+| **`v2.7.10`** | Previous Production Release | Supported |
+| **`<= v2.7.9`** | Legacy Releases (Pruned) | EOL (Upgrade Required) |
+
+---
+
+### Modular Extensions (`cook0001/ArmoryVault-Modules`)
+
+| Version | Status | Security Support |
+| :--- | :--- | :---: |
+| **`v1.0.0`** | Current Production Baseline | Supported |
 
 ---
 
