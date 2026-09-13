@@ -1056,6 +1056,7 @@ app.whenReady().then(() => {
             primer_type: a.primer_type,
             notes: a.notes,
             upc_code: a.upc_code,
+            isPlusP: Boolean(a.isPlusP),
             storageLocationId: a.storageLocationId,
             costPerRound: a.costPerRound,
           })),
