@@ -4,6 +4,7 @@ import {
   CheckCircle,
   CheckCircle2,
   Edit3,
+  FileText,
   Info,
   Paperclip,
   PlusCircle,
@@ -535,15 +536,45 @@ export const SyncInbox = () => {
       loadData();
     } else if (item.type === 'bill_of_sale_transfer') {
       const fId = Number(item.firearm_id);
-      const firearm = firearms.find((f) => f.id === fId);
+      const serial = item.serial_number ? String(item.serial_number).trim().toLowerCase() : '';
+      const firearm = firearms.find(
+        (f) =>
+          (fId && f.id === fId) ||
+          (serial && f.serial_number && f.serial_number.trim().toLowerCase() === serial)
+      );
       if (firearm && window.api && window.api.updateFirearm) {
+        let savedDocPath = '';
+        if (item.pdf_base64 && window.api.saveBase64Document) {
+          const filename = item.pdf_filename || `BillOfSale_${item.transfer_id || Date.now()}.pdf`;
+          savedDocPath = (await window.api.saveBase64Document(item.pdf_base64, filename)) || '';
+        }
+
+        const existingDocs = firearm.documents || [];
+        const newDocs = [...existingDocs];
+        if (savedDocPath) {
+          newDocs.push({
+            name: `Bill of Sale (${item.transfer_id || 'Signed'})`,
+            path: savedDocPath,
+            date_added: item.date || new Date().toISOString().split('T')[0],
+          });
+        }
+
         const transferNote = `[SOLD / TRANSFERRED] Transferred to ${item.buyer_name || 'Buyer'} (DL: ${item.buyer_dl || 'On File'}) for $${item.sale_price || 0} on ${item.date || new Date().toLocaleDateString()}. Bill of Sale ID: ${item.transfer_id || 'N/A'}`;
         const updatedNotes = firearm.notes ? `${firearm.notes}\n${transferNote}` : transferNote;
 
-        await window.api.updateFirearm(fId, {
+        await window.api.updateFirearm(firearm.id!, {
           ...firearm,
+          is_sold: true,
+          sold_date: item.date || new Date().toISOString().split('T')[0],
+          sold_to_name: item.buyer_name || 'Buyer',
+          sold_price:
+            typeof item.sale_price === 'number'
+              ? item.sale_price
+              : parseFloat(String(item.sale_price || 0)) || 0,
+          sale_notes: item.notes || '',
           condition: 'Sold / Transferred',
           notes: updatedNotes,
+          documents: newDocs,
         });
       }
       await window.api.removeSyncItem(item.id!);
@@ -1007,6 +1038,56 @@ export const SyncInbox = () => {
           }
         }
 
+        await window.api.removeSyncItem(item.id!);
+        processedAny = true;
+      } else if (item.type === 'bill_of_sale_transfer') {
+        const fId = Number(item.firearm_id);
+        const serial = item.serial_number ? String(item.serial_number).trim().toLowerCase() : '';
+        const firearm = currentFirearms.find(
+          (f) =>
+            (fId && f.id === fId) ||
+            (serial && f.serial_number && f.serial_number.trim().toLowerCase() === serial)
+        );
+        if (firearm && firearm.id !== undefined && window.api && window.api.updateFirearm) {
+          let savedDocPath = '';
+          if (item.pdf_base64 && window.api.saveBase64Document) {
+            const filename =
+              item.pdf_filename || `BillOfSale_${item.transfer_id || Date.now()}.pdf`;
+            savedDocPath = (await window.api.saveBase64Document(item.pdf_base64, filename)) || '';
+          }
+
+          const existingDocs = firearm.documents || [];
+          const newDocs = [...existingDocs];
+          if (savedDocPath) {
+            newDocs.push({
+              name: `Bill of Sale (${item.transfer_id || 'Signed'})`,
+              path: savedDocPath,
+              date_added: item.date || new Date().toISOString().split('T')[0],
+            });
+          }
+
+          const transferNote = `[SOLD / TRANSFERRED] Transferred to ${item.buyer_name || 'Buyer'} (DL: ${item.buyer_dl || 'On File'}) for $${item.sale_price || 0} on ${item.date || new Date().toLocaleDateString()}. Bill of Sale ID: ${item.transfer_id || 'N/A'}`;
+          const updatedNotes = firearm.notes ? `${firearm.notes}\n${transferNote}` : transferNote;
+
+          const updatedFirearm = {
+            ...firearm,
+            is_sold: true,
+            sold_date: item.date || new Date().toISOString().split('T')[0],
+            sold_to_name: item.buyer_name || 'Buyer',
+            sold_price:
+              typeof item.sale_price === 'number'
+                ? item.sale_price
+                : parseFloat(String(item.sale_price || 0)) || 0,
+            sale_notes: item.notes || '',
+            condition: 'Sold / Transferred',
+            notes: updatedNotes,
+            documents: newDocs,
+          };
+
+          await window.api.updateFirearm(firearm.id, updatedFirearm);
+          const idx = currentFirearms.findIndex((f) => f.id === firearm.id);
+          if (idx >= 0) currentFirearms[idx] = updatedFirearm;
+        }
         await window.api.removeSyncItem(item.id!);
         processedAny = true;
       }
@@ -2743,7 +2824,7 @@ export const SyncInbox = () => {
                                     textDecoration: 'none',
                                   }}
                                 >
-                                  📄 Download Signed PDF
+                                  <FileText size={14} /> Download Signed PDF
                                 </a>
                               </div>
                             )}

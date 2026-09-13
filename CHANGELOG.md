@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.8.1] - 2026-09-12
+### Added
+- **Bill of Sale Document Archival & Desktop Synchronization**:
+  - Added `save-base64-document` IPC handler in `electron/main.js` and exposed via `electron/preload.js` to securely persist transferred PDF documents into the desktop vault's `documents/` directory.
+  - Enhanced `SyncInbox.tsx` (`handleApplyItem` and `handleApplyAll`):
+    - Automatically attaches transferred Bill of Sale PDFs to `firearm.documents`, visible immediately under **Documents & Receipts** on `FirearmDetails.tsx`.
+    - Automatically updates firearm status to `is_sold: true`, setting `sold_date`, `sold_to_name`, `sold_price`, `sale_notes`, and `condition: 'Sold / Transferred'`.
+    - Appends ATF Bound Book disposition string to `notes` for regulatory compliance.
+  - Replaced raw emoji placeholders with Lucide vector icons (`FileText`).
+
 ## [2.8.0] - 2026-09-12 (Official Unified Release)
 ### Unification & Modernization
 - **Unified Desktop Codebase**:

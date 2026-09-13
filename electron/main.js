@@ -238,6 +238,19 @@ app.whenReady().then(() => {
   ipcMain.handle('save-document', (_, sourcePath, filename) =>
     db.saveDocument(sourcePath, filename)
   );
+  ipcMain.handle('save-base64-document', (_, base64Data, filename) => {
+    try {
+      const base64Doc = base64Data.replace(/^data:[^;]+;base64,/, '');
+      const fs = require('fs');
+      const path = require('path');
+      const destPath = path.join(db.docDir, filename);
+      fs.writeFileSync(destPath, base64Doc, { encoding: 'base64' });
+      return destPath;
+    } catch (e) {
+      console.error('Failed to save base64 document:', e);
+      return null;
+    }
+  });
 
   ipcMain.handle('get-backup-folder', () => db.getBackupPath());
   ipcMain.handle('create-zip-backup', async () => {

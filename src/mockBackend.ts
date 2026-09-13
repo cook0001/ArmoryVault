@@ -258,6 +258,9 @@ export function setupMockBackend() {
       saveDocument: async (sourcePath: string, filename: string) => {
         return sourcePath;
       },
+      saveBase64Document: async (_base64Data: string, filename: string) => {
+        return `/mock/documents/${filename}`;
+      },
       getBackupFolder: async () => null,
       selectBackupFolder: async () => '/mock/backup/path',
       createZipBackup: async () => {

@@ -364,6 +364,7 @@ declare global {
       savePhoto: (sourcePath: string, filename: string) => Promise<string | null>;
       saveBase64Photo: (base64Data: string, filename: string) => Promise<string | null>;
       saveDocument: (sourcePath: string, filename: string) => Promise<string | null>;
+      saveBase64Document: (base64Data: string, filename: string) => Promise<string | null>;
 
       getBackupFolder: () => Promise<string | null>;
       createZipBackup: () => Promise<

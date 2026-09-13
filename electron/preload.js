@@ -50,6 +50,8 @@ contextBridge.exposeInMainWorld('api', {
   saveBase64Photo: (base64Data, filename) =>
     ipcRenderer.invoke('save-base64-photo', base64Data, filename),
   saveDocument: (sourcePath, filename) => ipcRenderer.invoke('save-document', sourcePath, filename),
+  saveBase64Document: (base64Data, filename) =>
+    ipcRenderer.invoke('save-base64-document', base64Data, filename),
 
   getBackupFolder: () => ipcRenderer.invoke('get-backup-folder'),
   createZipBackup: () => ipcRenderer.invoke('create-zip-backup'),
