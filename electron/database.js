@@ -101,7 +101,7 @@ class Database {
     // Constant-time comparison to prevent timing attacks
     try {
       return crypto.timingSafeEqual(Buffer.from(token, 'utf8'), Buffer.from(stored, 'utf8'));
-    } catch (e) {
+    } catch (_e) {
       return false;
     }
   }
@@ -473,7 +473,7 @@ class Database {
   // ─── SKUs ──────────────────────────────────────────────────────────
   getSkus() {
     const data = this.getData();
-    return data && data.skus ? data.skus : {};
+    return data?.skus ? data.skus : {};
   }
 
   saveSkus(skus) {
@@ -484,7 +484,7 @@ class Database {
 
   deleteSku(skuId) {
     const data = this.getData();
-    if (data.skus && data.skus[skuId]) {
+    if (data?.skus?.[skuId]) {
       delete data.skus[skuId];
       this.saveData(data);
     }

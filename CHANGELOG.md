@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.8.3] - 2026-09-13
+### Changed
+- **Build Infrastructure & Vite Native Loader Compatibility (`vite.config.mts`, `tsconfig.node.json`)**:
+  - Migrated `vite.config.ts` to `vite.config.mts` using native `import.meta.dirname` path resolution, eliminating Vitest configuration loader deprecation warnings and ensuring forward-compatibility with future Vite native config loaders.
+  - Updated `tsconfig.node.json` compiler inclusion to track `vite.config.mts`.
+- **Code Quality & Diagnostic Modernization (`App.tsx`, `database.js`, test suites)**:
+  - Replaced legacy `window.api && window.api.X` safety checks in `src/App.tsx` with modern optional chaining (`window.api?.isVaultSetup`, `window.api?.onVaultLocked`, `window.api?.lockVault`).
+  - Implemented optional chaining for SKU queries in `electron/database.js`.
+  - Cleaned up unused variables and imports in `src/components/AccessorySku.test.tsx`, `src/components/AmmoCanLabel.test.tsx`, `scripts/clean-fresh.js`, and `scripts/prepare-release.js`.
+
 ## [2.8.2] - 2026-09-12
 ### Fixed
 - **Mobile Inventory Cache Ammunition Data Synchronization (`electron/main.js`, `SyncInbox.tsx`)**:

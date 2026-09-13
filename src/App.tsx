@@ -54,7 +54,7 @@ function App() {
 
   useEffect(() => {
     const checkVault = async () => {
-      if (window.api && window.api.isVaultSetup) {
+      if (window.api?.isVaultSetup) {
         const setup = await window.api.isVaultSetup();
         const locked = await window.api.isVaultLocked();
         setIsSetup(setup);
@@ -69,7 +69,7 @@ function App() {
     checkVault();
 
     // Listen for remote vault lock from mobile companion app
-    if (window.api && window.api.onVaultLocked) {
+    if (window.api?.onVaultLocked) {
       const unsub = window.api.onVaultLocked(() => {
         setIsLocked(true);
       });
@@ -78,7 +78,7 @@ function App() {
   }, []);
 
   const lockVault = useCallback(async () => {
-    if (window.api && window.api.lockVault) {
+    if (window.api?.lockVault) {
       await window.api.lockVault();
     }
     setIsLocked(true);

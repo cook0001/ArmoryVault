@@ -1,11 +1,10 @@
 /**
  * @vitest-environment jsdom
  */
-import React from 'react';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { AccessoryModal } from './AccessoryModal';
-import { expect, test, describe, vi, beforeEach } from 'vitest';
 
 describe('AccessoryModal Custom SKU Integration', () => {
   beforeEach(() => {
@@ -19,14 +18,14 @@ describe('AccessoryModal Custom SKU Integration', () => {
           model: 'Failure Resistant Extractor',
           caliber: '9mm / Glock Gen 5',
           value: 59.95,
-          notes: 'Melonite finish'
-        }
+          notes: 'Melonite finish',
+        },
       }),
       lookupUPC: vi.fn(),
       getAccessories: vi.fn().mockResolvedValue([]),
       addAccessory: vi.fn().mockResolvedValue(1),
       updateAccessory: vi.fn().mockResolvedValue(1),
-      saveSkus: vi.fn().mockResolvedValue(true)
+      saveSkus: vi.fn().mockResolvedValue(true),
     } as any;
   });
 

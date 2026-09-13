@@ -23,11 +23,11 @@ rl.question('Is this a major, minor, or patch release? [major/minor/patch/cancel
       console.log('\nRunning TypeScript checks to ensure build stability...');
       execSync('npm run build', { stdio: 'inherit' });
 
-      console.log('\n✅ Build successful! Version bumped.');
-      console.log('⚠️ IMPORTANT: Did you remember to update CHANGELOG.md?');
+      console.log('\n[!] Build successful! Version bumped.');
+      console.log('[!] IMPORTANT: Did you remember to update CHANGELOG.md?');
       console.log('Run `git commit -am "Release prep"` to finalize.');
-    } catch (err) {
-      console.error('\n❌ Release preparation failed.');
+    } catch (_err) {
+      console.error('\n[X] Release preparation failed.');
     }
   } else {
     console.log('Release preparation cancelled.');
