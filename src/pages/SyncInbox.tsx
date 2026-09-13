@@ -318,6 +318,9 @@ export const SyncInbox = () => {
       const adjustment = (parseInt(item.count as any) || 0) * multiplier;
       if (item.action === 'add') target.count = currentCount + adjustment;
       else if (item.action === 'remove') target.count = Math.max(0, currentCount - adjustment);
+      if (item.data && typeof item.data.isPlusP === 'boolean') {
+        target.isPlusP = item.data.isPlusP;
+      }
       await window.api.updateAmmo(target.id!, target);
     } else if (item.type === 'component_adjustment') {
       const currentCount = parseInt(target.quantity as any) || 0;
@@ -771,6 +774,9 @@ export const SyncInbox = () => {
             ammo.count = currentCount + adjustment;
           } else if (item.action === 'remove') {
             ammo.count = Math.max(0, currentCount - adjustment);
+          }
+          if (item.data && typeof item.data.isPlusP === 'boolean') {
+            ammo.isPlusP = item.data.isPlusP;
           }
           await window.api.updateAmmo(ammo.id!, ammo);
           await window.api.removeSyncItem(item.id!);
