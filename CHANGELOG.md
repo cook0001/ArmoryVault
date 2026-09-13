@@ -2,9 +2,20 @@
 
 ## [2.8.2] - 2026-09-12
 ### Fixed
-- **Mobile Inventory Cache Ammunition Data Synchronization (`electron/main.js`)**:
-  - Updated `/api/inventory/cache` endpoint to include all ammunition specification fields (`category`, `shell_length`, `shot_size`, `oz_payload`, `pellet_count`, `powder`, `powderCharge`, `primer`, `primer_type`, `notes`, `storageLocationId`, `costPerRound`, `bullet_manufacturer`).
+- **Mobile Inventory Cache Ammunition Data Synchronization (`electron/main.js`, `SyncInbox.tsx`)**:
+  - Updated `/api/inventory/cache` endpoint to include all ammunition specification fields (`category`, `shell_length`, `shot_size`, `oz_payload`, `pellet_count`, `powder`, `powderCharge`, `primer`, `primer_type`, `notes`, `storageLocationId`, `costPerRound`, `bullet_manufacturer`, `isPlusP`).
   - Resolved regression where shotgun shells synced to mobile companion clients lacked shell length, shot size, pellet count, and payload attributes.
+  - Added support in `SyncInbox.tsx` for approving and persisting `isPlusP` pressure rating updates received from mobile `ammo_adjustment` sync events.
+- **UI Vector Icon Modernization & Strict Emoji Ban (`RecoveryKeyModal.tsx`, `FirearmDetails.tsx`, `Accessories.tsx`)**:
+  - Replaced legacy raw emoji placeholders with Lucide vector icons: `Lightbulb` in `RecoveryKeyModal.tsx`, and `Disc` on magazine accessory capacity badges in `FirearmDetails.tsx` and `Accessories.tsx`.
+- **Website Portal Modernization & SVG System (`website/index.html`, `website/sitemap.xml`)**:
+  - Synchronized web portal version tags to Desktop `v2.8.2` and Mobile Companion `v2.7.9`.
+  - Replaced all raw emojis across showcase tabs, platform badges, donation tier chips, and spotlight tags with inline SVG vector icons.
+  - Replaced OS text symbols on download cards with crisp Apple, Windows, and Linux vector SVGs for universal cross-platform rendering.
+  - Updated feature highlights with safe container QR stickers, +P pressure rating toggles, and dedicated shotgun shell specifications.
+  - Refreshed `sitemap.xml` lastmod timestamp.
+- **Ecosystem Compatibility Synchronization (`VERSION_COMPATIBILITY.md`)**:
+  - Synchronized Recommended Deployment Configuration to Desktop `v2.8.2` and Mobile Companion `v2.7.9` (`versionCode 318`).
 
 ## [2.8.1] - 2026-09-12
 ### Added

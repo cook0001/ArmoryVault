@@ -1,6 +1,7 @@
 import {
   AlertCircle,
   Camera,
+  Disc,
   Edit,
   Eye,
   Flashlight,
@@ -559,10 +560,16 @@ export const Accessories = () => {
                         borderRadius: '4px',
                         fontSize: '0.75rem',
                         fontWeight: 500,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
                       }}
                     >
-                      🟣 {acc.caliber ? `${acc.caliber} • ` : ''}
-                      {acc.capacity}rd
+                      <Disc size={11} style={{ color: '#c084fc', flexShrink: 0 }} />
+                      <span>
+                        {acc.caliber ? `${acc.caliber} • ` : ''}
+                        {acc.capacity}rd
+                      </span>
                     </span>
                   )}
                   {acc.actionInlet && (

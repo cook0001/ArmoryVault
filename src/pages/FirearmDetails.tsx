@@ -8,6 +8,7 @@ import {
   ClipboardList,
   Clock,
   Crosshair,
+  Disc,
   DollarSign,
   Edit,
   Eye,
@@ -1331,10 +1332,16 @@ export const FirearmDetails = () => {
                             padding: '0.1rem 0.45rem',
                             borderRadius: '4px',
                             fontSize: '0.7rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
                           }}
                         >
-                          🟣 {acc.caliber ? `${acc.caliber} • ` : ''}
-                          {acc.capacity}rd
+                          <Disc size={11} style={{ color: '#c084fc', flexShrink: 0 }} />
+                          <span>
+                            {acc.caliber ? `${acc.caliber} • ` : ''}
+                            {acc.capacity}rd
+                          </span>
                         </span>
                       )}
                       {acc.actionInlet && (

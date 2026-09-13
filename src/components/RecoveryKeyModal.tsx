@@ -7,6 +7,7 @@ import {
   Eye,
   EyeOff,
   Key,
+  Lightbulb,
   Lock,
   RefreshCw,
   ShieldAlert,
@@ -375,8 +376,18 @@ INSTRUCTIONS:
               lineHeight: 1.5,
             }}
           >
-            <p style={{ margin: '0 0 0.5rem', color: '#e2e8f0', fontWeight: 600 }}>
-              💡 What is the Recovery Key?
+            <p
+              style={{
+                margin: '0 0 0.5rem',
+                color: '#e2e8f0',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <Lightbulb size={16} style={{ color: '#fbbf24', flexShrink: 0 }} />
+              <span>What is the Recovery Key?</span>
             </p>
             <p style={{ margin: 0 }}>
               This key is the raw cryptographic Master Key that encrypts your vault. If you ever
