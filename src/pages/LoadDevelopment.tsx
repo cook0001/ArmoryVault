@@ -252,10 +252,37 @@ export const LoadDevelopment = () => {
             <LoadDevNavIcon size={24} color="var(--accent)" />
             Load Development &amp; Ladder Tests
           </h1>
-          <p style={{ color: 'var(--text-secondary)', marginTop: 4, fontSize: '0.85rem' }}>
-            Precision powder charge ladder testing, harmonic node detection, velocity curves, and
-            reloading economics
-          </p>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.6rem',
+              flexWrap: 'wrap',
+              marginTop: 6,
+              fontSize: '0.84rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+              <Scale size={13} color="var(--accent)" />
+              Precision Powder Ladder Testing
+            </span>
+            <span style={{ color: 'var(--border-subtle)', opacity: 0.7 }}>•</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+              <TrendingUp size={13} color="#34d399" />
+              Harmonic Node Detection
+            </span>
+            <span style={{ color: 'var(--border-subtle)', opacity: 0.7 }}>•</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+              <LineChart size={13} color="#38bdf8" />
+              Velocity Curves
+            </span>
+            <span style={{ color: 'var(--border-subtle)', opacity: 0.7 }}>•</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+              <DollarSign size={13} color="#f59e0b" />
+              Reloading Economics
+            </span>
+          </div>
         </div>
 
         <div
