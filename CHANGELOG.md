@@ -16,6 +16,10 @@
   - Allocated full card width for caliber titles (e.g., `.30-06 Springfield`, `.45-70 Government`), completely eliminating visual clipping and collisions between location tags and action buttons.
   - Added defensive text truncation (`text-overflow: ellipsis`) to `StorageBadge.tsx` for extra-long storage container names.
   - Improved layout flow in reloading component cards to prevent manufacturer and action button overlap.
+- **Load Development & Ladder Testing UI Polish**:
+  - Fixed header action buttons (`Cost Calculator`, `Print DOPE Sheet`, `New Ladder Test`) with single-line horizontal alignment (`whiteSpace: nowrap`), proper icon spacing, and cursor pointers, eliminating awkward 2-line text breaks.
+  - Made the **Handload Cost-Per-Round & Savings Calculator** globally accessible directly below the header, ensuring it opens cleanly even when no ladder tests have been saved yet.
+  - Upgraded the empty state from an unstyled text line into a rich, tactical hero workspace with ambient illumination, clear feature descriptions, quick-action buttons, and three capability cards (Incremental Steps, Harmonic Nodes, Velocity & Group Analysis).
 
 ## [2.8.0] - 2026-09-12 (Official Unified Release)
 ### Unification & Modernization

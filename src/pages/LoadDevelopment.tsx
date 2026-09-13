@@ -258,11 +258,27 @@ export const LoadDevelopment = () => {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: '0.75rem',
+            alignItems: 'center',
+            flexShrink: 0,
+          }}
+        >
           <button
             className="btn-secondary"
             onClick={() => setShowCostCalculator(!showCostCalculator)}
-            style={{ padding: '0.5rem 0.95rem', fontSize: '0.85rem' }}
+            style={{
+              padding: '0.55rem 1rem',
+              fontSize: '0.85rem',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.45rem',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+              cursor: 'pointer',
+            }}
           >
             <DollarSign size={16} />
             <span>Cost Calculator</span>
@@ -271,7 +287,16 @@ export const LoadDevelopment = () => {
             className="btn-secondary"
             onClick={() => window.print()}
             title="Print Load Development DOPE Sheet"
-            style={{ padding: '0.5rem 0.95rem', fontSize: '0.85rem' }}
+            style={{
+              padding: '0.55rem 1rem',
+              fontSize: '0.85rem',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.45rem',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+              cursor: 'pointer',
+            }}
           >
             <Printer size={16} />
             <span>Print DOPE Sheet</span>
@@ -279,7 +304,16 @@ export const LoadDevelopment = () => {
           <button
             className="btn-primary"
             onClick={() => setIsAddModalOpen(true)}
-            style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+            style={{
+              padding: '0.55rem 1.15rem',
+              fontSize: '0.85rem',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.45rem',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+              cursor: 'pointer',
+            }}
           >
             <PlusCircle size={16} />
             <span>New Ladder Test</span>
@@ -287,89 +321,543 @@ export const LoadDevelopment = () => {
         </div>
       </div>
 
-      {/* Test Selector Carousel / Cards */}
-      <div
-        className="no-print"
-        style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}
-      >
-        {tests.map((t) => (
+      {/* Reloading Cost-Per-Round Calculator Deck (Collapsible Global Tool) */}
+      {showCostCalculator && (
+        <div
+          className="no-print"
+          style={{
+            background: 'var(--card-bg)',
+            border: '1px solid rgba(52, 211, 153, 0.3)',
+            borderRadius: '12px',
+            padding: '1.25rem',
+            marginBottom: '1.5rem',
+          }}
+        >
           <div
-            key={t.id}
-            onClick={() => setSelectedTest(t)}
             style={{
-              padding: '0.75rem 1rem',
-              background: selectedTest?.id === t.id ? 'rgba(52, 211, 153, 0.15)' : 'var(--card-bg)',
-              border:
-                selectedTest?.id === t.id
-                  ? '1px solid var(--accent)'
-                  : '1px solid var(--border-light)',
-              borderRadius: '10px',
-              cursor: 'pointer',
-              minWidth: '220px',
-              transition: 'all 0.2s ease',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '1rem',
             }}
           >
-            <div
+            <h3
               style={{
-                fontWeight: 600,
+                margin: 0,
+                fontSize: '1rem',
                 color: 'var(--text-primary)',
-                fontSize: '0.9rem',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '5px',
+                gap: '0.5rem',
               }}
             >
-              <CartridgesIcon size={14} color="#f59e0b" />
-              {t.caliber} • {t.bulletGrain}gr {t.bulletType || ''}
-            </div>
-            <div
-              style={{
-                color: 'var(--text-muted)',
-                fontSize: '0.78rem',
-                marginTop: 3,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
-            >
-              <GunpowderIcon size={12} color="#94a3b8" />
-              {t.powderName} • {t.steps.length} steps • {t.date}
-            </div>
+              <DollarSign size={18} color="var(--accent)" />
+              Handload Cost-Per-Round &amp; Savings Calculator
+            </h3>
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDeleteTest(t.id!);
-              }}
+              type="button"
+              onClick={() => setShowCostCalculator(false)}
               style={{
                 background: 'none',
                 border: 'none',
-                color: 'var(--danger)',
+                color: 'var(--text-muted)',
                 cursor: 'pointer',
-                marginTop: 4,
-                padding: 0,
+                padding: '0.2rem',
+                display: 'flex',
+                alignItems: 'center',
               }}
-              title="Delete test"
             >
-              <Trash2 size={13} />
+              <X size={16} />
             </button>
           </div>
-        ))}
-        {tests.length === 0 && (
+
           <div
             style={{
-              color: 'var(--text-muted)',
-              padding: '2rem',
-              textAlign: 'center',
-              width: '100%',
-              background: 'var(--card-bg)',
-              borderRadius: '10px',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+              gap: '0.75rem',
+              marginBottom: '1rem',
             }}
           >
-            No ladder tests recorded yet. Click "New Ladder Test" to begin tracking powder charges
-            and velocity spreads.
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  color: 'var(--text-muted)',
+                  fontSize: '0.72rem',
+                  marginBottom: 3,
+                }}
+              >
+                Powder ($/lb)
+              </label>
+              <input
+                className="glass-input"
+                type="number"
+                step="0.5"
+                value={powderPricePerLb}
+                onChange={(e) => setPowderPricePerLb(e.target.value)}
+              />
+            </div>
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  color: 'var(--text-muted)',
+                  fontSize: '0.72rem',
+                  marginBottom: 3,
+                }}
+              >
+                Primers ($/1000)
+              </label>
+              <input
+                className="glass-input"
+                type="number"
+                step="1"
+                value={primerPricePer1000}
+                onChange={(e) => setPrimerPricePer1000(e.target.value)}
+              />
+            </div>
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  color: 'var(--text-muted)',
+                  fontSize: '0.72rem',
+                  marginBottom: 3,
+                }}
+              >
+                Bullets ($/100)
+              </label>
+              <input
+                className="glass-input"
+                type="number"
+                step="0.5"
+                value={bulletPricePer100}
+                onChange={(e) => setBulletPricePer100(e.target.value)}
+              />
+            </div>
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  color: 'var(--text-muted)',
+                  fontSize: '0.72rem',
+                  marginBottom: 3,
+                }}
+              >
+                Brass ($/100)
+              </label>
+              <input
+                className="glass-input"
+                type="number"
+                step="1"
+                value={brassPricePer100}
+                onChange={(e) => setBrassPricePer100(e.target.value)}
+              />
+            </div>
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  color: 'var(--text-muted)',
+                  fontSize: '0.72rem',
+                  marginBottom: 3,
+                }}
+              >
+                Reloads / Case
+              </label>
+              <input
+                className="glass-input"
+                type="number"
+                step="1"
+                value={brassReloads}
+                onChange={(e) => setBrassReloads(e.target.value)}
+              />
+            </div>
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  color: 'var(--text-muted)',
+                  fontSize: '0.72rem',
+                  marginBottom: 3,
+                }}
+              >
+                Factory Box ($/20)
+              </label>
+              <input
+                className="glass-input"
+                type="number"
+                step="1"
+                value={factoryBoxPrice}
+                onChange={(e) => setFactoryBoxPrice(e.target.value)}
+              />
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* Results Breakdown */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gap: '0.75rem',
+              background: 'rgba(0,0,0,0.25)',
+              padding: '0.85rem',
+              borderRadius: '8px',
+            }}
+          >
+            <div>
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Powder / Rd:</div>
+              <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}>
+                ${costBreakdown.powderCost.toFixed(3)}
+              </div>
+            </div>
+            <div>
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Primer / Rd:</div>
+              <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}>
+                ${costBreakdown.primerCost.toFixed(3)}
+              </div>
+            </div>
+            <div>
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Bullet / Rd:</div>
+              <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}>
+                ${costBreakdown.bulletCost.toFixed(3)}
+              </div>
+            </div>
+            <div>
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                Total Cost / Round:
+              </div>
+              <div style={{ fontWeight: 700, color: 'var(--accent)', fontSize: '1.1rem' }}>
+                ${costBreakdown.totalPerRound.toFixed(2)}
+              </div>
+            </div>
+            <div>
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                Savings / 50 Rounds:
+              </div>
+              <div
+                style={{
+                  fontWeight: 700,
+                  color: costBreakdown.savingsPer50 > 0 ? '#34d399' : '#f59e0b',
+                  fontSize: '1.1rem',
+                }}
+              >
+                ${costBreakdown.savingsPer50.toFixed(2)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Test Selector Carousel / Cards (When tests exist) */}
+      {tests.length > 0 && (
+        <div
+          className="no-print"
+          style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}
+        >
+          {tests.map((t) => (
+            <div
+              key={t.id}
+              onClick={() => setSelectedTest(t)}
+              style={{
+                padding: '0.75rem 1rem',
+                background:
+                  selectedTest?.id === t.id ? 'rgba(52, 211, 153, 0.15)' : 'var(--card-bg)',
+                border:
+                  selectedTest?.id === t.id
+                    ? '1px solid var(--accent)'
+                    : '1px solid var(--border-light)',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                minWidth: '220px',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <div
+                style={{
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                  fontSize: '0.9rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                }}
+              >
+                <CartridgesIcon size={14} color="#f59e0b" />
+                {t.caliber} • {t.bulletGrain}gr {t.bulletType || ''}
+              </div>
+              <div
+                style={{
+                  color: 'var(--text-muted)',
+                  fontSize: '0.78rem',
+                  marginTop: 3,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <GunpowderIcon size={12} color="#94a3b8" />
+                {t.powderName} • {t.steps.length} steps • {t.date}
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteTest(t.id!);
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--danger)',
+                  cursor: 'pointer',
+                  marginTop: 4,
+                  padding: 0,
+                }}
+                title="Delete test"
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Empty State when no tests exist */}
+      {tests.length === 0 && (
+        <div
+          className="no-print"
+          style={{
+            background: 'var(--card-bg)',
+            border: '1px solid var(--border-light)',
+            borderRadius: '16px',
+            padding: '3.5rem 2rem',
+            textAlign: 'center',
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Subtle Ambient Radial Glow */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '-15%',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: '500px',
+              height: '250px',
+              background:
+                'radial-gradient(ellipse at center, rgba(56, 189, 248, 0.1) 0%, transparent 70%)',
+              pointerEvents: 'none',
+            }}
+          />
+
+          {/* Tactical Icon Badge */}
+          <div
+            style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '16px',
+              background: 'rgba(56, 189, 248, 0.1)',
+              border: '1px solid rgba(56, 189, 248, 0.3)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '1.25rem',
+            }}
+          >
+            <LoadDevNavIcon size={32} color="#38bdf8" />
+          </div>
+
+          <h2
+            style={{
+              color: 'var(--text-primary)',
+              margin: '0 0 0.5rem 0',
+              fontSize: '1.45rem',
+              fontWeight: 700,
+              letterSpacing: '-0.01em',
+            }}
+          >
+            Precision Load Development &amp; Ladder Tests
+          </h2>
+
+          <p
+            style={{
+              color: 'var(--text-secondary)',
+              maxWidth: '620px',
+              margin: '0 auto 1.75rem auto',
+              fontSize: '0.92rem',
+              lineHeight: 1.6,
+            }}
+          >
+            Systematically test incremental powder charges, detect barrel harmonic nodes, track
+            chronograph velocity spreads, and pinpoint maximum precision with minimal group
+            dispersion.
+          </p>
+
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              gap: '0.85rem',
+              flexWrap: 'wrap',
+              marginBottom: '3rem',
+            }}
+          >
+            <button
+              className="btn-primary"
+              onClick={() => setIsAddModalOpen(true)}
+              style={{
+                padding: '0.65rem 1.4rem',
+                fontSize: '0.92rem',
+                fontWeight: 600,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                borderRadius: '8px',
+                whiteSpace: 'nowrap',
+                cursor: 'pointer',
+              }}
+            >
+              <PlusCircle size={17} />
+              <span>Start Your First Ladder Test</span>
+            </button>
+            <button
+              className="btn-secondary"
+              onClick={() => setShowCostCalculator(true)}
+              style={{
+                padding: '0.65rem 1.25rem',
+                fontSize: '0.92rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                borderRadius: '8px',
+                whiteSpace: 'nowrap',
+                cursor: 'pointer',
+              }}
+            >
+              <DollarSign size={17} />
+              <span>Open Cost Calculator</span>
+            </button>
+          </div>
+
+          {/* Tactical Feature Cards */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+              gap: '1.25rem',
+              textAlign: 'left',
+              maxWidth: '960px',
+              margin: '0 auto',
+            }}
+          >
+            <div
+              style={{
+                background: 'rgba(0,0,0,0.2)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '12px',
+                padding: '1.25rem',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  marginBottom: '0.5rem',
+                  color: 'var(--text-primary)',
+                  fontWeight: 600,
+                  fontSize: '0.95rem',
+                }}
+              >
+                <Scale size={18} color="#38bdf8" />
+                <span>Incremental Charge Steps</span>
+              </div>
+              <p
+                style={{
+                  margin: 0,
+                  color: 'var(--text-muted)',
+                  fontSize: '0.83rem',
+                  lineHeight: 1.5,
+                }}
+              >
+                Record step-by-step powder increments (0.2–0.5 gr) while monitoring safety pressure
+                signs like flattened primers or sticky bolt lift.
+              </p>
+            </div>
+
+            <div
+              style={{
+                background: 'rgba(0,0,0,0.2)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '12px',
+                padding: '1.25rem',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  marginBottom: '0.5rem',
+                  color: 'var(--text-primary)',
+                  fontWeight: 600,
+                  fontSize: '0.95rem',
+                }}
+              >
+                <TrendingUp size={18} color="#34d399" />
+                <span>Harmonic Node Detection</span>
+              </div>
+              <p
+                style={{
+                  margin: 0,
+                  color: 'var(--text-muted)',
+                  fontSize: '0.83rem',
+                  lineHeight: 1.5,
+                }}
+              >
+                Pinpoint velocity plateaus where barrel vibration harmonizes, keeping muzzle
+                velocities and vertical stringing stable under field conditions.
+              </p>
+            </div>
+
+            <div
+              style={{
+                background: 'rgba(0,0,0,0.2)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '12px',
+                padding: '1.25rem',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  marginBottom: '0.5rem',
+                  color: 'var(--text-primary)',
+                  fontWeight: 600,
+                  fontSize: '0.95rem',
+                }}
+              >
+                <BarChart3 size={18} color="#f59e0b" />
+                <span>Velocity &amp; Group Analysis</span>
+              </div>
+              <p
+                style={{
+                  margin: 0,
+                  color: 'var(--text-muted)',
+                  fontSize: '0.83rem',
+                  lineHeight: 1.5,
+                }}
+              >
+                Interactive SVG curves plotting Velocity (FPS) &amp; Group Dispersion (MOA/Inches)
+                alongside automatic SD and Extreme Spread calculations.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Selected Test Detail */}
       {selectedTest && (
@@ -656,244 +1144,6 @@ export const LoadDevelopment = () => {
                     );
                   })()}
                 </svg>
-              </div>
-            </div>
-          )}
-
-          {/* Reloading Cost-Per-Round Calculator Deck */}
-          {showCostCalculator && (
-            <div
-              className="no-print"
-              style={{
-                background: 'var(--card-bg)',
-                border: '1px solid rgba(52, 211, 153, 0.3)',
-                borderRadius: '12px',
-                padding: '1.25rem',
-                marginBottom: '1.25rem',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '1rem',
-                }}
-              >
-                <h3
-                  style={{
-                    margin: 0,
-                    fontSize: '1rem',
-                    color: 'var(--text-primary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                  }}
-                >
-                  <DollarSign size={18} color="var(--accent)" />
-                  Handload Cost-Per-Round &amp; Savings Calculator
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setShowCostCalculator(false)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-muted)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-                  gap: '0.75rem',
-                  marginBottom: '1rem',
-                }}
-              >
-                <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      color: 'var(--text-muted)',
-                      fontSize: '0.72rem',
-                      marginBottom: 3,
-                    }}
-                  >
-                    Powder ($/lb)
-                  </label>
-                  <input
-                    className="glass-input"
-                    type="number"
-                    step="0.5"
-                    value={powderPricePerLb}
-                    onChange={(e) => setPowderPricePerLb(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      color: 'var(--text-muted)',
-                      fontSize: '0.72rem',
-                      marginBottom: 3,
-                    }}
-                  >
-                    Primers ($/1000)
-                  </label>
-                  <input
-                    className="glass-input"
-                    type="number"
-                    step="1"
-                    value={primerPricePer1000}
-                    onChange={(e) => setPrimerPricePer1000(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      color: 'var(--text-muted)',
-                      fontSize: '0.72rem',
-                      marginBottom: 3,
-                    }}
-                  >
-                    Bullets ($/100)
-                  </label>
-                  <input
-                    className="glass-input"
-                    type="number"
-                    step="0.5"
-                    value={bulletPricePer100}
-                    onChange={(e) => setBulletPricePer100(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      color: 'var(--text-muted)',
-                      fontSize: '0.72rem',
-                      marginBottom: 3,
-                    }}
-                  >
-                    Brass ($/100)
-                  </label>
-                  <input
-                    className="glass-input"
-                    type="number"
-                    step="1"
-                    value={brassPricePer100}
-                    onChange={(e) => setBrassPricePer100(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      color: 'var(--text-muted)',
-                      fontSize: '0.72rem',
-                      marginBottom: 3,
-                    }}
-                  >
-                    Reloads / Case
-                  </label>
-                  <input
-                    className="glass-input"
-                    type="number"
-                    step="1"
-                    value={brassReloads}
-                    onChange={(e) => setBrassReloads(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      color: 'var(--text-muted)',
-                      fontSize: '0.72rem',
-                      marginBottom: 3,
-                    }}
-                  >
-                    Factory Box ($/20)
-                  </label>
-                  <input
-                    className="glass-input"
-                    type="number"
-                    step="1"
-                    value={factoryBoxPrice}
-                    onChange={(e) => setFactoryBoxPrice(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {/* Results Breakdown */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                  gap: '0.75rem',
-                  background: 'rgba(0,0,0,0.25)',
-                  padding: '0.85rem',
-                  borderRadius: '8px',
-                }}
-              >
-                <div>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                    Powder / Rd:
-                  </div>
-                  <div
-                    style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}
-                  >
-                    ${costBreakdown.powderCost.toFixed(3)}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                    Primer / Rd:
-                  </div>
-                  <div
-                    style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}
-                  >
-                    ${costBreakdown.primerCost.toFixed(3)}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                    Bullet / Rd:
-                  </div>
-                  <div
-                    style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}
-                  >
-                    ${costBreakdown.bulletCost.toFixed(3)}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                    Total Cost / Round:
-                  </div>
-                  <div style={{ fontWeight: 700, color: 'var(--accent)', fontSize: '1.1rem' }}>
-                    ${costBreakdown.totalPerRound.toFixed(2)}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                    Savings / 50 Rounds:
-                  </div>
-                  <div
-                    style={{
-                      fontWeight: 700,
-                      color: costBreakdown.savingsPer50 > 0 ? '#34d399' : '#f59e0b',
-                      fontSize: '1.1rem',
-                    }}
-                  >
-                    ${costBreakdown.savingsPer50.toFixed(2)}
-                  </div>
-                </div>
               </div>
             </div>
           )}
