@@ -1,10 +1,13 @@
 # ArmoryVault 🛡️
 
+[![CI](https://github.com/cook0001/ArmoryVault/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/cook0001/ArmoryVault/actions/workflows/ci.yml)
 [![Website](https://img.shields.io/badge/Website-cook0001.github.io%2FArmoryVault-blue?style=flat-square&logo=github)](https://cook0001.github.io/ArmoryVault/)
+[![Docs](https://img.shields.io/badge/Docs-User%20Guide%20%26%20Wiki-00d2ff?style=flat-square)](https://cook0001.github.io/ArmoryVault/#docs)
 [![Release](https://img.shields.io/github/v/release/cook0001/ArmoryVault?style=flat-square&color=emerald)](https://github.com/cook0001/ArmoryVault/releases/latest)
 [![License](https://img.shields.io/badge/License-ISC-purple?style=flat-square)](LICENSE)
 
-> 🌐 **Live Website & Download Portal**: [https://cook0001.github.io/ArmoryVault/](https://cook0001.github.io/ArmoryVault/)
+> 🌐 **Live Website & Download Portal**: [https://cook0001.github.io/ArmoryVault/](https://cook0001.github.io/ArmoryVault/)  
+> 📖 **Official User Guide & Knowledge Base**: [https://cook0001.github.io/ArmoryVault/#docs](https://cook0001.github.io/ArmoryVault/#docs)
 
 A secure, premium, cross-platform desktop application designed for serious collectors and firearms owners. ArmoryVault provides local inventory tracking, maintenance logs, and printable "Bound Book" ledgers wrapped in a stunning, modern Glassmorphism interface.
 
@@ -18,11 +21,12 @@ A secure, premium, cross-platform desktop application designed for serious colle
 - **Over-The-Air Updates**: Features a seamless auto-update pipeline backed by GitHub Releases. The app will detect, download, and install updates automatically.
 
 ## 🛠 Tech Stack
-- **Frontend**: React 18, TypeScript, Vite
-- **Styling**: Vanilla CSS (Dark Mode Glassmorphism)
+- **Frontend**: React 19, TypeScript, Vite, Biome
+- **Styling**: Vanilla CSS (Dark Mode Glassmorphism) with Lucide Icons
 - **Desktop Engine**: Electron with secure IPC Context Bridge
-- **Storage**: Native local File-System Persistence
-- **CI/CD**: `electron-builder` and `electron-updater`
+- **Testing**: Vitest CI Suite (117+ tests)
+- **Storage**: Native local File-System & Encrypted SQLite Persistence
+- **CI/CD**: `electron-builder`, `electron-updater`, and GitHub Pages
 
 ## 📥 Installation
 

@@ -1,0 +1,70 @@
+name: 🐛 Bug Report
+description: Report an issue or unexpected behavior in ArmoryVault Desktop
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an issue with **ArmoryVault Desktop**!
+        Before submitting, please check the [Official User Guide & Knowledge Base](https://cook0001.github.io/ArmoryVault/#docs).
+
+  - type: input
+    id: app_version
+    attributes:
+      label: Desktop Version
+      description: Found in the bottom-left corner of the sidebar or Settings (e.g. v2.8.2).
+      placeholder: "e.g. v2.8.2"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      description: What operating system are you using?
+      options:
+        - "macOS (Apple Silicon - M1/M2/M3/M4)"
+        - "macOS (Intel x64)"
+        - "Windows 10 / 11 (64-bit)"
+        - "Linux (.AppImage)"
+        - "Linux (.deb / AUR)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the Bug
+      description: Clear and concise description of what went wrong.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this issue?
+      placeholder: |
+        1. Navigate to 'Inventory'
+        2. Click 'Add Firearm'
+        3. Fill in fields and click save
+        4. See error or unexpected state
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen instead?
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: privacy_check
+    attributes:
+      label: Zero-Cloud & Privacy Confirmation
+      options:
+        - label: I confirm that any attached logs, screenshots, or exports do NOT contain real serial numbers, names, or private vault encryption keys.
+          required: true

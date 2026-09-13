@@ -134,6 +134,26 @@ jobs:
 
           echo "🎉 All multi-platform installers verified and release published successfully!"
 
+      - name: 🔐 Generate and Attach SHA256 Checksums
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="${{ inputs.tag_name || github.ref_name }}"
+          echo "Generating cryptographic SHA256 checksums for release $TAG_NAME..."
+          mkdir -p /tmp/release-assets
+          cd /tmp/release-assets
+          gh release download "$TAG_NAME" -p "*.dmg" -p "*.exe" -p "*.AppImage" -p "*.zip" || true
+          if ls * 1> /dev/null 2>&1; then
+            sha256sum * > SHA256SUMS.txt
+            cat SHA256SUMS.txt
+            gh release upload "$TAG_NAME" SHA256SUMS.txt --clobber
+            echo "✅ SHA256SUMS.txt successfully generated and attached to release $TAG_NAME."
+          else
+            echo "⚠️ Notice: No binary assets found to hash."
+          fi
+          cd -
+          rm -rf /tmp/release-assets
+
       - name: Prune Superseded Releases (Retain 3 Most Recent)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
