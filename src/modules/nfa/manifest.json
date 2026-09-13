@@ -1,0 +1,11 @@
+{
+  "id": "nfa",
+  "name": "NFA & Compliance Tracker",
+  "version": "1.0.0",
+  "minAppVersion": "1.0.0",
+  "author": "ArmoryVault",
+  "category": "compliance",
+  "description": "ATF Form 1 and Form 4 tracker, tax stamp status, trust beneficiary records, and CLEO notifications.",
+  "dataKeys": ["nfa_items"],
+  "entry": "index.ts"
+}

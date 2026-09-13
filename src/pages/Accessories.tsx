@@ -16,8 +16,6 @@ import {
 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { AccessoryDetailModal, getAccessoryTypeColor } from '../components/AccessoryDetailModal';
-import { AccessoryModal } from '../components/AccessoryModal';
 import {
   ChassisIcon,
   GunBeltIcon,
@@ -29,9 +27,15 @@ import {
   SuppressorIcon,
   TacticalSlingIcon,
 } from '../components/CustomIcons';
+import {
+  AccessoryDetailModal,
+  getAccessoryTypeColor,
+} from '../components/modals/AccessoryDetailModal';
+import { AccessoryModal } from '../components/modals/AccessoryModal';
 import { StorageBadge } from '../components/StorageBadge';
 import { useUndoToast } from '../components/UndoToast';
 import { Accessory, Firearm, StorageLocation } from '../types';
+import { getLocalImageUrl } from '../utils/imageUrl';
 import {
   getItemStorageLocation,
   removeItemFromAllStorage,
@@ -58,9 +62,16 @@ export const Accessories = () => {
 
   const [formData, setFormData] = useState<Partial<Accessory>>({});
 
+  const [visibleCount, setVisibleCount] = useState(36);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
   const location = useLocation();
   const navigate = useNavigate();
   const locationProcessed = useRef<string | null>(null);
+
+  useEffect(() => {
+    setVisibleCount(36);
+  }, [search, selectedLocationId]);
 
   useEffect(() => {
     loadData();
@@ -137,6 +148,27 @@ export const Accessories = () => {
     const loc = getItemStorageLocation('accessory', a.id, locations);
     return loc?.id === Number(selectedLocationId);
   });
+
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') {
+      setVisibleCount(filteredAccessories.length);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((prev) => Math.min(prev + 36, filteredAccessories.length));
+        }
+      },
+      { rootMargin: '400px' }
+    );
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [filteredAccessories.length]);
 
   const handleEdit = (acc: Accessory) => {
     setFormData(acc);
@@ -297,7 +329,7 @@ export const Accessories = () => {
             gap: '1.5rem',
           }}
         >
-          {filteredAccessories.map((acc) => {
+          {filteredAccessories.slice(0, visibleCount).map((acc) => {
             const typeColor = getAccessoryTypeColor(acc.type);
             const totalMounted = acc.mounts
               ? acc.mounts.reduce((sum, m) => sum + (m.quantity || 1), 0)
@@ -339,13 +371,11 @@ export const Accessories = () => {
                   >
                     {acc.photo ? (
                       <img
-                        src={
-                          acc.photo.startsWith('local-file://')
-                            ? acc.photo
-                            : `local-file://${acc.photo}`
-                        }
+                        src={getLocalImageUrl(acc.photo, true)}
                         alt={acc.model}
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        loading="lazy"
+                        decoding="async"
                       />
                     ) : (
                       <Camera size={26} color="var(--text-secondary)" style={{ opacity: 0.6 }} />
@@ -898,6 +928,12 @@ export const Accessories = () => {
               </div>
             );
           })}
+          {visibleCount < filteredAccessories.length && (
+            <div
+              ref={loadMoreRef}
+              style={{ height: '40px', width: '100%', gridColumn: '1 / -1' }}
+            />
+          )}
         </div>
       )}
 

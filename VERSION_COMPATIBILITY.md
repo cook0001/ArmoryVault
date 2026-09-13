@@ -55,7 +55,8 @@ The ArmoryVault ecosystem uses a single, unified release stream for both Desktop
 
 | Desktop Version | Mobile Version | Compatibility Status | Supported Capabilities |
 | :--- | :--- | :---: | :--- |
-| **`v2.8.x`** *(Current)* | **`v2.7.x`** *(Current)* | ⭐️ **Full (100%)** | • Full Inventory Sync (Firearms, Ammo, Components, Accessories)<br>• Mobile Chronograph velocity strings (`/api/chrono`)<br>• Target & Grouping Analysis sync (`/api/target-analysis`)<br>• Safe & Storage Location sync (`/api/storage-locations`)<br>• Ballistic DOPE Profiles sync (`/api/ballistic-profiles`)<br>• Real-time Pairing QR & Remote Vault Lock<br>• Mobile Firearm Intake & Photo Upload |
+| **`v2.9.x`** *(Current)* | **`v2.7.x`** *(Current)* | ⭐️ **Full (100%)** | • Pluggable Module Architecture & Module Center<br>• Full Inventory Sync (Firearms, Ammo, Components, Accessories)<br>• Zero-Crash Sync Fallbacks for Uninstalled Modules<br>• Mobile Chronograph velocity strings (`/api/chrono`)<br>• Target & Grouping Analysis sync (`/api/target-analysis`)<br>• Safe & Storage Location sync (`/api/storage-locations`)<br>• Ballistic DOPE Profiles sync (`/api/ballistic-profiles`)<br>• Real-time Pairing QR & Remote Vault Lock<br>• Mobile Firearm Intake & Photo Upload |
+| **`v2.8.x`** | **`v2.7.x`** | ⭐️ **Full (100%)** | • Full Inventory Sync (Firearms, Ammo, Components, Accessories)<br>• Mobile Chronograph velocity strings (`/api/chrono`)<br>• Target & Grouping Analysis sync (`/api/target-analysis`)<br>• Safe & Storage Location sync (`/api/storage-locations`)<br>• Ballistic DOPE Profiles sync (`/api/ballistic-profiles`)<br>• Real-time Pairing QR & Remote Vault Lock<br>• Mobile Firearm Intake & Photo Upload |
 | **`v2.7.x`** | **`v2.6.x` / `v2.5.x`** | ⭐️ **Full (Core Sync)** | • Core Local Wi-Fi Pairing & Ping<br>• Complete Inventory Caching & Summary views<br>• Range Sessions, Outbox Sync & Bill of Sale exports |
 | **`v2.4.x` and older** | Any | ❌ **Unsupported** | • Legacy format before encrypted auth tokens. Upgrading is required. |
 
@@ -107,6 +108,6 @@ Android's system `PackageManager` strictly prohibits **in-place version downgrad
 
 ## 🎯 Recommended Deployment Configuration
 
-* **Desktop**: `v2.8.3` (Unified Production Release)
+* **Desktop**: `v2.9.0` (Unified Production Release)
 * **Mobile**: `v2.7.10` (Unified Production Release, `versionCode 319`)
 * **Capabilities**: Full offline inventory sync, real-time ballistic profiles, chronograph velocity strings, shot grouping calculator, mobile firearm intake & photo uploads, secure LAN pairing token exchange, remote vault lock, automated Bill of Sale archival & sync, desktop-grade shotgun shell classification, specification badges, inspecting modal, and overpressure (+P / +P+) pressure rating sync.

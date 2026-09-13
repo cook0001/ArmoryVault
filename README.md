@@ -1,59 +1,67 @@
-# ArmoryVault 🛡️
+# ArmoryVault
 
 [![CI](https://github.com/cook0001/ArmoryVault/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/cook0001/ArmoryVault/actions/workflows/ci.yml)
 [![Website](https://img.shields.io/badge/Website-cook0001.github.io%2FArmoryVault-blue?style=flat-square&logo=github)](https://cook0001.github.io/ArmoryVault/)
 [![Docs](https://img.shields.io/badge/Docs-User%20Guide%20%26%20Wiki-00d2ff?style=flat-square)](https://cook0001.github.io/ArmoryVault/#docs)
+[![Modules](https://img.shields.io/badge/Modules%20Hub-cook0001.github.io%2FArmoryVault--Modules-818cf8?style=flat-square)](https://cook0001.github.io/ArmoryVault-Modules/)
 [![Release](https://img.shields.io/github/v/release/cook0001/ArmoryVault?style=flat-square&color=emerald)](https://github.com/cook0001/ArmoryVault/releases/latest)
 [![License](https://img.shields.io/badge/License-ISC-purple?style=flat-square)](LICENSE)
 
-> 🌐 **Live Website & Download Portal**: [https://cook0001.github.io/ArmoryVault/](https://cook0001.github.io/ArmoryVault/)  
-> 📖 **Official User Guide & Knowledge Base**: [https://cook0001.github.io/ArmoryVault/#docs](https://cook0001.github.io/ArmoryVault/#docs)
+> **Live Website & Download Portal**: [https://cook0001.github.io/ArmoryVault/](https://cook0001.github.io/ArmoryVault/)  
+> **Modules Registry Hub**: [https://cook0001.github.io/ArmoryVault-Modules/](https://cook0001.github.io/ArmoryVault-Modules/)  
+> **Official User Guide & Knowledge Base**: [https://cook0001.github.io/ArmoryVault/#docs](https://cook0001.github.io/ArmoryVault/#docs)
 
-A secure, premium, cross-platform desktop application designed for serious collectors and firearms owners. ArmoryVault provides local inventory tracking, maintenance logs, and printable "Bound Book" ledgers wrapped in a stunning, modern Glassmorphism interface.
+A secure, premium, cross-platform desktop application designed for serious firearms owners, collectors, and reloaders. ArmoryVault provides local inventory tracking, maintenance schedules, ballistics calculations, and printable ATF "Bound Book" ledgers wrapped in a modern dark Glassmorphism interface.
 
-## ✨ Features
+## Key Features
 
-- **End-to-End Inventory Tracking**: Log make, model, caliber, serial number, purchase price, and attach high-res local photos to your records.
-- **Maintenance & Range Logs**: Keep detailed notes of gunsmithing work, deep cleanings, and range trips. The app automatically tallies the lifetime "rounds fired" count for every weapon.
-- **A&D Bound Book**: Need physical records? ArmoryVault generates a stark, professional Acquisition & Disposition (A&D) ledger view specifically optimized with custom CSS for printing standard 8.5x11 records.
-- **Data Export**: Instantly export your entire inventory to a cleanly formatted `.csv` file for insurance backups and spreadsheets.
-- **Completely Private**: Built with Electron, ArmoryVault is a 100% offline desktop application. Your inventory data and photos never leave your machine; they are saved securely in your OS's native Application Data folder.
-- **Over-The-Air Updates**: Features a seamless auto-update pipeline backed by GitHub Releases. The app will detect, download, and install updates automatically.
+- **Lean Core & Pluggable Modular Architecture**: Core essentials (Dashboard, Firearms, Ammunition Depot, Storage Organizer, Accessories, Vault Security) remain lean, fast, and 100% air-gapped. Specialized features are installed on-demand via the in-app **Module Center** (`Reloading Workbench`, `Armorer & Maintenance`, `Ballistics Calculator`, `NFA Tracker`, and `Bound Book`).
+- **Dedicated Modules Repository & Dynamic Discovery**: Pluggable modules are maintained independently in [cook0001/ArmoryVault-Modules](https://github.com/cook0001/ArmoryVault-Modules). The core application queries the remote catalog and registers newly published extensions without requiring a core application re-compile.
+- **Encrypted Module Archiving & Data Mobility**: Uninstalled modules have their data pruned from memory and securely written to AES-256-GCM encrypted archives (`userData/module_archives/`). All module archives travel with your automated `.zip` backups so your historical records are never lost.
+- **End-to-End Inventory Tracking**: Log make, model, caliber, serial number, purchase price, storage locations, optic torque specs, and high-resolution local photos.
+- **Maintenance & Round Telemetry**: Keep detailed logs of gunsmithing work, deep cleanings, part replacements, and range sessions. Lifetime round counts increment dynamically across weapons and mounted accessories.
+- **ATF A&D Bound Book**: Generate professional Acquisition & Disposition (A&D) ledger views specifically formatted for 27 CFR Part 478 compliance and optimized for standard 8.5x11 printing.
+- **Local Wi-Fi Companion Sync**: Securely pair and synchronize inventory telemetry with the ArmoryVault Mobile Companion app over local Wi-Fi with zero cloud relay servers.
+- **100% Private & Air-Gapped**: Built with Electron, React 19, and Vite. Your data is encrypted locally with PBKDF2/AES-256-GCM. No accounts, no cloud servers, and zero third-party telemetry.
 
-## 🛠 Tech Stack
+## Tech Stack
+
 - **Frontend**: React 19, TypeScript, Vite, Biome
-- **Styling**: Vanilla CSS (Dark Mode Glassmorphism) with Lucide Icons
-- **Desktop Engine**: Electron with secure IPC Context Bridge
-- **Testing**: Vitest CI Suite (117+ tests)
-- **Storage**: Native local File-System & Encrypted SQLite Persistence
+- **Styling**: Vanilla CSS (Modern Dark Glassmorphism) with Lucide Vector Icons
+- **Desktop Engine**: Electron with secure context-isolated IPC bridge
+- **Testing**: Vitest CI Suite (147 automated tests across 25 suites)
+- **Storage**: Native File-System & Encrypted AES-256-GCM persistence
 - **CI/CD**: `electron-builder`, `electron-updater`, and GitHub Pages
 
-## 📥 Installation
+## Installation
 
-ArmoryVault is an open-source project and is not distributed with expensive code-signing certificates. Because of this, your operating system will display a security warning the first time you run it. 
+ArmoryVault is an open-source project distributed directly via GitHub Releases.
 
 ### macOS
-When you open ArmoryVault, you will likely see a message saying the app "is damaged and can't be opened" or "cannot be verified."
-1. Drag `ArmoryVault.app` from the `.dmg` into your **Applications** folder.
-2. Open your Terminal and run the following command to strip the quarantine attribute:
-   ```bash
-   xattr -cr /Applications/ArmoryVault.app
-   ```
-3. You can now launch the app normally! (Alternatively, you can go to *System Settings > Privacy & Security* and click "Open Anyway").
+1. Download `ArmoryVault-Mac-arm64.dmg` (Apple Silicon) or `ArmoryVault-Mac-x64.dmg` (Intel).
+2. Drag `ArmoryVault.app` into your **Applications** folder.
+3. If macOS Gatekeeper displays an unverified developer warning:
+   - Open Terminal and run:
+     ```bash
+     xattr -cr /Applications/ArmoryVault.app
+     ```
+   - Alternatively, navigate to *System Settings > Privacy & Security* and click "Open Anyway".
 
 ### Windows
-Windows Defender SmartScreen may display a blue warning box saying it "protected your PC."
-1. Click **"More info"** on the warning screen.
-2. Click **"Run anyway"**. The installer will now launch.
+1. Download `ArmoryVault-Setup-2.9.0.exe`.
+2. Double-click the installer.
+3. If Microsoft Defender SmartScreen displays a warning, click **"More info"** followed by **"Run anyway"**.
 
 ### Linux (.AppImage)
-1. Download the `.AppImage` file.
-2. Make it executable by running `chmod +x ArmoryVault-2.3.1.AppImage` in your terminal (or right-click the file > Properties > Permissions > "Allow executing file as program").
-3. Double click to run!
+1. Download `ArmoryVault-2.9.0.AppImage`.
+2. Grant execution permissions:
+   ```bash
+   chmod +x ArmoryVault-2.9.0.AppImage && ./ArmoryVault-2.9.0.AppImage
+   ```
 
-## 🚀 Getting Started (Development)
+## Development Setup
 
-To run ArmoryVault locally on your machine for development:
+To run ArmoryVault locally for development:
 
 1. **Clone the repository:**
    ```bash
@@ -71,39 +79,36 @@ To run ArmoryVault locally on your machine for development:
    npm run electron:dev
    ```
 
-4. **Run Linter & Tests:**
+4. **Run Linter & Test Suite:**
    ```bash
-   npm run lint        # Fast Biome code quality check
-   npm test            # Vitest automated test suite
+   npm run check       # Biome formatting & linter check
+   npm test            # Full Vitest automated test suite (25 suites, 147 tests)
+   npm run build       # TypeScript compiler (tsc -b) & Vite production build
    ```
 
-> 📖 **Full Developer & Release Guide**: See [WORKFLOW.md](WORKFLOW.md) for detailed guidelines on branching, ATF Bound Book compliance, pre-commit hooks, and the release pipeline.
+> **Detailed Developer Guide**: See [WORKFLOW.md](WORKFLOW.md) for guidelines on code standards, atomic git commits, and release preparation.
 
-## 📦 Building for Production & Releases
-
-ArmoryVault uses `electron-builder` to produce verified multi-platform production artifacts:
-
-- **Official Release Builds**: Generated into `dist-electron/release/`
-
-### Local Packaging Commands
+## Building for Production & Releases
 
 | Command | Platform | Output Target |
 | :--- | :--- | :--- |
 | `npm run package:mac` | macOS Universal (`.dmg` + `.zip`) | `dist-electron/release/` |
 | `npm run package:win` | Windows Setup (`.exe`) | `dist-electron/release/` |
-| `npm run package:linux` | Linux (`.AppImage`) | `dist-electron/release/` |
-| `npm run release` | All Platforms | Builds and publishes official binaries to GitHub |
+| `npm run package:linux` | Linux Universal (`.AppImage`) | `dist-electron/release/` |
+| `npm run package:modules` | Modular Extension Archives | `dist-modules/` (`module-*.zip`) |
+| `npm run release` | Multi-Platform Release | Compiles and publishes release binaries |
 
 ### Automated CI/CD Pipeline
-You do not need to manually compile the application on your local machine. The repository is configured with GitHub Actions workflows:
-- **Continuous Integration (`.github/workflows/ci.yml`)**: Automatically lints, builds, and runs unit tests on every Pull Request and push.
-- **Desktop Releases (`.github/workflows/release.yml`)**: Compiles multi-platform installers (macOS Apple Silicon/Intel, Windows, Linux) and uploads verified release installers directly to GitHub Releases.
-- **Website Portal (`.github/workflows/website.yml`)**: The official website source lives in `website/` and automatically deploys to [GitHub Pages](https://cook0001.github.io/ArmoryVault/) upon push to `main`.
+- **Continuous Integration (`.github/workflows/ci.yml`)**: Runs linting, type-checking, and all 147 unit tests on every pull request and push.
+- **Desktop Releases (`.github/workflows/release.yml`)**: Builds cross-platform binaries and publishes assets to GitHub Releases.
+- **Website Portal (`.github/workflows/website.yml`)**: Deploys the official portal to [GitHub Pages](https://cook0001.github.io/ArmoryVault/).
 
-To trigger a new production build:
-1. Run `npm run verify:preflight` to execute the automated 7-point health check.
-2. Run `npm run release:prep` to bump your version (`major`, `minor`, or `patch`).
-3. Run `npm run changelog:draft` to extract commit notes and update `CHANGELOG.md`.
-4. Commit your changes and push a git tag matching the version (e.g., `git tag v2.8.0 && git push origin --tags`).
-5. GitHub Actions handles multi-platform compilation and uploads all installers automatically!
+## Associated Repositories
 
+- **[cook0001/ArmoryVault-Modules](https://github.com/cook0001/ArmoryVault-Modules)**: Pluggable extensions repository (`reloading`, `maintenance`, `ballistics`, `nfa`, `boundbook`).
+- **[cook0001/ArmoryVault-Companion-App](https://github.com/cook0001/ArmoryVault-Companion-App)**: Offline mobile companion app for Android and iOS.
+- **[cook0001/armstrader.store](https://github.com/cook0001/armstrader.store)**: Web utilities suite (Firearm Bill of Sale Generator, FFL Finder, Shooting Range Locator).
+
+## License
+
+Released under the [ISC License](LICENSE). Copyright &copy; 2026 Daniel C. (cook0001).

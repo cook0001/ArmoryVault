@@ -17,7 +17,7 @@ import {
   GunpowderIcon,
   PrimerIcon,
 } from '../components/CustomIcons';
-import { ReloadingComponentModal } from '../components/ReloadingComponentModal';
+import { ReloadingComponentModal } from '../components/modals/ReloadingComponentModal';
 import { StorageBadge } from '../components/StorageBadge';
 import { useUndoToast } from '../components/UndoToast';
 import { ReloadingComponent, StorageLocation } from '../types';

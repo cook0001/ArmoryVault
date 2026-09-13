@@ -375,6 +375,159 @@ export function setupMockBackend() {
 
       // ── Activity Log ──
       getActivityLog: async () => [],
+
+      // ── Module Archiving & Restoration ──
+      archiveModuleData: async (moduleId: string, dataKeys: string[]) => {
+        const archives = JSON.parse(localStorage.getItem('av_mock_module_archives') || '{}');
+        const extracted: Record<string, any> = {};
+        let totalRecords = 0;
+        const dataKeyCount: Record<string, number> = {};
+
+        dataKeys.forEach((key) => {
+          const item = localStorage.getItem(`av_${key}`);
+          if (item) {
+            try {
+              const parsed = JSON.parse(item);
+              extracted[key] = parsed;
+              const count = Array.isArray(parsed) ? parsed.length : 1;
+              dataKeyCount[key] = count;
+              totalRecords += count;
+              localStorage.removeItem(`av_${key}`);
+            } catch (e) {}
+          }
+        });
+
+        archives[moduleId] = {
+          moduleId,
+          archivedAt: new Date().toISOString(),
+          totalRecords,
+          dataKeyCount,
+          data: extracted,
+        };
+        localStorage.setItem('av_mock_module_archives', JSON.stringify(archives));
+        return { success: true, totalRecords, dataKeyCount };
+      },
+
+      restoreModuleData: async (moduleId: string) => {
+        const archives = JSON.parse(localStorage.getItem('av_mock_module_archives') || '{}');
+        const archive = archives[moduleId];
+        if (!archive) return { success: false, error: 'No archive found' };
+        if (archive.data) {
+          Object.entries(archive.data).forEach(([k, v]) => {
+            localStorage.setItem(`av_${k}`, JSON.stringify(v));
+          });
+        }
+        return { success: true, restoredRecords: archive.totalRecords || 0 };
+      },
+
+      getModuleArchives: async () => {
+        const archives = JSON.parse(localStorage.getItem('av_mock_module_archives') || '{}');
+        const res: Record<string, any> = {};
+        Object.keys(archives).forEach((k) => {
+          const a = archives[k];
+          res[k] = {
+            moduleId: a.moduleId,
+            archivedAt: a.archivedAt,
+            totalRecords: a.totalRecords,
+            dataKeyCount: a.dataKeyCount,
+          };
+        });
+        return res;
+      },
+
+      downloadModule: async (moduleId: string) => {
+        const disk = JSON.parse(
+          localStorage.getItem('av_mock_disk_modules') ||
+            '["reloading","maintenance","ballistics","nfa","boundbook"]'
+        );
+        if (!disk.includes(moduleId)) {
+          disk.push(moduleId);
+          localStorage.setItem('av_mock_disk_modules', JSON.stringify(disk));
+        }
+        return { success: true, moduleId };
+      },
+
+      deleteModuleFiles: async (moduleId: string) => {
+        const disk = JSON.parse(
+          localStorage.getItem('av_mock_disk_modules') ||
+            '["reloading","maintenance","ballistics","nfa","boundbook"]'
+        );
+        const filtered = disk.filter((id: string) => id !== moduleId);
+        localStorage.setItem('av_mock_disk_modules', JSON.stringify(filtered));
+        return { success: true };
+      },
+
+      getInstalledDiskModules: async () => {
+        return JSON.parse(
+          localStorage.getItem('av_mock_disk_modules') ||
+            '["reloading","maintenance","ballistics","nfa","boundbook"]'
+        );
+      },
+
+      checkRemoteModules: async () => {
+        return {
+          success: true,
+          repository: 'cook0001/ArmoryVault-Modules',
+          version: '1.0.0',
+          lastChecked: new Date().toISOString(),
+          modules: {
+            reloading: {
+              id: 'reloading',
+              name: 'Reloading Workbench',
+              version: '1.0.0',
+              category: 'bench',
+              description:
+                'Comprehensive reloading component inventory, batch manufacturing, and load development ladders.',
+              dataKeys: ['components'],
+              sizeKb: '25.6 KB',
+            },
+            maintenance: {
+              id: 'maintenance',
+              name: 'Armorer & Maintenance',
+              version: '1.0.0',
+              category: 'armorer',
+              description:
+                'Round count telemetry, cleaning schedules, service logs, optic zero registry, and parts ledger.',
+              dataKeys: ['custom_schedule_presets'],
+              sizeKb: '22.0 KB',
+            },
+            ballistics: {
+              id: 'ballistics',
+              name: 'Ballistics Calculator',
+              version: '1.0.0',
+              category: 'range',
+              description:
+                'Long-range exterior ballistics, trajectory tables, drop charts, wind deflection, and optic clicks.',
+              dataKeys: ['ballistic_profiles'],
+              sizeKb: '11.3 KB',
+            },
+            nfa: {
+              id: 'nfa',
+              name: 'NFA & Compliance Tracker',
+              version: '1.0.0',
+              category: 'compliance',
+              description:
+                'ATF Form 1 and Form 4 tracker, tax stamp status, trust beneficiary records, and CLEO notifications.',
+              dataKeys: ['nfa_items'],
+              sizeKb: '6.1 KB',
+            },
+            boundbook: {
+              id: 'boundbook',
+              name: 'FFL / C&R Bound Book',
+              version: '1.0.0',
+              category: 'compliance',
+              description:
+                'ATF-compliant acquisition and disposition record book for collectors, C&R holders, and FFL licensees.',
+              dataKeys: ['bound_book_entries'],
+              sizeKb: '6.5 KB',
+            },
+          },
+        };
+      },
+
+      onModuleDownloadProgress: () => {
+        return () => {};
+      },
     };
   }
 }

@@ -25,7 +25,6 @@ import {
 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { getAccessoryTypeColor } from '../components/AccessoryDetailModal';
 import {
   AccessoriesNavIcon,
   AmmoCanIcon,
@@ -45,7 +44,8 @@ import {
   TacticalSlingIcon,
   VehicleVaultIcon,
 } from '../components/CustomIcons';
-import { StorageLocationQRModal } from '../components/StorageLocationQRModal';
+import { getAccessoryTypeColor } from '../components/modals/AccessoryDetailModal';
+import { StorageLocationQRModal } from '../components/modals/StorageLocationQRModal';
 import { useUndoToast } from '../components/UndoToast';
 import type { Accessory, Ammo, Firearm, ReloadingComponent, StorageLocation } from '../types';
 import { parseStorageUri } from '../utils/BarcodeEngine';

@@ -619,8 +619,9 @@ button {
   border-radius: var(--radius-md);
   padding: 1.5rem;
   box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  contain: content;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 100px;
 }
 
 .stat-card {
@@ -628,14 +629,13 @@ button {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   padding: 1.25rem 1.5rem;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   transition:
     transform 0.2s ease,
     border-color 0.2s ease,
     box-shadow 0.2s ease;
   position: relative;
   overflow: hidden;
+  contain: content;
 }
 
 .stat-card:hover {
@@ -683,7 +683,9 @@ button {
     transform 0.2s ease,
     border-color 0.2s ease,
     box-shadow 0.2s ease;
-  backdrop-filter: blur(16px);
+  contain: content;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 140px;
 }
 
 .inventory-item:hover,
@@ -847,9 +849,11 @@ button {
     transform 0.2s ease,
     border-color 0.2s ease,
     box-shadow 0.2s ease;
-  backdrop-filter: blur(16px);
   position: relative;
   cursor: pointer;
+  contain: content;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 240px;
 }
 
 .tactical-card:hover {
@@ -1411,7 +1415,8 @@ tr:hover {
    Modals & Overlays
    ========================================================================== */
 
-.modal-overlay {
+.modal-overlay,
+.modal-backdrop {
   position: fixed;
   inset: 0;
   top: 0;
@@ -1421,8 +1426,9 @@ tr:hover {
   width: 100vw;
   height: 100vh;
   background: rgba(0, 0, 0, 0.82);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transform: translateZ(0);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1433,6 +1439,7 @@ tr:hover {
 }
 
 .modal-overlay > .modal,
+.modal-backdrop > .modal,
 dialog.modal,
 .modal {
   background: #0f172a;
@@ -1856,6 +1863,9 @@ dialog.modal,
 }
 
 .ammo-card {
+  contain: content;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 160px;
   transition:
     transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
     box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),

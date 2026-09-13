@@ -18,15 +18,27 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  # Step 1: Create a single Draft release first to avoid matrix race conditions (422 already_exists)
+  # Step 1: Create a single Draft release and upload modular extension packages
   prepare-release:
-    name: Prepare GitHub Release
+    name: Prepare GitHub Release & Modules
     runs-on: ubuntu-latest
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v7
 
-      - name: Ensure Draft Release Exists
+      - name: Install Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+
+      - name: Package Modular Extensions
+        run: npm run package:modules
+
+      - name: Ensure Draft Release Exists and Upload Modules
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -42,6 +54,9 @@ jobs:
               --title "ArmoryVault $TAG_NAME" \
               --generate-notes || true
           fi
+
+          echo "Uploading modular zip packages to draft release..."
+          gh release upload "$TAG_NAME" dist-modules/module-*.zip dist-modules/modules-index.json --clobber
 
   # Step 2: Build on all OS platforms and upload assets directly to the existing draft
   build-matrix:
@@ -127,8 +142,18 @@ jobs:
             echo "✅ Linux package (.AppImage) verified."
           fi
 
+          HAS_MODULES=$(echo "$ASSETS" | grep -iE '^module-.*\.zip$' || true)
+          MODULE_COUNT=$(echo "$HAS_MODULES" | grep -c '^module-' || true)
+          echo "Found $MODULE_COUNT modular extension packages in release assets."
+          if [ "$MODULE_COUNT" -lt 5 ]; then
+            echo "⚠️ WARNING: Expected 5 modular extension packages (.zip), found $MODULE_COUNT!"
+            ERRORS=$((ERRORS+1))
+          else
+            echo "✅ All 5 modular extension packages verified."
+          fi
+
           if [ $ERRORS -gt 0 ]; then
-            echo "❌ Release asset verification failed with $ERRORS missing platform builds."
+            echo "❌ Release asset verification failed with $ERRORS missing platform builds or modules."
             exit 1
           fi
 

@@ -24,9 +24,8 @@ import {
   Wrench,
   X,
 } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAccessoryTypeColor } from '../components/AccessoryDetailModal';
 import { AutocompleteInput } from '../components/AutocompleteInput';
 import {
   CartridgesIcon,
@@ -43,8 +42,10 @@ import {
   SuppressorIcon,
   TacticalSlingIcon,
 } from '../components/CustomIcons';
+import { getAccessoryTypeColor } from '../components/modals/AccessoryDetailModal';
 import { renderStorageIcon, StorageBadge } from '../components/StorageBadge';
 import { Accessory, Ammo, Firearm, ReloadingComponent, StorageLocation } from '../types';
+import { getLocalImageUrl } from '../utils/imageUrl';
 import {
   getItemStorageLocation,
   getStorageCapacityUtilization,
@@ -150,14 +151,11 @@ export const Dashboard = () => {
     localStorage.setItem('armoryvault_stat_visibility', JSON.stringify(updated));
   };
 
-  // Image URI helper
-  const getFirearmImageSrc = (f: Firearm) => {
+  // Image URI helper with thumbnail support
+  const getFirearmImageSrc = (f: Firearm, isThumb = false) => {
     const raw = f.image_path || (f.photos && f.photos[0]);
     if (!raw) return null;
-    if (raw.startsWith('http') || raw.startsWith('data:') || raw.startsWith('local-file://')) {
-      return raw;
-    }
-    return `local-file://${raw}`;
+    return getLocalImageUrl(raw, isThumb);
   };
 
   // Telemetry & Maintenance Calculations
@@ -307,6 +305,32 @@ export const Dashboard = () => {
     const cmp = String(valA).localeCompare(String(valB));
     return sortDir === 'asc' ? cmp : -cmp;
   });
+
+  // Progressive DOM windowing for large collections (renders initial 36, expands on scroll)
+  const [visibleCount, setVisibleCount] = useState(36);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setVisibleCount(36);
+  }, [search, filterSold, categoryChip, sortKey, sortDir]);
+
+  useEffect(() => {
+    if (!loadMoreRef.current || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((prev) => Math.min(prev + 36, sorted.length));
+        }
+      },
+      { rootMargin: '400px' }
+    );
+    observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [sorted.length]);
+
+  const visibleFirearms = useMemo(() => {
+    return sorted.slice(0, visibleCount);
+  }, [sorted, visibleCount]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -1274,253 +1298,264 @@ export const Dashboard = () => {
       {/* Main View Renderers: Tactical Cards vs Compact Table */}
       {viewMode === 'grid' ? (
         /* Tactical Card View */
-        <div className="tactical-grid">
-          {sorted.map((f) => {
-            const lifetimeRounds = getLifetimeRounds(f);
-            const dirtyRounds = getDirtyRounds(f);
-            const threshold = f.maintenance_round_threshold || 500;
-            const wearPct = Math.min(100, Math.round((dirtyRounds / threshold) * 100));
-            const isDue = isMaintenanceDue(f);
-            const mountedAccs = getMountedAccessories(f.id);
-            const imageSrc = getFirearmImageSrc(f);
-            const isVintage = isVintageFirearm(f);
+        <>
+          <div className="tactical-grid">
+            {visibleFirearms.map((f) => {
+              const lifetimeRounds = getLifetimeRounds(f);
+              const dirtyRounds = getDirtyRounds(f);
+              const threshold = f.maintenance_round_threshold || 500;
+              const wearPct = Math.min(100, Math.round((dirtyRounds / threshold) * 100));
+              const isDue = isMaintenanceDue(f);
+              const mountedAccs = getMountedAccessories(f.id);
+              const imageSrc = getFirearmImageSrc(f, true);
+              const isVintage = isVintageFirearm(f);
 
-            return (
-              <div
-                key={f.id}
-                className="tactical-card"
-                onClick={() => navigate(`/details/${f.id}`)}
-              >
-                {/* Card Banner / Photo */}
-                <div className="tactical-card-image-wrap">
-                  {imageSrc ? (
-                    <img src={imageSrc} alt={f.model} className="tactical-card-image" />
-                  ) : (
-                    <div className="tactical-card-placeholder">
-                      <Camera size={32} opacity={0.3} />
-                      <span style={{ fontSize: '0.75rem' }}>No Photo Attached</span>
-                    </div>
-                  )}
-
-                  {/* Badges Overlay */}
-                  <div className="tactical-card-badges-overlay">
-                    {f.is_sold ? (
-                      <span className="status-badge sold">Sold</span>
-                    ) : (
-                      <StorageBadge
-                        location={getItemStorageLocation('firearm', f.id, storageLocations)}
-                        onClick={(e) => {
-                          e?.stopPropagation();
-                          navigate('/storage');
-                        }}
-                        size="sm"
+              return (
+                <div
+                  key={f.id}
+                  className="tactical-card"
+                  onClick={() => navigate(`/details/${f.id}`)}
+                >
+                  {/* Card Banner / Photo */}
+                  <div className="tactical-card-image-wrap">
+                    {imageSrc ? (
+                      <img
+                        src={imageSrc}
+                        alt={f.model}
+                        className="tactical-card-image"
+                        loading="lazy"
+                        decoding="async"
                       />
+                    ) : (
+                      <div className="tactical-card-placeholder">
+                        <Camera size={32} opacity={0.3} />
+                        <span style={{ fontSize: '0.75rem' }}>No Photo Attached</span>
+                      </div>
                     )}
-                    <div style={{ display: 'flex', gap: '0.35rem' }}>
-                      {f.is_nfa && (
-                        <span
-                          className="status-badge"
-                          style={{
-                            background: 'rgba(234, 179, 8, 0.25)',
-                            color: '#eab308',
-                            border: '1px solid rgba(234, 179, 8, 0.5)',
+
+                    {/* Badges Overlay */}
+                    <div className="tactical-card-badges-overlay">
+                      {f.is_sold ? (
+                        <span className="status-badge sold">Sold</span>
+                      ) : (
+                        <StorageBadge
+                          location={getItemStorageLocation('firearm', f.id, storageLocations)}
+                          onClick={(e) => {
+                            e?.stopPropagation();
+                            navigate('/storage');
                           }}
-                        >
-                          NFA
-                        </span>
-                      )}
-                      {isVintage && (
-                        <span
-                          className="status-badge"
-                          style={{
-                            background: 'rgba(168, 85, 247, 0.25)',
-                            color: '#c084fc',
-                            border: '1px solid rgba(168, 85, 247, 0.5)',
-                          }}
-                        >
-                          C&R
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Card Body */}
-                <div className="tactical-card-body">
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <span className="tactical-card-make">{f.make}</span>
-                    <span className="inventory-caliber-badge">{f.caliber}</span>
-                  </div>
-
-                  <div className="tactical-card-title">{f.model}</div>
-
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      fontSize: '0.8rem',
-                      color: 'var(--text-secondary)',
-                    }}
-                  >
-                    <span>
-                      SN:{' '}
-                      <strong className="mono" style={{ color: 'var(--text-primary)' }}>
-                        {f.serial_number}
-                      </strong>
-                    </span>
-                    {f.condition && <span>{f.condition}</span>}
-                  </div>
-
-                  {/* Mounted Accessories Tag Cloud */}
-                  {mountedAccs.length > 0 && (
-                    <div className="tactical-accessories-cloud">
-                      {mountedAccs.slice(0, 3).map((a) => {
-                        const tc = getAccessoryTypeColor(a.type);
-                        return (
-                          <span
-                            key={a.id}
-                            className="accessory-pill-tag"
-                            style={{ color: tc.text, background: tc.bg, borderColor: tc.border }}
-                          >
-                            {a.type === 'Optic' ? (
-                              <ScopeIcon size={11} color={tc.text} />
-                            ) : a.type === 'Suppressor' ? (
-                              <SuppressorIcon size={11} color={tc.text} />
-                            ) : a.type === 'Light' ? (
-                              <Flashlight size={11} />
-                            ) : a.type === 'Holster' ? (
-                              <HolsterIcon size={11} color={tc.text} />
-                            ) : a.type === 'Mount' ? (
-                              <PicatinnyMountIcon size={11} color={tc.text} />
-                            ) : a.type === 'Sling' ? (
-                              <TacticalSlingIcon size={11} color={tc.text} />
-                            ) : a.type === 'Magazine' ? (
-                              <MagazineIcon size={11} color={tc.text} />
-                            ) : a.type === 'Stock' ? (
-                              <StockIcon size={11} color={tc.text} />
-                            ) : a.type === 'Chassis' ? (
-                              <ChassisIcon size={11} color={tc.text} />
-                            ) : (
-                              <Package size={11} />
-                            )}{' '}
-                            {a.model || a.manufacturer || a.type}
-                          </span>
-                        );
-                      })}
-                      {mountedAccs.length > 3 && (
-                        <span className="accessory-pill-tag">+{mountedAccs.length - 3} more</span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Wear & Telemetry Bar */}
-                  {!f.is_sold && (
-                    <div className="wear-gauge-block">
-                      <div className="wear-gauge-header">
-                        <span>
-                          Wear: {dirtyRounds} / {threshold} rds
-                        </span>
-                        <span
-                          style={{
-                            fontWeight: 700,
-                            color: isDue ? '#ef4444' : wearPct > 70 ? '#fbbf24' : '#10b981',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 3,
-                          }}
-                        >
-                          {isDue ? (
-                            <>
-                              <AlertTriangle size={12} color="#ef4444" />
-                              <span>Service Due</span>
-                            </>
-                          ) : (
-                            `${wearPct}%`
-                          )}
-                        </span>
-                      </div>
-                      <div className="wear-bar-track">
-                        <div
-                          className="wear-bar-fill"
-                          style={{
-                            width: `${wearPct}%`,
-                            background: isDue ? '#ef4444' : wearPct > 70 ? '#fbbf24' : '#10b981',
-                          }}
+                          size="sm"
                         />
+                      )}
+                      <div style={{ display: 'flex', gap: '0.35rem' }}>
+                        {f.is_nfa && (
+                          <span
+                            className="status-badge"
+                            style={{
+                              background: 'rgba(234, 179, 8, 0.25)',
+                              color: '#eab308',
+                              border: '1px solid rgba(234, 179, 8, 0.5)',
+                            }}
+                          >
+                            NFA
+                          </span>
+                        )}
+                        {isVintage && (
+                          <span
+                            className="status-badge"
+                            style={{
+                              background: 'rgba(168, 85, 247, 0.25)',
+                              color: '#c084fc',
+                              border: '1px solid rgba(168, 85, 247, 0.5)',
+                            }}
+                          >
+                            C&R
+                          </span>
+                        )}
                       </div>
                     </div>
-                  )}
+                  </div>
 
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginTop: '0.2rem',
-                      paddingTop: '0.4rem',
-                      borderTop: '1px solid var(--border-subtle)',
-                      fontSize: '0.775rem',
-                      color: 'var(--text-muted)',
-                    }}
-                  >
-                    <span>
-                      Lifetime:{' '}
-                      <strong style={{ color: 'var(--text-primary)' }}>
-                        {lifetimeRounds.toLocaleString()} rds
-                      </strong>
-                    </span>
-                    <span
+                  {/* Card Body */}
+                  <div className="tactical-card-body">
+                    <div
                       style={{
                         display: 'flex',
+                        justifyContent: 'space-between',
                         alignItems: 'center',
-                        gap: '0.2rem',
-                        color: 'var(--accent)',
                       }}
                     >
-                      Details <ChevronRight size={14} />
-                    </span>
+                      <span className="tactical-card-make">{f.make}</span>
+                      <span className="inventory-caliber-badge">{f.caliber}</span>
+                    </div>
+
+                    <div className="tactical-card-title">{f.model}</div>
+
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        fontSize: '0.8rem',
+                        color: 'var(--text-secondary)',
+                      }}
+                    >
+                      <span>
+                        SN:{' '}
+                        <strong className="mono" style={{ color: 'var(--text-primary)' }}>
+                          {f.serial_number}
+                        </strong>
+                      </span>
+                      {f.condition && <span>{f.condition}</span>}
+                    </div>
+
+                    {/* Mounted Accessories Tag Cloud */}
+                    {mountedAccs.length > 0 && (
+                      <div className="tactical-accessories-cloud">
+                        {mountedAccs.slice(0, 3).map((a) => {
+                          const tc = getAccessoryTypeColor(a.type);
+                          return (
+                            <span
+                              key={a.id}
+                              className="accessory-pill-tag"
+                              style={{ color: tc.text, background: tc.bg, borderColor: tc.border }}
+                            >
+                              {a.type === 'Optic' ? (
+                                <ScopeIcon size={11} color={tc.text} />
+                              ) : a.type === 'Suppressor' ? (
+                                <SuppressorIcon size={11} color={tc.text} />
+                              ) : a.type === 'Light' ? (
+                                <Flashlight size={11} />
+                              ) : a.type === 'Holster' ? (
+                                <HolsterIcon size={11} color={tc.text} />
+                              ) : a.type === 'Mount' ? (
+                                <PicatinnyMountIcon size={11} color={tc.text} />
+                              ) : a.type === 'Sling' ? (
+                                <TacticalSlingIcon size={11} color={tc.text} />
+                              ) : a.type === 'Magazine' ? (
+                                <MagazineIcon size={11} color={tc.text} />
+                              ) : a.type === 'Stock' ? (
+                                <StockIcon size={11} color={tc.text} />
+                              ) : a.type === 'Chassis' ? (
+                                <ChassisIcon size={11} color={tc.text} />
+                              ) : (
+                                <Package size={11} />
+                              )}{' '}
+                              {a.model || a.manufacturer || a.type}
+                            </span>
+                          );
+                        })}
+                        {mountedAccs.length > 3 && (
+                          <span className="accessory-pill-tag">+{mountedAccs.length - 3} more</span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Wear & Telemetry Bar */}
+                    {!f.is_sold && (
+                      <div className="wear-gauge-block">
+                        <div className="wear-gauge-header">
+                          <span>
+                            Wear: {dirtyRounds} / {threshold} rds
+                          </span>
+                          <span
+                            style={{
+                              fontWeight: 700,
+                              color: isDue ? '#ef4444' : wearPct > 70 ? '#fbbf24' : '#10b981',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 3,
+                            }}
+                          >
+                            {isDue ? (
+                              <>
+                                <AlertTriangle size={12} color="#ef4444" />
+                                <span>Service Due</span>
+                              </>
+                            ) : (
+                              `${wearPct}%`
+                            )}
+                          </span>
+                        </div>
+                        <div className="wear-bar-track">
+                          <div
+                            className="wear-bar-fill"
+                            style={{
+                              width: `${wearPct}%`,
+                              background: isDue ? '#ef4444' : wearPct > 70 ? '#fbbf24' : '#10b981',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginTop: '0.2rem',
+                        paddingTop: '0.4rem',
+                        borderTop: '1px solid var(--border-subtle)',
+                        fontSize: '0.775rem',
+                        color: 'var(--text-muted)',
+                      }}
+                    >
+                      <span>
+                        Lifetime:{' '}
+                        <strong style={{ color: 'var(--text-primary)' }}>
+                          {lifetimeRounds.toLocaleString()} rds
+                        </strong>
+                      </span>
+                      <span
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.2rem',
+                          color: 'var(--accent)',
+                        }}
+                      >
+                        Details <ChevronRight size={14} />
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
 
-          {sorted.length === 0 && (
-            <div
-              style={{
-                gridColumn: '1 / -1',
-                textAlign: 'center',
-                padding: '4rem 1rem',
-                background: 'var(--bg-surface)',
-                borderRadius: '14px',
-                border: '1px dashed var(--border-light)',
-              }}
-            >
-              <Target size={40} opacity={0.3} style={{ marginBottom: '1rem' }} />
-              <h3>No Firearms Match Current Filters</h3>
-              <p style={{ marginTop: '0.5rem', fontSize: '0.9rem' }}>
-                Try clearing search terms or selecting "All Firearms".
-              </p>
-              <button
-                className="btn-secondary btn-sm"
-                onClick={() => {
-                  setSearch('');
-                  setCategoryChip('all');
-                  setFilterSold('all');
+            {sorted.length === 0 && (
+              <div
+                style={{
+                  gridColumn: '1 / -1',
+                  textAlign: 'center',
+                  padding: '4rem 1rem',
+                  background: 'var(--bg-surface)',
+                  borderRadius: '14px',
+                  border: '1px dashed var(--border-light)',
                 }}
-                style={{ marginTop: '1.25rem' }}
               >
-                Reset All Filters
-              </button>
-            </div>
+                <Target size={40} opacity={0.3} style={{ marginBottom: '1rem' }} />
+                <h3>No Firearms Match Current Filters</h3>
+                <p style={{ marginTop: '0.5rem', fontSize: '0.9rem' }}>
+                  Try clearing search terms or selecting "All Firearms".
+                </p>
+                <button
+                  className="btn-secondary btn-sm"
+                  onClick={() => {
+                    setSearch('');
+                    setCategoryChip('all');
+                    setFilterSold('all');
+                  }}
+                  style={{ marginTop: '1.25rem' }}
+                >
+                  Reset All Filters
+                </button>
+              </div>
+            )}
+          </div>
+          {visibleCount < sorted.length && (
+            <div ref={loadMoreRef} style={{ height: '40px', margin: '1rem 0' }} />
           )}
-        </div>
+        </>
       ) : (
         /* Compact Ledger Table View */
         <div className="table-container">
@@ -1579,11 +1614,11 @@ export const Dashboard = () => {
               </tr>
             </thead>
             <tbody>
-              {sorted.map((f) => {
+              {visibleFirearms.map((f) => {
                 const lifetimeRounds = getLifetimeRounds(f);
                 const dirtyRounds = getDirtyRounds(f);
                 const isDue = isMaintenanceDue(f);
-                const imageSrc = getFirearmImageSrc(f);
+                const imageSrc = getFirearmImageSrc(f, true);
 
                 return (
                   <tr
@@ -1593,7 +1628,13 @@ export const Dashboard = () => {
                   >
                     <td>
                       {imageSrc ? (
-                        <img src={imageSrc} alt="" className="table-thumbnail" />
+                        <img
+                          src={imageSrc}
+                          alt=""
+                          className="table-thumbnail"
+                          loading="lazy"
+                          decoding="async"
+                        />
                       ) : (
                         <div
                           className="table-thumbnail"
@@ -1696,6 +1737,9 @@ export const Dashboard = () => {
               )}
             </tbody>
           </table>
+          {visibleCount < sorted.length && (
+            <div ref={loadMoreRef} style={{ height: '40px', margin: '1rem 0' }} />
+          )}
         </div>
       )}
     </div>

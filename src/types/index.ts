@@ -77,6 +77,19 @@ export interface Accessory {
   stamp_approved_date?: string;
 }
 
+export interface OpticZeroRecord {
+  id: string;
+  opticName: string;
+  accessoryId?: number;
+  ringTorqueInLbs?: number;
+  baseTorqueInLbs?: number;
+  actionScrewTorqueInLbs?: number;
+  zeroDistanceYards?: number;
+  zeroAmmo?: string;
+  lastZeroDate?: string;
+  notes?: string;
+}
+
 export interface MaintenanceScheduleItem {
   id: string;
   task_name: string;
@@ -155,6 +168,7 @@ export interface Firearm {
   maintenance_round_threshold?: number;
   maintenance_date_threshold_days?: number;
   maintenance_schedules?: MaintenanceScheduleItem[];
+  optic_zero_records?: OpticZeroRecord[];
 
   // Bound Book Fields
   purchased_from?: string;
@@ -380,6 +394,46 @@ declare global {
       selectBackupFolder: () => Promise<string | null>;
       getConfig: (key: string) => Promise<any>;
       setConfig: (key: string, value: any) => Promise<void>;
+      archiveModuleData?: (
+        moduleId: string,
+        dataKeys: string[]
+      ) => Promise<{
+        success: boolean;
+        totalRecords?: number;
+        dataKeyCount?: Record<string, number>;
+        error?: string;
+      }>;
+      restoreModuleData?: (
+        moduleId: string
+      ) => Promise<{ success: boolean; restoredRecords?: number; error?: string }>;
+      getModuleArchives?: () => Promise<Record<string, any>>;
+      downloadModule?: (
+        moduleId: string
+      ) => Promise<{
+        success: boolean;
+        moduleId?: string;
+        error?: string;
+        fromLocalFallback?: boolean;
+      }>;
+      deleteModuleFiles?: (moduleId: string) => Promise<{ success: boolean; error?: string }>;
+      getInstalledDiskModules?: () => Promise<string[]>;
+      checkRemoteModules?: () => Promise<{
+        success: boolean;
+        modules?: Record<string, any>;
+        version?: string;
+        repository?: string;
+        lastChecked?: string;
+        fromCache?: boolean;
+        error?: string;
+      }>;
+      onModuleDownloadProgress?: (
+        callback: (progress: {
+          moduleId: string;
+          percent: number;
+          transferred: number;
+          total: number;
+        }) => void
+      ) => () => void;
 
       selectAndSaveDocument: () => Promise<{ name: string; path: string } | null>;
       selectAndSavePhoto: () => Promise<string[] | null>;

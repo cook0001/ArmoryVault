@@ -1,4 +1,5 @@
 import {
+  Blocks,
   ChevronLeft,
   ChevronRight,
   DownloadCloud,
@@ -11,12 +12,11 @@ import {
   Smartphone,
   Target,
 } from 'lucide-react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import packageJson from '../../package.json';
+import { useModules } from '../modules/registry/ModuleContext';
 import { useScrollRestoration } from '../utils/scrollRestoration';
-import { ActivityLogModal } from './ActivityLogModal';
-import { ChangePasswordModal } from './ChangePasswordModal';
 import {
   AccessoriesNavIcon,
   BallisticsNavIcon,
@@ -27,10 +27,13 @@ import {
   NfaTrackerNavIcon,
   SafeIcon,
 } from './CustomIcons';
-import { RangeSessionModal } from './RangeSessionModal';
-import { RecoveryKeyModal } from './RecoveryKeyModal';
-import { SettingsModal } from './SettingsModal';
-import { SkuManagerModal } from './SkuManagerModal';
+import { ActivityLogModal } from './modals/ActivityLogModal';
+import { ChangePasswordModal } from './modals/ChangePasswordModal';
+import { ModuleCenterModal } from './modals/ModuleCenterModal';
+import { RangeSessionModal } from './modals/RangeSessionModal';
+import { RecoveryKeyModal } from './modals/RecoveryKeyModal';
+import { SettingsModal } from './modals/SettingsModal';
+import { SkuManagerModal } from './modals/SkuManagerModal';
 
 export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
   const navigate = useNavigate();
@@ -51,6 +54,8 @@ export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
   const [isRecoveryKeyModalOpen, setIsRecoveryKeyModalOpen] = useState(false);
   const [isSkuManagerOpen, setIsSkuManagerOpen] = useState(false);
   const [isActivityLogOpen, setIsActivityLogOpen] = useState(false);
+  const { isInstalled, isModuleCenterOpen, openModuleCenter, closeModuleCenter, targetModuleId } =
+    useModules();
 
   useEffect(() => {
     let unsubSync: (() => void) | undefined;
@@ -125,6 +130,73 @@ export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
     } catch {}
   };
 
+  interface LayoutNavItem {
+    path: string;
+    icon: React.ReactNode;
+    label: string;
+    activePaths?: string[];
+  }
+
+  const vaultNavItems = useMemo<LayoutNavItem[]>(() => {
+    const items: LayoutNavItem[] = [
+      { path: '/', icon: <LayoutDashboard size={18} />, label: 'Dashboard' },
+    ];
+    if (isInstalled('boundbook')) {
+      items.push({
+        path: '/bound-book',
+        icon: <BoundBookNavIcon size={18} />,
+        label: 'Bound Book',
+      });
+    }
+    const isReloading = isInstalled('reloading');
+    items.push({
+      path: '/ammo',
+      icon: <CartridgesIcon size={18} />,
+      label: isReloading ? 'Ammo & Reloading' : 'Ammunition',
+      activePaths: isReloading ? ['/ammo', '/components'] : ['/ammo'],
+    });
+    items.push({
+      path: '/accessories',
+      icon: <AccessoriesNavIcon size={18} />,
+      label: 'Accessories',
+    });
+    if (isInstalled('maintenance')) {
+      items.push({
+        path: '/maintenance',
+        icon: <MaintenanceNavIcon size={18} />,
+        label: 'Maintenance',
+      });
+    }
+    return items;
+  }, [isInstalled]);
+
+  const toolsNavItems = useMemo<LayoutNavItem[]>(() => {
+    const items: LayoutNavItem[] = [];
+    if (isInstalled('ballistics')) {
+      items.push({
+        path: '/ballistics',
+        icon: <BallisticsNavIcon size={18} />,
+        label: 'Ballistics',
+      });
+    }
+    items.push({ path: '/storage', icon: <SafeIcon size={18} />, label: 'Storage' });
+    if (isInstalled('reloading')) {
+      items.push({
+        path: '/load-development',
+        icon: <LoadDevNavIcon size={18} />,
+        label: 'Load Dev',
+      });
+    }
+    if (isInstalled('nfa')) {
+      items.push({
+        path: '/nfa-tracker',
+        icon: <NfaTrackerNavIcon size={18} />,
+        label: 'NFA Tracker',
+      });
+    }
+    return items;
+  }, [isInstalled]);
+
   return (
     <div className={`app-layout ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
       {/* Ambient background mesh & grid */}
@@ -150,26 +222,7 @@ export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
         <nav className="sidebar-nav">
           <div className="sidebar-nav-group">
             {!sidebarCollapsed && <div className="sidebar-group-label">Vault</div>}
-            {[
-              { path: '/', icon: <LayoutDashboard size={18} />, label: 'Dashboard' },
-              { path: '/bound-book', icon: <BoundBookNavIcon size={18} />, label: 'Bound Book' },
-              {
-                path: '/ammo',
-                icon: <CartridgesIcon size={18} />,
-                label: 'Ammo & Reloading',
-                activePaths: ['/ammo', '/components'],
-              },
-              {
-                path: '/accessories',
-                icon: <AccessoriesNavIcon size={18} />,
-                label: 'Accessories',
-              },
-              {
-                path: '/maintenance',
-                icon: <MaintenanceNavIcon size={18} />,
-                label: 'Maintenance',
-              },
-            ].map((item) => (
+            {vaultNavItems.map((item) => (
               <button
                 key={item.path}
                 className={`sidebar-nav-link ${
@@ -193,12 +246,7 @@ export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
           {/* Tools Nav Group */}
           <div className="sidebar-nav-group">
             {!sidebarCollapsed && <div className="sidebar-group-label">Tools</div>}
-            {[
-              { path: '/ballistics', icon: <BallisticsNavIcon size={18} />, label: 'Ballistics' },
-              { path: '/storage', icon: <SafeIcon size={18} />, label: 'Storage' },
-              { path: '/load-development', icon: <LoadDevNavIcon size={18} />, label: 'Load Dev' },
-              { path: '/nfa-tracker', icon: <NfaTrackerNavIcon size={18} />, label: 'NFA Tracker' },
-            ].map((item) => (
+            {toolsNavItems.map((item) => (
               <button
                 key={item.path}
                 className={`sidebar-nav-link ${isActive(item.path)}`}
@@ -212,7 +260,7 @@ export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
           </div>
         </nav>
 
-        {/* Sidebar Footer — Collapse Toggle + Sync + Settings */}
+        {/* Sidebar Footer — Collapse Toggle + Sync + Modules + Settings */}
         <div className="sidebar-footer">
           <button
             className={`sidebar-nav-link ${isActive('/sync') ? 'active' : ''}`}
@@ -223,6 +271,14 @@ export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
             <Smartphone size={18} />
             {!sidebarCollapsed && <span>Mobile Sync</span>}
             {syncQueueCount > 0 && <span className="sidebar-badge">{syncQueueCount}</span>}
+          </button>
+          <button
+            className="sidebar-nav-link"
+            onClick={() => openModuleCenter()}
+            title={sidebarCollapsed ? 'Modules' : undefined}
+          >
+            <Blocks size={18} />
+            {!sidebarCollapsed && <span>Modules</span>}
           </button>
           <button
             className="sidebar-nav-link"
@@ -410,6 +466,12 @@ export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
       <RecoveryKeyModal
         isOpen={isRecoveryKeyModalOpen}
         onClose={() => setIsRecoveryKeyModalOpen(false)}
+      />
+
+      <ModuleCenterModal
+        isOpen={isModuleCenterOpen}
+        onClose={closeModuleCenter}
+        targetModuleId={targetModuleId}
       />
     </div>
   );

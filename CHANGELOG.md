@@ -1,5 +1,39 @@
 # Changelog
 
+## [2.9.0] - 2026-09-13
+### Added
+- **Pluggable Installable Modules Architecture & In-App Module Center (`src/modules/`, `ModuleCenterModal.tsx`)**:
+  - Modularized advanced features into self-contained directories under `src/modules/<module_id>/` with independent `manifest.json` definitions, isolated versioning (`v1.0.0`), code-split dynamic route chunks, and custom command palette actions:
+    - `reloading`: ReloadingComponents, LoadDevelopment, ReloadingComponentModal, BatchManufactureModal.
+    - `maintenance`: MaintenanceDashboard, MasterScheduleTab, OpticRegistryTab, PartsLedgerTab, ServiceBoardTab.
+    - `ballistics`: BallisticsCalculator, G1/G7 trajectory engine.
+    - `nfa`: NfaTracker, Form 1/4 status, tax stamps, trust records.
+    - `boundbook`: ATF acquisition & disposition ledger for Curio & Relic / FFL compliance.
+  - Created in-app **Module Center** (`ModuleCenterModal.tsx`), accessible directly adjacent to Settings in the sidebar footer via the `Blocks` vector icon (strictly conforming to Rule 7 emoji ban). Features live search, category filtering (`All`, `Bench`, `Armorer`, `Range`, `Compliance`), module metadata inspection, and 1-click Install, Uninstall, and Data Restoration.
+- **Dedicated Modules Repository & Dynamic Module Discovery (`cook0001/ArmoryVault-Modules`, `ModuleManager.js`)**:
+  - Established a dedicated GitHub repository [cook0001/ArmoryVault-Modules](https://github.com/cook0001/ArmoryVault-Modules) hosting all pluggable modules independently from core desktop builds.
+  - Published initial release `v1.0.0` featuring individual zip packages (`module-reloading.zip`, `module-maintenance.zip`, `module-ballistics.zip`, `module-nfa.zip`, `module-boundbook.zip`) and raw catalog index `modules-index.json`.
+  - Added automated module packaging and GitHub Actions release pipeline (`.github/workflows/release-modules.yml`) for rapid independent updates without recompiling or rebuilding the core desktop app.
+  - Integrated dynamic module catalog checking (`checkRemoteModules` IPC and `checkRemote` in `ModuleContext`): Core app queries `ArmoryVault-Modules` catalog with automatic multi-tier fallback, HTTP redirect following (GitHub to AWS S3), and offline cache resilience (`userData/remote_modules_cache.json`).
+  - Added "Check for New Modules" button with spinning `RefreshCw` icon in `ModuleCenterModal.tsx` allowing users to discover newly released modules on-demand.
+- **Remote On-Demand Module Downloading & Release Packaging (`scripts/package-modules.js`, `electron/ModuleManager.js`, `release.yml`)**:
+  - Implemented **Option 2 (Remote On-Demand Downloading)**: Base application installer stays lean containing only core essentials (Dashboard, Firearms, Ammo Depot, Storage Organizer, Accessories, Vault Security). Specialized modules are packaged into standalone zip files (`dist-modules/module-*.zip`) and uploaded as GitHub Release assets alongside SHA-256 checksums (`dist-modules/modules-index.json`).
+  - Added `ModuleManager.js` in Electron backend to stream remote module downloads from `cook0001/ArmoryVault-Modules` with automatic HTTP 302 redirect handling (GitHub to AWS S3), real-time byte-level progress reporting via IPC (`onModuleDownloadProgress`), checksum verification, and atomic zip extraction to `userData/installed_modules/<module_id>/`.
+  - Added local development and air-gapped fallback support so modules load seamlessly without remote network calls during development or test execution.
+  - Enhanced `ModuleCenterModal.tsx` with live download progress bars, estimated package sizes (~6 KB to ~26 KB), GitHub Release badges, and granular uninstallation choices (keeping downloaded code files on disk for instant offline re-activation vs. deleting code files to free disk space, while always preserving encrypted user data archives).
+- **Encrypted Module Archiving, Database Pruning & Backup Mobility (`BackupManager.js`, `database.js`)**:
+  - Added encrypted module archiving: When a module is uninstalled, its data keys are extracted, encrypted using AES-256-GCM with the vault master key, and written to `userData/module_archives/<module_id>.enc` while pruning them from `firearms_inventory.enc` to optimize database size and memory consumption.
+  - Updated `createZipBackup` and `restoreBackup` in `BackupManager.js` to automatically package and restore `module_archives/`, ensuring archived data travels with the user when moving between computers.
+- **Safe Fallback Guarantees & Zero-Crash Mobile Sync Compatibility (`SyncInbox.tsx`, `ModulePromptView.tsx`)**:
+  - Built `ModulePromptView.tsx` fallback view for direct route navigation to uninstalled modules, providing a clear explanation, archive detection banner, and 1-click installation.
+  - Hardened `SyncInbox.tsx` with dedicated fallback rendering when receiving mobile companion adjustments for uninstalled modules (e.g., reloading components), displaying a dedicated action card with 1-click module installation and discard controls without crashing or showing null.
+  - Protected `handleApproveAll` and individual approvals to safely skip uninstalled module payloads without data loss or exceptions.
+
+### Changed
+- **Directory Structure & Modal Reorganization**:
+  - Consolidated 15 modal dialogs and corresponding unit test suites into `src/components/modals/` with clean barrel exports.
+  - Moved build and icon utility scripts to `scripts/tools/` and cleaned root directories.
+
 ## [2.8.3] - 2026-09-13
 ### Changed
 - **Build Infrastructure & Vite Native Loader Compatibility (`vite.config.mts`, `tsconfig.node.json`)**:
@@ -96,7 +130,7 @@
 ## [2.8.0-nightly.6]
 ### Preview & Community Bug Testing Release
 - **First-Class Accessory Support for Gun Belts & Tactical Loadout Belts (Expanded: Western Drop Belts & Cartridge Loops)**:
-  - Added dedicated **`Belt`** accessory category across ArmoryVault with custom vector SVG icon [`GunBeltIcon`](file:///Users/danielc/Documents/Firearm_Inventory_software/src/components/CustomIcons.tsx) and Tactical Amber Gold (`#eab308`) accent styling.
+  - Added dedicated **`Belt`** accessory category across ArmoryVault with custom vector SVG icon [`GunBeltIcon`](file:///Users/danielc/Documents/ArmoryVault_Desktop/src/components/CustomIcons.tsx) and Tactical Amber Gold (`#eab308`) accent styling.
   - **Comprehensive Belt Subtypes & Families**: Added support for **Western Buscadero Drop Belts (Single/Double Drop)** (The Hunter Company 150/155 series, Triple K #110 Wyoming, El Paso Saddlery 1880), **Straight Western Cartridge Belts** (Hunter 158 series, Kirkpatrick, Triple K Deluxe), **Cross-Chest Bandoliers & Shotshell Belts** (Triple K, Galco), **Folded Leather Money Belts / Prairie Belts** (SASS / Frontier), **Two-Piece MOLLE Battle Belts** (Blue Alpha Battle Belt Lite, AWS SMU, Ronin Senshi, Ferro Bison), **EDC Concealed Carry Ratchet Belts** (Kore Essentials X-Series, Nexbelt Titan/Supreme), **Low-Profile EDC Nylon Belts** (Tenicor Zero, Blue Alpha Low-Profile), **Reinforced Leather Gun Belts** (Daltech Force Steel Core, Bigfoot Gun Belts, Galco SB2/SB3), **Competition Rigs** (Double-Alpha DAA Lynx, Safariland 032 ELS), **Duty Belts** (Safariland 7920, Bianchi AccuMold), and **Padded War Belt Sleeves** (HSGI Sure-Grip, Viking Tactics Brokos).
   - **Rich Technical Specification Suite**: Built technical modeling and UI inputs for **Western Drop Loop Configuration** (`Single Drop Right-Hand`, `Single Drop Left-Hand`, `Double Drop Dual/Cross-Draw`), **Integrated Cartridge Loops** (`.22 LR/.22 WMR`, `.38 Special/.357 Mag`, `.44 Mag/.45 Colt`, `.45-70 Govt`, `12 Ga/20 Ga Shotshells`, with loop count tracking), **Belt Width** (`1.5" EDC`, `1.75" Battle`, `2.0" Cartridge`, `2.25" Duty`, `2.75" - 3.0" Buscadero`), **Buckle Mechanism** (`AustriAlpin Cobra Quick-Release`, `Micro-Adjustable Ratchet / Track 1/4" Steps`, `Western Clipped Nickel`, `Dual-Prong Roller`, `Single-Prong Brass`, `G-Hook`, `DAA Lynx Modular Links`), **Internal Stiffener Core** (`Tegris Composite`, `Power-Core Polymer`, `Dual-Layer Spring Steel`, `Scuba Webbing`, `Ballistic Nylon`), **Attachment Interface** (`Integrated Western Drop Slot for Hunter 1060/1100/2200 Holsters`, `Laser-Cut Micro-MOLLE`, `ELS/QLS Forks`, `Holster Clips`), **Waist Sizing Range**, **Inner Belt System**, **Color/Tooling Pattern**, **Material**, and **Weight**.
   - **Intelligent Barcode Classification**: Enhanced `BarcodeEngine.ts` to automatically detect and classify gun belts from retail barcodes (detecting The Hunter Company, Triple K, El Paso Saddlery, Kirkpatrick, Kore Essentials, Nexbelt, Blue Alpha, AWS SMU, Ronin Senshi, Ferro Bison, Tenicor Zero, Safariland ELS, DAA Lynx, Bigfoot, Daltech Force, and Buscadero drop rigs).

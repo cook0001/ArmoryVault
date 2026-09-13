@@ -1,0 +1,11 @@
+{
+  "id": "ballistics",
+  "name": "Ballistics Calculator",
+  "version": "1.0.0",
+  "minAppVersion": "1.0.0",
+  "author": "ArmoryVault",
+  "category": "range",
+  "description": "Long-range exterior ballistics, trajectory tables, drop charts, wind deflection, and optic clicks.",
+  "dataKeys": ["ballistic_profiles"],
+  "entry": "index.ts"
+}

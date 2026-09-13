@@ -783,6 +783,161 @@ class Database {
     this.saveBallisticProfiles(list);
     return id;
   }
+
+  // ─── Module Data Archiving & Restoration ──────────────────────────
+  archiveModuleData(moduleId, dataKeys) {
+    const data = this.getData();
+    if (!data) return { success: false, error: 'Vault is locked' };
+
+    const extracted = {};
+    let totalRecords = 0;
+    const dataKeyCount = {};
+
+    for (const key of dataKeys) {
+      if (data[key] !== undefined && data[key] !== null) {
+        extracted[key] = data[key];
+        const count = Array.isArray(data[key])
+          ? data[key].length
+          : typeof data[key] === 'object'
+            ? Object.keys(data[key]).length
+            : 1;
+        dataKeyCount[key] = count;
+        totalRecords += count;
+        delete data[key]; // Prune from active database!
+      }
+    }
+
+    const archivesDir = path.join(app.getPath('userData'), 'module_archives');
+    if (!fs.existsSync(archivesDir)) {
+      fs.mkdirSync(archivesDir, { recursive: true });
+    }
+
+    const archivePath = path.join(archivesDir, `${moduleId}.enc`);
+    const archivePayload = {
+      moduleId,
+      archivedAt: new Date().toISOString(),
+      dataKeyCount,
+      totalRecords,
+      data: extracted,
+    };
+
+    const payloadStr = JSON.stringify(archivePayload);
+
+    // Save encrypted using active masterKey if available
+    if (this.vault.masterKey) {
+      const iv = crypto.randomBytes(12);
+      const cipher = crypto.createCipheriv('aes-256-gcm', this.vault.masterKey, iv);
+      let enc = cipher.update(payloadStr, 'utf8', 'hex');
+      enc += cipher.final('hex');
+      const tag = cipher.getAuthTag().toString('hex');
+
+      fs.writeFileSync(
+        archivePath,
+        JSON.stringify({
+          iv: iv.toString('hex'),
+          tag,
+          ciphertext: enc,
+          metadata: {
+            moduleId,
+            archivedAt: archivePayload.archivedAt,
+            totalRecords,
+            dataKeyCount,
+          },
+        }),
+        'utf8'
+      );
+    } else {
+      fs.writeFileSync(
+        archivePath,
+        JSON.stringify({
+          plaintext: true,
+          ...archivePayload,
+          metadata: {
+            moduleId,
+            archivedAt: archivePayload.archivedAt,
+            totalRecords,
+            dataKeyCount,
+          },
+        }),
+        'utf8'
+      );
+    }
+
+    // Save pruned database to disk
+    this.saveData(data);
+    return { success: true, totalRecords, dataKeyCount };
+  }
+
+  restoreModuleData(moduleId) {
+    const archivesDir = path.join(app.getPath('userData'), 'module_archives');
+    const archivePath = path.join(archivesDir, `${moduleId}.enc`);
+    if (!fs.existsSync(archivePath)) {
+      return { success: false, error: 'No archive found for this module.' };
+    }
+
+    let payload;
+    try {
+      const raw = fs.readFileSync(archivePath, 'utf8');
+      const parsed = JSON.parse(raw);
+
+      if (parsed.plaintext) {
+        payload = parsed;
+      } else if (this.vault.masterKey && parsed.ciphertext) {
+        const decipher = crypto.createDecipheriv(
+          'aes-256-gcm',
+          this.vault.masterKey,
+          Buffer.from(parsed.iv, 'hex')
+        );
+        decipher.setAuthTag(Buffer.from(parsed.tag, 'hex'));
+        let dec = decipher.update(parsed.ciphertext, 'hex', 'utf8');
+        dec += decipher.final('utf8');
+        payload = JSON.parse(dec);
+      } else {
+        return { success: false, error: 'Vault is locked. Unlock to decrypt archive.' };
+      }
+    } catch (e) {
+      return { success: false, error: 'Failed to decrypt module archive: ' + e.message };
+    }
+
+    const data = this.getData();
+    if (!data) return { success: false, error: 'Vault is locked.' };
+
+    if (payload && payload.data) {
+      for (const [k, v] of Object.entries(payload.data)) {
+        data[k] = v;
+      }
+      this.saveData(data);
+    }
+
+    return {
+      success: true,
+      restoredRecords: payload.totalRecords || 0,
+      archivedAt: payload.archivedAt,
+    };
+  }
+
+  getModuleArchives() {
+    const archivesDir = path.join(app.getPath('userData'), 'module_archives');
+    if (!fs.existsSync(archivesDir)) return {};
+    const files = fs.readdirSync(archivesDir).filter((f) => f.endsWith('.enc'));
+    const result = {};
+    for (const f of files) {
+      try {
+        const fullPath = path.join(archivesDir, f);
+        const parsed = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
+        const modId = path.basename(f, '.enc');
+        result[modId] = parsed.metadata || {
+          moduleId: modId,
+          archivedAt: parsed.archivedAt,
+          totalRecords: parsed.totalRecords,
+          dataKeyCount: parsed.dataKeyCount,
+        };
+      } catch (e) {
+        console.warn('Error reading module archive metadata:', f, e);
+      }
+    }
+    return result;
+  }
 }
 
 module.exports = new Database();

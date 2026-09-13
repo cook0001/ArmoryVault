@@ -108,7 +108,25 @@ class BackupManager {
       }
     }
 
-    // 4. Write zip file synchronously and safely
+    // 4. Add module archives if they exist
+    try {
+      const { app } = require('electron');
+      const moduleArchivesDir = path.join(app.getPath('userData'), 'module_archives');
+      if (fs.existsSync(moduleArchivesDir)) {
+        const archives = fs.readdirSync(moduleArchivesDir);
+        for (const file of archives) {
+          if (file.startsWith('.')) continue;
+          const fullPath = path.join(moduleArchivesDir, file);
+          if (fs.statSync(fullPath).isFile()) {
+            zip.addLocalFile(fullPath, 'module_archives');
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Could not archive module archives to zip:', e);
+    }
+
+    // 5. Write zip file synchronously and safely
     zip.writeZip(targetPath);
     return true;
   }
@@ -194,6 +212,15 @@ class BackupManager {
           const filename = path.basename(entry.entryName);
           if (filename) {
             fs.writeFileSync(path.join(docDir, filename), entry.getData());
+          }
+        } else if (entry.entryName.startsWith('module_archives/') && !entry.isDirectory) {
+          const filename = path.basename(entry.entryName);
+          if (filename) {
+            const moduleArchivesDir = path.join(app.getPath('userData'), 'module_archives');
+            if (!fs.existsSync(moduleArchivesDir)) {
+              fs.mkdirSync(moduleArchivesDir, { recursive: true });
+            }
+            fs.writeFileSync(path.join(moduleArchivesDir, filename), entry.getData());
           }
         }
       });

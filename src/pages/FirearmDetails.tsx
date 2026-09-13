@@ -30,12 +30,15 @@ import {
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
-import { AccessoryDetailModal, getAccessoryTypeColor } from '../components/AccessoryDetailModal';
-import { AccessoryModal } from '../components/AccessoryModal';
 import { AutocompleteInput } from '../components/AutocompleteInput';
 import { ChassisIcon, GunBeltIcon, ScopeIcon, StockIcon } from '../components/CustomIcons';
 import { Lightbox } from '../components/Lightbox';
-import { MountAccessoryModal } from '../components/MountAccessoryModal';
+import {
+  AccessoryDetailModal,
+  getAccessoryTypeColor,
+} from '../components/modals/AccessoryDetailModal';
+import { AccessoryModal } from '../components/modals/AccessoryModal';
+import { MountAccessoryModal } from '../components/modals/MountAccessoryModal';
 import { StorageBadge } from '../components/StorageBadge';
 import { useUndoToast } from '../components/UndoToast';
 import {

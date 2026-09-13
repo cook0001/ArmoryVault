@@ -56,18 +56,20 @@ class MediaManager {
    * Generates a thumbnail for a photo using sharp.
    * Thumbnails are stored with a `thumb_` prefix in the same directory.
    */
-  async _generateThumbnail(sourcePath, filename, maxWidth = 400) {
+  async _generateThumbnail(sourcePath, filename, maxWidth = 380) {
     try {
       const sharp = require('sharp');
-      const thumbFilename = `thumb_${filename}`;
+      const baseName = path.basename(filename || sourcePath);
+      const thumbFilename = baseName.startsWith('thumb_') ? baseName : `thumb_${baseName}`;
       const thumbPath = path.join(this.photoDir, thumbFilename);
 
       // Skip if thumbnail already exists
       if (fs.existsSync(thumbPath)) return thumbPath;
+      if (!fs.existsSync(sourcePath)) return null;
 
       await sharp(sourcePath)
         .resize({ width: maxWidth, withoutEnlargement: true })
-        .jpeg({ quality: 75 })
+        .jpeg({ quality: 75, progressive: true })
         .toFile(thumbPath);
 
       return thumbPath;
@@ -75,6 +77,32 @@ class MediaManager {
       // sharp may not be available in all environments — fail gracefully
       console.warn('Thumbnail generation failed:', e.message);
       return null;
+    }
+  }
+
+  /**
+   * Scans photo directory on startup and generates missing thumbnails in background.
+   */
+  async backfillThumbnails() {
+    try {
+      if (!fs.existsSync(this.photoDir)) return;
+      const files = fs.readdirSync(this.photoDir);
+      const imageExts = new Set(['.jpg', '.jpeg', '.png', '.webp']);
+
+      for (const file of files) {
+        if (file.startsWith('thumb_') || file.startsWith('.')) continue;
+        const ext = path.extname(file).toLowerCase();
+        if (!imageExts.has(ext)) continue;
+
+        const thumbName = `thumb_${file}`;
+        const thumbPath = path.join(this.photoDir, thumbName);
+        if (!fs.existsSync(thumbPath)) {
+          const fullPath = path.join(this.photoDir, file);
+          await this._generateThumbnail(fullPath, file);
+        }
+      }
+    } catch (err) {
+      console.warn('Thumbnail backfill error:', err.message);
     }
   }
 

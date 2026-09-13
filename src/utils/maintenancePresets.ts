@@ -1509,3 +1509,5 @@ export function createScheduleItemsFromProfile(
     notes: task.notes,
   }));
 }
+
+export const detectMaintenanceProfile = detectFirearmScheduleProfile;

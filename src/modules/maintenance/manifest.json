@@ -1,0 +1,11 @@
+{
+  "id": "maintenance",
+  "name": "Armorer & Maintenance",
+  "version": "1.0.0",
+  "minAppVersion": "1.0.0",
+  "author": "ArmoryVault",
+  "category": "armorer",
+  "description": "Round count telemetry, cleaning schedules, service logs, optic zero registry, and parts ledger.",
+  "dataKeys": ["custom_schedule_presets"],
+  "entry": "index.ts"
+}

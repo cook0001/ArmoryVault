@@ -12,7 +12,7 @@ import {
   SlidersHorizontal,
   X,
 } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Firearm } from '../types';
 import { exportToCSV } from '../utils/csvExport';
@@ -23,6 +23,8 @@ export const BoundBook = () => {
   const [firearms, setFirearms] = useState<Firearm[]>([]);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<BoundBookFilter>('all');
+  const [visibleCount, setVisibleCount] = useState(50);
+  const loadMoreRef = useRef<HTMLTableRowElement | null>(null);
   const [isAtfComplianceMode, setIsAtfComplianceMode] = useState<boolean>(() => {
     try {
       return localStorage.getItem('av_bound_book_compliance_mode') === 'true';
@@ -111,6 +113,33 @@ export const BoundBook = () => {
     });
   }, [firearms, search, filterStatus]);
 
+  useEffect(() => {
+    setVisibleCount(50);
+  }, [search, filterStatus, isAtfComplianceMode]);
+
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') {
+      setVisibleCount(filteredFirearms.length);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((prev) => Math.min(prev + 50, filteredFirearms.length));
+        }
+      },
+      { rootMargin: '300px' }
+    );
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+    return () => observer.disconnect();
+  }, [filteredFirearms.length]);
+
+  const displayedFirearms = useMemo(() => {
+    return filteredFirearms.slice(0, visibleCount);
+  }, [filteredFirearms, visibleCount]);
+
   const handleExportCSV = async () => {
     if (filteredFirearms.length === 0) return;
     try {
@@ -120,13 +149,13 @@ export const BoundBook = () => {
         : 'collector_firearm_ledger.csv';
       if (window.api?.exportData) {
         await window.api.exportData(csvString, filename);
-      } else {
         const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
         link.download = filename;
         link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
       }
     } catch (e) {
       console.error('Failed to export CSV', e);
@@ -516,7 +545,7 @@ export const BoundBook = () => {
             )}
           </thead>
           <tbody>
-            {filteredFirearms.map((f) => {
+            {displayedFirearms.map((f) => {
               const issues = isAtfComplianceMode ? getComplianceStatus(f) : [];
               return (
                 <tr
@@ -654,6 +683,23 @@ export const BoundBook = () => {
                 </tr>
               );
             })}
+
+            {visibleCount < filteredFirearms.length && (
+              <tr ref={loadMoreRef}>
+                <td
+                  colSpan={isAtfComplianceMode ? 9 : 8}
+                  style={{
+                    textAlign: 'center',
+                    padding: '1.25rem',
+                    color: 'var(--text-secondary)',
+                    background: 'var(--bg-surface)',
+                    fontSize: '0.85rem',
+                  }}
+                >
+                  Loading more records... ({visibleCount} of {filteredFirearms.length})
+                </td>
+              </tr>
+            )}
 
             {filteredFirearms.length === 0 && (
               <tr>

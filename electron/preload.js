@@ -59,6 +59,19 @@ contextBridge.exposeInMainWorld('api', {
   selectBackupFolder: () => ipcRenderer.invoke('select-backup-folder'),
   getConfig: (key) => ipcRenderer.invoke('get-config', key),
   setConfig: (key, value) => ipcRenderer.invoke('set-config', key, value),
+  archiveModuleData: (moduleId, dataKeys) =>
+    ipcRenderer.invoke('archive-module-data', moduleId, dataKeys),
+  restoreModuleData: (moduleId) => ipcRenderer.invoke('restore-module-data', moduleId),
+  getModuleArchives: () => ipcRenderer.invoke('get-module-archives'),
+  downloadModule: (moduleId) => ipcRenderer.invoke('download-module', moduleId),
+  deleteModuleFiles: (moduleId) => ipcRenderer.invoke('delete-module-files', moduleId),
+  getInstalledDiskModules: () => ipcRenderer.invoke('get-installed-disk-modules'),
+  checkRemoteModules: () => ipcRenderer.invoke('check-remote-modules'),
+  onModuleDownloadProgress: (callback) => {
+    const handler = (_, data) => callback(data);
+    ipcRenderer.on('module-download-progress', handler);
+    return () => ipcRenderer.removeListener('module-download-progress', handler);
+  },
 
   selectAndSaveDocument: () => ipcRenderer.invoke('select-and-save-document'),
   selectAndSavePhoto: () => ipcRenderer.invoke('select-and-save-photo'),

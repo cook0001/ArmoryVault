@@ -1,5 +1,6 @@
 import {
   AlertTriangle,
+  Blocks,
   Camera,
   CheckCircle,
   CheckCircle2,
@@ -23,6 +24,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ScopeIcon } from '../components/CustomIcons';
+import { useModules } from '../modules/registry/ModuleContext';
 import { Ammo, Firearm, ReloadingComponent, SyncItem } from '../types';
 import { parseBarcodeData } from '../utils/BarcodeEngine';
 import { assignItemToStorage, saveStorageLocations } from '../utils/StorageSync';
@@ -50,6 +52,7 @@ export const SyncInbox = () => {
   const [customBoxSize, setCustomBoxSize] = useState('50');
   const navigate = useNavigate();
   const location = useLocation();
+  const { isInstalled, openModuleCenter } = useModules();
   const [isResolving, setIsResolving] = useState<number | null>(null);
   const [unknownRouteItem, setUnknownRouteItem] = useState<{ item: SyncItem; upc: string } | null>(
     null
@@ -397,6 +400,10 @@ export const SyncInbox = () => {
         return finalizeApprove(item, ammo, boxSize);
       }
     } else if (item.type === 'component_adjustment') {
+      if (!isInstalled('reloading')) {
+        openModuleCenter('reloading');
+        return;
+      }
       const upcOrId = String(item.upcOrId);
       const component = componentsList.find(
         (c) => String(c.id) === upcOrId || c.upc_code === upcOrId
@@ -784,6 +791,10 @@ export const SyncInbox = () => {
           processedAny = true;
         }
       } else if (item.type === 'component_adjustment') {
+        if (!isInstalled('reloading')) {
+          // Gracefully skip uninstalled module items without crashing or throwing
+          continue;
+        }
         const upcOrId = String(item.upcOrId);
         const compIndex = currentComponents.findIndex(
           (c) => String(c.id) === upcOrId || c.upc_code === upcOrId
@@ -1627,6 +1638,127 @@ export const SyncInbox = () => {
                     );
                   } else if (item.type === 'component_adjustment') {
                     const upcOrId = String(item.upcOrId);
+                    const isReloadingInstalled = isInstalled('reloading');
+
+                    if (!isReloadingInstalled) {
+                      return (
+                        <div
+                          key={item.id}
+                          className="card"
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            padding: '1.5rem',
+                            borderLeft: '4px solid #c084fc',
+                            backgroundColor: 'rgba(30, 41, 59, 0.45)',
+                          }}
+                        >
+                          <div style={{ flex: 1 }}>
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                marginBottom: '0.5rem',
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontSize: '0.75rem',
+                                  padding: '0.2rem 0.5rem',
+                                  background: 'rgba(192, 132, 252, 0.15)',
+                                  color: '#c084fc',
+                                  borderRadius: '4px',
+                                  textTransform: 'uppercase',
+                                  fontWeight: 'bold',
+                                }}
+                              >
+                                Reloading Component
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: '0.75rem',
+                                  padding: '0.2rem 0.5rem',
+                                  background: 'rgba(251, 191, 36, 0.15)',
+                                  color: '#fbbf24',
+                                  borderRadius: '4px',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                Module Required
+                              </span>
+                              <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                                {new Date(item.timestamp).toLocaleString()}
+                              </span>
+                            </div>
+
+                            <div>
+                              <h3
+                                style={{
+                                  fontSize: '1.05rem',
+                                  margin: '0 0 0.25rem 0',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem',
+                                  color: '#f8fafc',
+                                }}
+                              >
+                                <Blocks size={18} color="#c084fc" />
+                                Reloading Workbench Module Required
+                              </h3>
+                              <p
+                                style={{
+                                  margin: 0,
+                                  color: 'var(--text-secondary)',
+                                  fontSize: '0.875rem',
+                                  lineHeight: 1.4,
+                                }}
+                              >
+                                Mobile companion logged an adjustment for <strong>{upcOrId}</strong>{' '}
+                                (
+                                <strong
+                                  style={{
+                                    color:
+                                      item.action === 'add' ? 'var(--success)' : 'var(--danger)',
+                                  }}
+                                >
+                                  {item.action === 'add' ? 'ADD' : 'REMOVE'} {item.count}
+                                </strong>
+                                ). Install the Reloading Workbench module to view stock and apply
+                                this update.
+                              </p>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                            <button
+                              className="btn-primary"
+                              onClick={() => openModuleCenter('reloading')}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.4rem',
+                                backgroundColor: '#8b5cf6',
+                                border: 'none',
+                                fontSize: '0.85rem',
+                              }}
+                            >
+                              <Blocks size={16} /> Install Module
+                            </button>
+                            <button
+                              className="btn-icon"
+                              onClick={() => handleDelete(item.id!)}
+                              style={{ color: 'var(--danger)' }}
+                              title="Discard"
+                            >
+                              <Trash2 size={20} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    }
+
                     const component = componentsList.find(
                       (c) => String(c.id) === upcOrId || c.upc_code === upcOrId
                     );

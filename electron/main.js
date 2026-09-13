@@ -6,9 +6,12 @@ const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const db = require('./database');
+const ModuleManager = require('./ModuleManager');
 const log = require('electron-log');
 const isDev = !app.isPackaged;
 const { autoUpdater } = require('electron-updater');
+
+const moduleManager = new ModuleManager();
 
 // Prevent EPIPE crashes when stdout/stderr pipe closes (e.g. concurrently dies)
 process.stdout?.on?.('error', (err) => {
@@ -40,6 +43,8 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      spellcheck: false,
+      backgroundThrottling: true,
     },
   };
 
@@ -48,6 +53,10 @@ function createWindow() {
   }
 
   mainWindow = new BrowserWindow(windowConfig);
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
 
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
@@ -69,8 +78,10 @@ app.whenReady().then(() => {
   });
 
   protocol.registerFileProtocol('local-file', (request, callback) => {
-    console.log('LOCAL-FILE REQUEST:', request.url);
     let url = request.url;
+    const isThumb = url.includes('thumb=1');
+    url = url.split('?')[0];
+
     // Strip local-file:// or local-file:///
     url = url.replace(/^local-file:\/+/, '');
     // Strip file:// or file:/// or file/// (browser sometimes strips the colon)
@@ -81,14 +92,33 @@ app.whenReady().then(() => {
       url = '/' + url;
     }
 
-    console.log('LOCAL-FILE RESOLVED URL:', url);
+    let resolvedPath = url;
     try {
-      return callback({ path: decodeURIComponent(url) });
-    } catch (err) {
-      console.error(err);
-      return callback({ path: url });
+      resolvedPath = decodeURIComponent(url);
+    } catch {}
+
+    if (isThumb) {
+      const dir = path.dirname(resolvedPath);
+      const filename = path.basename(resolvedPath);
+      const thumbPath = path.join(dir, `thumb_${filename}`);
+      if (fs.existsSync(thumbPath)) {
+        return callback({ path: thumbPath });
+      }
+      // Trigger async thumbnail generation with sharp if available
+      if (db.media && typeof db.media._generateThumbnail === 'function') {
+        db.media._generateThumbnail(resolvedPath, filename).catch(() => {});
+      }
     }
+
+    return callback({ path: resolvedPath });
   });
+
+  // Background thumbnail backfill for existing media (runs after 3s idle delay)
+  setTimeout(() => {
+    if (db.media && typeof db.media.backfillThumbnails === 'function') {
+      db.media.backfillThumbnails().catch(() => {});
+    }
+  }, 3000);
 
   if (process.platform === 'darwin' && isDev) {
     try {
@@ -315,6 +345,34 @@ app.whenReady().then(() => {
 
   ipcMain.handle('set-config', (_, key, value) => {
     db.setConfig(key, value);
+  });
+
+  ipcMain.handle('archive-module-data', async (_, moduleId, dataKeys) => {
+    return db.archiveModuleData(moduleId, dataKeys);
+  });
+
+  ipcMain.handle('restore-module-data', async (_, moduleId) => {
+    return db.restoreModuleData(moduleId);
+  });
+
+  ipcMain.handle('get-module-archives', async () => {
+    return db.getModuleArchives();
+  });
+
+  ipcMain.handle('download-module', async (event, moduleId) => {
+    return moduleManager.downloadModule(moduleId, event.sender);
+  });
+
+  ipcMain.handle('delete-module-files', async (_, moduleId) => {
+    return moduleManager.deleteModuleFiles(moduleId);
+  });
+
+  ipcMain.handle('get-installed-disk-modules', async () => {
+    return moduleManager.getInstalledDiskModules();
+  });
+
+  ipcMain.handle('check-remote-modules', async () => {
+    return moduleManager.checkRemoteModules();
   });
 
   ipcMain.handle('select-and-save-document', async () => {

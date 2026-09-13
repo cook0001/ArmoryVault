@@ -40,3 +40,4 @@ vite.config.js.map
 # Encrypted vault data (user data — never commit)
 *.enc
 *.bak
+dist-modules

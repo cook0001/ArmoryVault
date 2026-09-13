@@ -28,9 +28,7 @@ import {
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { AmmoCanLabelModal } from '../components/AmmoCanLabelModal';
 import { AutocompleteInput } from '../components/AutocompleteInput';
-import { BatchManufactureModal } from '../components/BatchManufactureModal';
 import {
   BrassCaseIcon,
   BulletProjectileIcon,
@@ -41,9 +39,12 @@ import {
   RifleIcon,
   ShotgunIcon,
 } from '../components/CustomIcons';
-import { ReloadingComponentModal } from '../components/ReloadingComponentModal';
+import { AmmoCanLabelModal } from '../components/modals/AmmoCanLabelModal';
+import { BatchManufactureModal } from '../components/modals/BatchManufactureModal';
+import { ReloadingComponentModal } from '../components/modals/ReloadingComponentModal';
 import { StorageBadge, StorageLocationSelect } from '../components/StorageBadge';
 import { useUndoToast } from '../components/UndoToast';
+import { useModules } from '../modules/registry/ModuleContext';
 import { Ammo, ReloadingComponent, StorageLocation } from '../types';
 import { parseBarcodeData } from '../utils/BarcodeEngine';
 import {
@@ -108,6 +109,7 @@ export const AmmoDashboard = () => {
   const { showUndo } = useUndoToast();
   const location = useLocation();
   const navigate = useNavigate();
+  const { isInstalled, openModuleCenter } = useModules();
 
   // Primary State
   const [ammoList, setAmmoList] = useState<Ammo[]>([]);
@@ -1367,42 +1369,63 @@ export const AmmoDashboard = () => {
           <span>Live Ammunition ({totalAmmoCount.toLocaleString()} rds)</span>
         </button>
 
-        <button
-          onClick={() => {
-            setActiveDepotView('reloading');
-            setSelectedFilterChip('all');
-          }}
-          className={`btn-secondary ${activeDepotView === 'reloading' ? 'active' : ''}`}
-          style={{
-            padding: '0.5rem 1.15rem',
-            fontSize: '0.9rem',
-            background: activeDepotView === 'reloading' ? 'rgba(168, 85, 247, 0.2)' : 'transparent',
-            borderColor: activeDepotView === 'reloading' ? '#c084fc' : 'var(--border-light)',
-            color: activeDepotView === 'reloading' ? '#c084fc' : 'var(--text-secondary)',
-          }}
-        >
-          <FlaskConical size={16} />
-          <span>Reloading Supplies ({components.length} Items)</span>
-        </button>
+        {isInstalled('reloading') ? (
+          <>
+            <button
+              onClick={() => {
+                setActiveDepotView('reloading');
+                setSelectedFilterChip('all');
+              }}
+              className={`btn-secondary ${activeDepotView === 'reloading' ? 'active' : ''}`}
+              style={{
+                padding: '0.5rem 1.15rem',
+                fontSize: '0.9rem',
+                background:
+                  activeDepotView === 'reloading' ? 'rgba(168, 85, 247, 0.2)' : 'transparent',
+                borderColor: activeDepotView === 'reloading' ? '#c084fc' : 'var(--border-light)',
+                color: activeDepotView === 'reloading' ? '#c084fc' : 'var(--text-secondary)',
+              }}
+            >
+              <FlaskConical size={16} />
+              <span>Reloading Supplies ({components.length} Items)</span>
+            </button>
 
-        <button
-          onClick={() => {
-            setActiveDepotView('combined');
-            setSelectedFilterChip('all');
-          }}
-          className={`btn-secondary ${activeDepotView === 'combined' ? 'active' : ''}`}
-          style={{
-            padding: '0.5rem 1.15rem',
-            fontSize: '0.9rem',
-            background: activeDepotView === 'combined' ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
-            borderColor:
-              activeDepotView === 'combined' ? 'var(--accent-emerald)' : 'var(--border-light)',
-            color: activeDepotView === 'combined' ? '#34d399' : 'var(--text-secondary)',
-          }}
-        >
-          <Layers size={16} />
-          <span>Combined Overview</span>
-        </button>
+            <button
+              onClick={() => {
+                setActiveDepotView('combined');
+                setSelectedFilterChip('all');
+              }}
+              className={`btn-secondary ${activeDepotView === 'combined' ? 'active' : ''}`}
+              style={{
+                padding: '0.5rem 1.15rem',
+                fontSize: '0.9rem',
+                background:
+                  activeDepotView === 'combined' ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
+                borderColor:
+                  activeDepotView === 'combined' ? 'var(--accent-emerald)' : 'var(--border-light)',
+                color: activeDepotView === 'combined' ? '#34d399' : 'var(--text-secondary)',
+              }}
+            >
+              <Layers size={16} />
+              <span>Combined Overview</span>
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={() => openModuleCenter('reloading')}
+            className="btn-secondary"
+            style={{
+              padding: '0.5rem 1rem',
+              fontSize: '0.85rem',
+              color: 'var(--text-secondary)',
+              borderStyle: 'dashed',
+            }}
+            title="Install Reloading Workbench module to track powder, primers, brass & bullets"
+          >
+            <FlaskConical size={15} />
+            <span>+ Add Reloading Supplies Module</span>
+          </button>
+        )}
       </div>
 
       {/* Unified Tactical Control Deck */}

@@ -1,0 +1,17 @@
+{
+  "id": "reloading",
+  "name": "Reloading Workbench",
+  "version": "1.0.0",
+  "minAppVersion": "1.0.0",
+  "author": "ArmoryVault",
+  "category": "bench",
+  "description": "Comprehensive reloading component inventory (powder, primers, brass, bullets), batch manufacturing, and load development ladders.",
+  "dataKeys": [
+    "components",
+    "load_recipes",
+    "load_ladder_tests",
+    "target_analyses",
+    "chrono_strings"
+  ],
+  "entry": "index.ts"
+}

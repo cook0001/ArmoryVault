@@ -1,6 +1,7 @@
 import { Search, X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useModules } from '../modules/registry/ModuleContext';
 
 interface CommandItem {
   id: string;
@@ -21,6 +22,7 @@ export const CommandPalette: React.FC = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const { isInstalled, openModuleCenter } = useModules();
 
   const close = useCallback(() => {
     setIsOpen(false);
@@ -29,8 +31,8 @@ export const CommandPalette: React.FC = () => {
   }, []);
 
   // Navigation commands
-  const commands: CommandItem[] = useMemo(
-    () => [
+  const commands: CommandItem[] = useMemo(() => {
+    const list: CommandItem[] = [
       {
         id: 'nav-dashboard',
         label: 'Go to Dashboard',
@@ -45,69 +47,93 @@ export const CommandPalette: React.FC = () => {
         action: () => navigate('/add'),
         keywords: ['new', 'create', 'gun', 'rifle', 'pistol'],
       },
-      {
+    ];
+
+    if (isInstalled('boundbook')) {
+      list.push({
         id: 'nav-bound-book',
         label: 'Go to Bound Book',
         sublabel: 'Acquisition & Disposition records',
         action: () => navigate('/bound-book'),
         keywords: ['a&d', 'records', 'ffl', 'ledger'],
-      },
-      {
-        id: 'nav-ammo',
-        label: 'Go to Ammo & Reloading',
-        sublabel: 'Ammunition inventory',
-        action: () => navigate('/ammo'),
-        keywords: ['ammunition', 'rounds', 'cartridges', 'bullets'],
-      },
-      {
+      });
+    }
+
+    list.push({
+      id: 'nav-ammo',
+      label: isInstalled('reloading') ? 'Go to Ammo & Reloading' : 'Go to Ammunition Inventory',
+      sublabel: 'Ammunition inventory',
+      action: () => navigate('/ammo'),
+      keywords: ['ammunition', 'rounds', 'cartridges', 'bullets'],
+    });
+
+    if (isInstalled('reloading')) {
+      list.push({
         id: 'nav-components',
         label: 'Go to Reloading Components',
         sublabel: 'Powder, Primers, Brass, Bullets',
         action: () => navigate('/components'),
         keywords: ['powder', 'primers', 'brass', 'handload'],
-      },
-      {
-        id: 'nav-accessories',
-        label: 'Go to Accessories',
-        sublabel: 'Optics, Suppressors, Lights, Mounts',
-        action: () => navigate('/accessories'),
-        keywords: ['optics', 'scopes', 'suppressors', 'lights', 'holsters'],
-      },
-      {
+      });
+    }
+
+    list.push({
+      id: 'nav-accessories',
+      label: 'Go to Accessories',
+      sublabel: 'Optics, Suppressors, Lights, Mounts',
+      action: () => navigate('/accessories'),
+      keywords: ['optics', 'scopes', 'suppressors', 'lights', 'holsters'],
+    });
+
+    if (isInstalled('maintenance')) {
+      list.push({
         id: 'nav-maintenance',
         label: 'Go to Maintenance',
         sublabel: 'Cleaning & service schedules',
         action: () => navigate('/maintenance'),
         keywords: ['cleaning', 'service', 'repair', 'schedule'],
-      },
-      {
+      });
+    }
+
+    if (isInstalled('ballistics')) {
+      list.push({
         id: 'nav-ballistics',
         label: 'Go to Ballistics Calculator',
         sublabel: 'Trajectory & drop tables',
         action: () => navigate('/ballistics'),
         keywords: ['trajectory', 'drop', 'calculator', 'ballistic'],
-      },
-      {
-        id: 'nav-storage',
-        label: 'Go to Storage Organizer',
-        sublabel: 'Safes, Cases, Ammo Cans',
-        action: () => navigate('/storage'),
-        keywords: ['safe', 'case', 'organize', 'location', 'container'],
-      },
-      {
+      });
+    }
+
+    list.push({
+      id: 'nav-storage',
+      label: 'Go to Storage Organizer',
+      sublabel: 'Safes, Cases, Ammo Cans',
+      action: () => navigate('/storage'),
+      keywords: ['safe', 'case', 'organize', 'location', 'container'],
+    });
+
+    if (isInstalled('reloading')) {
+      list.push({
         id: 'nav-load-dev',
         label: 'Go to Load Development',
         sublabel: 'Ladder tests & load data',
         action: () => navigate('/load-development'),
         keywords: ['ladder', 'load', 'development', 'recipe'],
-      },
-      {
+      });
+    }
+
+    if (isInstalled('nfa')) {
+      list.push({
         id: 'nav-nfa',
         label: 'Go to NFA Tracker',
         sublabel: 'Form 4, SBR, Suppressor stamps',
         action: () => navigate('/nfa-tracker'),
         keywords: ['nfa', 'form4', 'sbr', 'stamp', 'tax'],
-      },
+      });
+    }
+
+    list.push(
       {
         id: 'nav-sync',
         label: 'Go to Sync Inbox',
@@ -116,15 +142,23 @@ export const CommandPalette: React.FC = () => {
         keywords: ['mobile', 'phone', 'sync', 'queue', 'companion'],
       },
       {
+        id: 'action-module-center',
+        label: 'Open Module Center',
+        sublabel: 'Install, manage, or restore modular features',
+        action: () => openModuleCenter(),
+        keywords: ['module', 'center', 'extensions', 'addons', 'plugins', 'store', 'install'],
+      },
+      {
         id: 'action-activity-log',
         label: 'View Activity Audit Log',
         sublabel: 'Encrypted timeline of vault events & history',
         action: () => window.dispatchEvent(new Event('armoryvault-open-activity-log')),
         keywords: ['audit', 'history', 'timeline', 'log', 'activity', 'events'],
-      },
-    ],
-    [navigate]
-  );
+      }
+    );
+
+    return list;
+  }, [navigate, isInstalled, openModuleCenter]);
 
   // Filter commands by query
   const filtered = useMemo(() => {

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — ArmoryVault &amp; ArmoryVault Companion</title>
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="ArmoryVault and ArmoryVault Companion privacy policy. 100% offline, zero cloud tracking, zero telemetry, local Wi-Fi sync, and AES-256 local encrypted storage." />
+  <meta name="author" content="Daniel C. (cook0001)" />
+  <meta name="theme-color" content="#060910" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://cook0001.github.io/ArmoryVault/privacy.html" />
+  <meta property="og:title" content="Privacy Policy — ArmoryVault" />
+  <meta property="og:description" content="100% offline, zero tracking, zero cloud data storage. Your firearms inventory data belongs strictly to you." />
+  <meta property="og:image" content="https://cook0001.github.io/ArmoryVault/assets/icon.png" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="assets/icon.png" />
+  <link rel="apple-touch-icon" href="assets/icon.png" />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="bg-mesh" aria-hidden="true"></div>
+  <div class="bg-grid" aria-hidden="true"></div>
+
+  <!-- Header Navigation -->
+  <header class="navbar">
+    <div class="container nav-container">
+      <a href="index.html" class="nav-brand">
+        <div class="brand-icon">
+          <img src="assets/icon.png" alt="ArmoryVault Logo" />
+        </div>
+        <span>ArmoryVault</span>
+        <span class="brand-tag">Privacy Policy</span>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="index.html#features" class="nav-link">Features</a></li>
+        <li><a href="index.html#modules" class="nav-link">Modules</a></li>
+        <li><a href="index.html#downloads" class="nav-link">Downloads</a></li>
+        <li><a href="https://cook0001.github.io/ArmoryVault-Modules/" target="_blank" rel="noopener" class="nav-link" style="color: var(--accent-cyan);">Modules Hub ↗</a></li>
+        <li><a href="https://github.com/cook0001/ArmoryVault" target="_blank" rel="noopener" class="nav-link">GitHub ↗</a></li>
+      </ul>
+
+      <div class="nav-actions">
+        <a href="index.html" class="btn btn-secondary btn-sm">
+          <span>&larr; Back to Portal</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main style="padding-top: 120px; padding-bottom: 80px;">
+    <div class="container" style="max-width: 860px;">
+      <div class="section-header" style="text-align: left; margin-bottom: 32px;">
+        <span class="section-tag">Privacy Commitment</span>
+        <h1 class="section-title" style="font-size: 2.4rem;">Privacy Policy</h1>
+        <p class="section-subtitle" style="margin: 0;">
+          Last updated: September 13, 2026 &middot; Applies to ArmoryVault Desktop, ArmoryVault Companion App (Android/iOS), and Modular Extensions.
+        </p>
+      </div>
+
+      <div class="modules-intro-card" style="margin-bottom: 32px; border-color: rgba(16, 185, 129, 0.3);">
+        <div class="modules-intro-badge" style="background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.3); color: #34d399;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+          <span>Core Guarantee: 100% Local &amp; Private</span>
+        </div>
+        <h3 style="color: #f8fafc;">Zero Cloud. Zero Accounts. Zero Telemetry.</h3>
+        <p style="margin-bottom: 0;">
+          ArmoryVault does not collect, store, transmit, monetize, or share your personal information, firearm serial numbers, purchase histories, photos, or location telemetry. Everything stays stored on your own physical hardware under AES-256 encryption.
+        </p>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 24px;">
+        <div class="feature-card" style="padding: 28px;">
+          <h2 style="font-size: 1.3rem; margin-bottom: 12px; color: var(--text-primary);">1. Data Storage &amp; Encryption</h2>
+          <p style="color: var(--text-secondary); line-height: 1.6; font-size: 0.95rem;">
+            All inventory records, optics configurations, maintenance schedules, reloading components, tax stamps, and ATF bound book entries are stored locally on your device. On desktop, records are encrypted using AES-256-GCM authenticated encryption with keys derived via PBKDF2 with 100,000 rounds. No remote database or cloud server exists.
+          </p>
+        </div>
+
+        <div class="feature-card" style="padding: 28px;">
+          <h2 style="font-size: 1.3rem; margin-bottom: 12px; color: var(--text-primary);">2. Local Wi-Fi Companion Sync</h2>
+          <p style="color: var(--text-secondary); line-height: 1.6; font-size: 0.95rem;">
+            The mobile companion app communicates with your desktop application strictly over your local Wi-Fi network (LAN) via direct HTTP/WebSocket connection. Communication occurs solely between your mobile phone and your personal computer:
+          </p>
+          <ul style="color: var(--text-secondary); padding-left: 24px; margin-top: 10px; line-height: 1.6; font-size: 0.95rem;">
+            <li>Zero intermediary relay servers are used.</li>
+            <li>Sync payloads require manual authentication and authorization pairing via dynamic QR code scanning.</li>
+            <li>No data leaves your home or local area network.</li>
+          </ul>
+        </div>
+
+        <div class="feature-card" style="padding: 28px;">
+          <h2 style="font-size: 1.3rem; margin-bottom: 12px; color: var(--text-primary);">3. Mobile Camera &amp; Storage Permissions</h2>
+          <p style="color: var(--text-secondary); line-height: 1.6; font-size: 0.95rem;">
+            The mobile application requests access to your device camera exclusively for scanning container QR codes, equipment barcodes, and pairing keys. Photos captured for firearm identification remain strictly stored in local device sandboxes and are never uploaded anywhere.
+          </p>
+        </div>
+
+        <div class="feature-card" style="padding: 28px;">
+          <h2 style="font-size: 1.3rem; margin-bottom: 12px; color: var(--text-primary);">4. Analytics and Third-Party Trackers</h2>
+          <p style="color: var(--text-secondary); line-height: 1.6; font-size: 0.95rem;">
+            Neither ArmoryVault Desktop nor ArmoryVault Companion App incorporates third-party trackers, advertising SDKs (such as Google AdMob or Meta Audience Network), or external telemetry frameworks. Crash logs are kept locally on your filesystem.
+          </p>
+        </div>
+
+        <div class="feature-card" style="padding: 28px;">
+          <h2 style="font-size: 1.3rem; margin-bottom: 12px; color: var(--text-primary);">5. Modular Extensions &amp; GitHub Downloads</h2>
+          <p style="color: var(--text-secondary); line-height: 1.6; font-size: 0.95rem;">
+            When checking for or installing modular extensions (such as Reloading Workbench or Ballistics Calculator), the desktop app queries public GitHub release assets (<code class="doc-inline-code">cook0001/ArmoryVault-Modules</code>) to fetch package zip archives. No telemetry or identification is sent to GitHub other than standard HTTP client headers required to retrieve public release files.
+          </p>
+        </div>
+
+        <div class="feature-card" style="padding: 28px;">
+          <h2 style="font-size: 1.3rem; margin-bottom: 12px; color: var(--text-primary);">6. Data Retention &amp; Portability</h2>
+          <p style="color: var(--text-secondary); line-height: 1.6; font-size: 0.95rem;">
+            You retain 100% ownership of all your data. You may create complete encrypted zip backups at any time, export unencrypted CSV tables for external review, or permanently purge your local database with one click.
+          </p>
+        </div>
+
+        <div class="feature-card" style="padding: 28px;">
+          <h2 style="font-size: 1.3rem; margin-bottom: 12px; color: var(--text-primary);">7. Contact &amp; Open Source Verification</h2>
+          <p style="color: var(--text-secondary); line-height: 1.6; font-size: 0.95rem;">
+            ArmoryVault is fully open source. All source code is publicly auditable on GitHub. If you have questions regarding this privacy policy or wish to inspect the cryptographic implementations, visit the official repositories:
+          </p>
+          <div style="display: flex; gap: 12px; margin-top: 14px; flex-wrap: wrap;">
+            <a href="https://github.com/cook0001/ArmoryVault" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">
+              <span>Desktop Repository ↗</span>
+            </a>
+            <a href="https://github.com/cook0001/ArmoryVault-Companion-App" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">
+              <span>Companion App Repository ↗</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer-container">
+      <div class="footer-bottom" style="border-top: none; padding-top: 0;">
+        <div>
+          &copy; 2026 ArmoryVault. Open-source software released under the ISC / MIT License.
+        </div>
+        <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+          <a href="index.html" style="color: var(--text-secondary);">Home</a>
+          <a href="https://cook0001.github.io/ArmoryVault-Modules/" target="_blank" rel="noopener" style="color: var(--accent-cyan);">Modules Catalog</a>
+          <a href="https://github.com/cook0001/ArmoryVault" target="_blank" rel="noopener" style="color: var(--text-secondary);">GitHub</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
