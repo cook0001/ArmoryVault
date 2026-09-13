@@ -1,17 +1,16 @@
-# Security Policy 🛡️
+# Security Policy
 
 ## Supported Versions
 
-ArmoryVault maintains active security updates and patch support for the **2 most current stable releases** and the **most current nightly preview build** across both Desktop and Mobile ecosystems. All older legacy versions are considered End-of-Life (EOL) and are pruned from active release channels.
+ArmoryVault maintains active security updates and patch support for the **2 most current stable releases** across both Desktop and Mobile ecosystems. All older legacy versions are considered End-of-Life (EOL) and are pruned from active release channels.
 
 ### Desktop Application (`cook0001/ArmoryVault`)
 
 | Version | Status | Security Support |
 | :--- | :--- | :---: |
-| **`v2.8.0-nightly.x`** *(e.g. `v2.8.0-nightly.6`)* | Active Nightly Preview | :white_check_mark: |
-| **`v2.7.1`** | Current Stable Release | :white_check_mark: |
-| **`v2.7.0`** | Previous Stable Release | :white_check_mark: |
-| **`<= v2.6.x`** | Legacy Releases (Pruned) | :x: |
+| **`v2.8.2`** | Current Stable Production | Supported |
+| **`v2.8.1`** | Previous Stable Production | Supported |
+| **`<= v2.8.0`** | Legacy Releases (Pruned) | EOL (Upgrade Required) |
 
 ---
 
@@ -19,10 +18,9 @@ ArmoryVault maintains active security updates and patch support for the **2 most
 
 | Version | Status | Security Support |
 | :--- | :--- | :---: |
-| **`v2.6.0-nightly.x`** *(e.g. `v2.6.0-nightly.42`)* | Active Nightly Preview | :white_check_mark: |
-| **`v2.6.0`** | Current Stable Release | :white_check_mark: |
-| **`v2.5.1`** | Previous Stable Release | :white_check_mark: |
-| **`<= v2.5.0`** | Legacy Releases (Pruned) | :x: |
+| **`v2.7.9`** | Current Stable Production | Supported |
+| **`v2.7.8`** | Previous Stable Production | Supported |
+| **`<= v2.7.7`** | Legacy Releases (Pruned) | EOL (Upgrade Required) |
 
 ---
 
