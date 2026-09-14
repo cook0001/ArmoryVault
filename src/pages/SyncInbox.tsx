@@ -57,6 +57,56 @@ export const SyncInbox = () => {
   const [unknownRouteItem, setUnknownRouteItem] = useState<{ item: SyncItem; upc: string } | null>(
     null
   );
+  const [maintenanceAlert, setMaintenanceAlert] = useState<{
+    firearmId: number;
+    firearmName: string;
+    taskName: string;
+    projectedRounds: number;
+  } | null>(null);
+
+  const getFirearmMaintenanceWarning = (firearm: Firearm, additionalRounds: number) => {
+    const currentRounds = Number(firearm.round_count) || 0;
+    const projectedRounds = currentRounds + additionalRounds;
+
+    // 1. Check custom schedules
+    if (firearm.maintenance_schedules && firearm.maintenance_schedules.length > 0) {
+      for (const sched of firearm.maintenance_schedules) {
+        if (sched.interval_rounds && sched.interval_rounds > 0) {
+          const lastServicedRounds = sched.last_performed_rounds || 0;
+          const roundsSince = projectedRounds - lastServicedRounds;
+          if (roundsSince >= sched.interval_rounds) {
+            return {
+              taskName: sched.task_name,
+              interval: sched.interval_rounds,
+              projectedRounds,
+              isOverdue: true,
+            };
+          }
+        }
+      }
+    }
+
+    // 2. Default clean threshold
+    const threshold = firearm.maintenance_round_threshold || 500;
+    const lastCleanLog = (firearm.logs || [])
+      .filter((l) => l.type === 'Cleaning' || l.type === 'Repair')
+      .slice(-1)[0];
+    const lastCleanRounds = lastCleanLog
+      ? Number((lastCleanLog as any).round_count_at_service) || 0
+      : 0;
+    const roundsSinceClean = projectedRounds - lastCleanRounds;
+
+    if (roundsSinceClean >= threshold) {
+      return {
+        taskName: 'Clean & Lubricate Service',
+        interval: threshold,
+        projectedRounds,
+        isOverdue: true,
+      };
+    }
+
+    return null;
+  };
 
   const isPairModalOpenRef = useRef(isPairModalOpen);
   isPairModalOpenRef.current = isPairModalOpen;
@@ -325,6 +375,30 @@ export const SyncInbox = () => {
         target.isPlusP = item.data.isPlusP;
       }
       await window.api.updateAmmo(target.id!, target);
+
+      const fId = Number(
+        (item as any).firearmId ||
+          (item as any).firearm_id ||
+          (item.data && ((item.data as any).firearmId || (item.data as any).firearm_id))
+      );
+      if (fId && item.action === 'remove' && adjustment > 0) {
+        const firearm = firearms.find((f) => f.id === fId);
+        if (firearm) {
+          const newRoundCount = (Number(firearm.round_count) || 0) + adjustment;
+          const updatedFirearm = { ...firearm, round_count: newRoundCount };
+          await window.api.updateFirearm(firearm.id!, updatedFirearm);
+
+          const warn = getFirearmMaintenanceWarning(firearm, adjustment);
+          if (warn) {
+            setMaintenanceAlert({
+              firearmId: firearm.id!,
+              firearmName: `${firearm.make} ${firearm.model}`,
+              taskName: warn.taskName,
+              projectedRounds: warn.projectedRounds,
+            });
+          }
+        }
+      }
     } else if (item.type === 'component_adjustment') {
       const currentCount = parseInt(target.quantity as any) || 0;
       const adjustment = (parseInt(item.count as any) || 0) * multiplier;
@@ -530,8 +604,53 @@ export const SyncInbox = () => {
           date: item.date || new Date(item.timestamp).toISOString().split('T')[0],
           notes: item.notes || '',
           cost: item.cost || 0,
+          location: item.location || '',
         });
+
+        // Also record target grouping telemetry if bundled in session
+        if (item.group_metrics && window.api.addTargetAnalysis) {
+          await window.api.addTargetAnalysis({
+            distance_yards: item.group_metrics.distanceYards || item.distance_yards || 100,
+            moa: item.group_metrics.moa,
+            extreme_spread_inches:
+              item.group_metrics.extremeSpreadInches || item.group_metrics.extreme_spread_in,
+            mean_radius_inches: item.group_metrics.meanRadiusInches,
+            shot_count: item.group_metrics.shotCount || rounds,
+            date: item.date || new Date(item.timestamp).toISOString().split('T')[0],
+            optic_name: item.optic_name,
+            notes: `Range Session (${rounds} rds)${item.location ? ` @ ${item.location}` : ''}`,
+            photo_path: item.target_photo_path || item.photo_path,
+          });
+        }
+
+        // Also record chronograph shot string telemetry if bundled
+        if (item.chrono_data && window.api.addChronoString) {
+          await window.api.addChronoString({
+            ...item.chrono_data,
+            firearm_id: fId,
+            ammo_id: aId,
+            date:
+              item.chrono_data.date ||
+              item.date ||
+              new Date(item.timestamp).toISOString().split('T')[0],
+          });
+        }
+
         await window.api.removeSyncItem(item.id!);
+
+        const firearm = firearms.find((f) => f.id === fId);
+        if (firearm && rounds > 0) {
+          const warn = getFirearmMaintenanceWarning(firearm, rounds);
+          if (warn) {
+            setMaintenanceAlert({
+              firearmId: firearm.id!,
+              firearmName: `${firearm.make} ${firearm.model}`,
+              taskName: warn.taskName,
+              projectedRounds: warn.projectedRounds,
+            });
+          }
+        }
+
         loadData();
       }
     } else if (item.type === 'firearm_maintenance') {
@@ -586,6 +705,20 @@ export const SyncInbox = () => {
           notes: updatedNotes,
           documents: newDocs,
         });
+      }
+      await window.api.removeSyncItem(item.id!);
+      loadData();
+    } else if (item.type === 'chrono_string') {
+      const chrono = (item as any).chrono_data || item;
+      if (window.api && window.api.addChronoString) {
+        await window.api.addChronoString(chrono);
+      }
+      await window.api.removeSyncItem(item.id!);
+      loadData();
+    } else if (item.type === 'target_analysis') {
+      const target = (item as any).target_data || item;
+      if (window.api && window.api.addTargetAnalysis) {
+        await window.api.addTargetAnalysis(target);
       }
       await window.api.removeSyncItem(item.id!);
       loadData();
@@ -786,6 +919,33 @@ export const SyncInbox = () => {
             ammo.isPlusP = item.data.isPlusP;
           }
           await window.api.updateAmmo(ammo.id!, ammo);
+
+          const fId = Number(
+            (item as any).firearmId ||
+              (item as any).firearm_id ||
+              (item.data && ((item.data as any).firearmId || (item.data as any).firearm_id))
+          );
+          if (fId && item.action === 'remove' && adjustment > 0) {
+            const firearmIndex = currentFirearms.findIndex((f) => f.id === fId);
+            if (firearmIndex >= 0) {
+              const firearm = currentFirearms[firearmIndex];
+              const newRoundCount = (Number(firearm.round_count) || 0) + adjustment;
+              const updatedFirearm = { ...firearm, round_count: newRoundCount };
+              await window.api.updateFirearm(firearm.id!, updatedFirearm);
+              currentFirearms[firearmIndex] = updatedFirearm;
+
+              const warn = getFirearmMaintenanceWarning(firearm, adjustment);
+              if (warn) {
+                setMaintenanceAlert({
+                  firearmId: firearm.id!,
+                  firearmName: `${firearm.make} ${firearm.model}`,
+                  taskName: warn.taskName,
+                  projectedRounds: warn.projectedRounds,
+                });
+              }
+            }
+          }
+
           await window.api.removeSyncItem(item.id!);
           currentAmmo[ammoIndex] = ammo;
           processedAny = true;
@@ -1104,6 +1264,65 @@ export const SyncInbox = () => {
           await window.api.updateFirearm(firearm.id, updatedFirearm);
           const idx = currentFirearms.findIndex((f) => f.id === firearm.id);
           if (idx >= 0) currentFirearms[idx] = updatedFirearm;
+        }
+        await window.api.removeSyncItem(item.id!);
+        processedAny = true;
+      } else if (item.type === 'range_session') {
+        const fId = Number(item.firearm_id);
+        const aId = item.ammo_id ? Number(item.ammo_id) : undefined;
+        const rounds = Number(item.rounds_fired || item.count) || 0;
+
+        if (window.api && window.api.logRangeSession) {
+          await window.api.logRangeSession({
+            firearm_id: fId,
+            ammo_id: aId,
+            rounds_fired: rounds,
+            date: item.date || new Date(item.timestamp).toISOString().split('T')[0],
+            notes: item.notes || '',
+            cost: item.cost || 0,
+            location: item.location || '',
+          });
+
+          if (item.group_metrics && window.api.addTargetAnalysis) {
+            await window.api.addTargetAnalysis({
+              distance_yards: item.group_metrics.distanceYards || item.distance_yards || 100,
+              moa: item.group_metrics.moa,
+              extreme_spread_inches:
+                item.group_metrics.extremeSpreadInches || item.group_metrics.extreme_spread_in,
+              mean_radius_inches: item.group_metrics.meanRadiusInches,
+              shot_count: item.group_metrics.shotCount || rounds,
+              date: item.date || new Date(item.timestamp).toISOString().split('T')[0],
+              optic_name: item.optic_name,
+              notes: `Range Session (${rounds} rds)${item.location ? ` @ ${item.location}` : ''}`,
+              photo_path: item.target_photo_path || item.photo_path,
+            });
+          }
+
+          if (item.chrono_data && window.api.addChronoString) {
+            await window.api.addChronoString({
+              ...item.chrono_data,
+              firearm_id: fId,
+              ammo_id: aId,
+              date:
+                item.chrono_data.date ||
+                item.date ||
+                new Date(item.timestamp).toISOString().split('T')[0],
+            });
+          }
+        }
+        await window.api.removeSyncItem(item.id!);
+        processedAny = true;
+      } else if (item.type === 'chrono_string') {
+        const chrono = (item as any).chrono_data || item;
+        if (window.api && window.api.addChronoString) {
+          await window.api.addChronoString(chrono);
+        }
+        await window.api.removeSyncItem(item.id!);
+        processedAny = true;
+      } else if (item.type === 'target_analysis') {
+        const target = (item as any).target_data || (item as any).target_analysis || item;
+        if (window.api && window.api.addTargetAnalysis) {
+          await window.api.addTargetAnalysis(target);
         }
         await window.api.removeSyncItem(item.id!);
         processedAny = true;
@@ -1445,6 +1664,67 @@ export const SyncInbox = () => {
 
       {activeTab === 'inbox' && (
         <div>
+          {maintenanceAlert && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '1rem',
+                padding: '0.85rem 1.25rem',
+                background: 'rgba(245, 158, 11, 0.12)',
+                border: '1px solid rgba(245, 158, 11, 0.4)',
+                borderRadius: '10px',
+                marginBottom: '1rem',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <AlertTriangle size={20} color="#fbbf24" />
+                <div>
+                  <div style={{ fontWeight: 600, color: '#f8fafc', fontSize: '0.9rem' }}>
+                    Maintenance Threshold Reached: {maintenanceAlert.firearmName}
+                  </div>
+                  <div style={{ color: '#fbbf24', fontSize: '0.8rem' }}>
+                    Lifetime rounds reached {maintenanceAlert.projectedRounds} rds —{' '}
+                    {maintenanceAlert.taskName} is recommended.
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  style={{ padding: '0.4rem 0.85rem', fontSize: '0.8rem' }}
+                  onClick={() => {
+                    navigate('/maintenance', {
+                      state: {
+                        openQuickService: true,
+                        firearmId: maintenanceAlert.firearmId,
+                        taskName: maintenanceAlert.taskName,
+                      },
+                    });
+                    setMaintenanceAlert(null);
+                  }}
+                >
+                  Record Service Now
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMaintenanceAlert(null)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    padding: '4px',
+                  }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+          )}
+
           {queue.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-secondary)' }}>
               <RefreshCw size={48} style={{ opacity: 0.2, marginBottom: '1rem' }} />
@@ -1565,6 +1845,72 @@ export const SyncInbox = () => {
                                   (Current stock: {ammo.count})
                                 </span>
                               </p>
+                              {(() => {
+                                const fId = Number(
+                                  (item as any).firearmId ||
+                                    (item as any).firearm_id ||
+                                    (item.data &&
+                                      ((item.data as any).firearmId ||
+                                        (item.data as any).firearm_id))
+                                );
+                                const matchedFirearm = fId
+                                  ? firearms.find((f) => f.id === fId)
+                                  : null;
+                                if (!matchedFirearm) return null;
+                                const warn = getFirearmMaintenanceWarning(
+                                  matchedFirearm,
+                                  Number(item.count) || 0
+                                );
+                                return (
+                                  <>
+                                    <div
+                                      style={{
+                                        marginTop: '0.35rem',
+                                        fontSize: '0.85rem',
+                                        color: '#38bdf8',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.35rem',
+                                      }}
+                                    >
+                                      <Target size={13} />
+                                      <span>
+                                        Depleted via:{' '}
+                                        <strong>
+                                          {matchedFirearm.make} {matchedFirearm.model}
+                                        </strong>{' '}
+                                        (Round count: {matchedFirearm.round_count || 0} &rarr;{' '}
+                                        {(Number(matchedFirearm.round_count) || 0) +
+                                          (Number(item.count) || 0)}{' '}
+                                        rds)
+                                      </span>
+                                    </div>
+                                    {warn && (
+                                      <div
+                                        style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '6px',
+                                          background: 'rgba(245, 158, 11, 0.15)',
+                                          border: '1px solid rgba(245, 158, 11, 0.4)',
+                                          color: '#fbbf24',
+                                          padding: '3px 8px',
+                                          borderRadius: '6px',
+                                          fontSize: '0.78rem',
+                                          fontWeight: 600,
+                                          marginTop: '5px',
+                                        }}
+                                      >
+                                        <AlertTriangle size={13} />
+                                        <span>
+                                          Service Due: {warn.taskName} ({warn.projectedRounds} rds
+                                          reaches {warn.interval} rd threshold)
+                                        </span>
+                                      </div>
+                                    )}
+                                  </>
+                                );
+                              })()}
                             </div>
                           ) : (
                             <div>
@@ -2656,6 +3002,35 @@ export const SyncInbox = () => {
                                 </span>
                               )}
                             </div>
+                            {firearm &&
+                              rounds > 0 &&
+                              (() => {
+                                const warn = getFirearmMaintenanceWarning(firearm, rounds);
+                                if (!warn) return null;
+                                return (
+                                  <div
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '6px',
+                                      marginTop: '0.4rem',
+                                      padding: '3px 8px',
+                                      background: 'rgba(245, 158, 11, 0.15)',
+                                      border: '1px solid rgba(245, 158, 11, 0.4)',
+                                      borderRadius: '6px',
+                                      color: '#fbbf24',
+                                      fontSize: '0.78rem',
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    <AlertTriangle size={13} />
+                                    <span>
+                                      Service Due: {warn.taskName} ({warn.projectedRounds} rds
+                                      reaches {warn.interval} rd threshold)
+                                    </span>
+                                  </div>
+                                );
+                              })()}
                             {item.group_metrics && (
                               <div
                                 style={{
@@ -2976,6 +3351,322 @@ export const SyncInbox = () => {
                             style={{ background: 'var(--success)' }}
                           >
                             Approve & Update Bound Book
+                          </button>
+                          <button
+                            className="btn-icon"
+                            onClick={() => handleDelete(item.id!)}
+                            style={{ color: 'var(--danger)' }}
+                            title="Decline / Delete"
+                          >
+                            <Trash2 size={20} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  } else if (item.type === 'chrono_string') {
+                    const chrono = (item as any).chrono_data || item;
+                    const fId = Number(chrono.firearmId || chrono.firearm_id);
+                    const firearm = firearms.find((f) => f.id === fId);
+                    const shots = chrono.shotVelocities || [];
+                    const avg = chrono.averageVelocity || 0;
+                    const sd = chrono.standardDeviation || 0;
+                    const es = chrono.extremeSpread || 0;
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="card"
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '1.5rem',
+                          background: 'rgba(245, 158, 11, 0.03)',
+                          border: '1px solid rgba(245, 158, 11, 0.3)',
+                        }}
+                      >
+                        <div style={{ flex: 1 }}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem',
+                              marginBottom: '0.5rem',
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: '0.75rem',
+                                padding: '0.2rem 0.5rem',
+                                background: 'rgba(245, 158, 11, 0.15)',
+                                color: '#f59e0b',
+                                borderRadius: '4px',
+                                textTransform: 'uppercase',
+                                fontWeight: 'bold',
+                              }}
+                            >
+                              Chronograph Velocity String
+                            </span>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                              {chrono.date ||
+                                (item.timestamp
+                                  ? new Date(item.timestamp).toLocaleDateString()
+                                  : '')}
+                            </span>
+                          </div>
+
+                          <div>
+                            <h3
+                              style={{
+                                fontSize: '1.15rem',
+                                margin: '0 0 0.25rem 0',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                              }}
+                            >
+                              <CheckCircle size={18} color="#f59e0b" />
+                              {firearm
+                                ? `${firearm.make} ${firearm.model}`
+                                : `Firearm #${fId || '?'}`}
+                              {chrono.ammoLabel && (
+                                <span
+                                  style={{
+                                    fontSize: '0.9rem',
+                                    color: 'var(--text-secondary)',
+                                    fontWeight: 'normal',
+                                  }}
+                                >
+                                  — {chrono.ammoLabel}
+                                </span>
+                              )}
+                            </h3>
+
+                            <div
+                              style={{
+                                display: 'flex',
+                                gap: '1.5rem',
+                                marginTop: '0.5rem',
+                                fontSize: '0.85rem',
+                                color: 'var(--text-primary)',
+                                fontFamily: 'monospace',
+                              }}
+                            >
+                              <div>
+                                Shots: <strong style={{ color: '#f59e0b' }}>{shots.length}</strong>
+                              </div>
+                              <div>
+                                Avg: <strong style={{ color: '#34d399' }}>{avg} fps</strong>
+                              </div>
+                              <div>
+                                SD: <strong>{sd} fps</strong>
+                              </div>
+                              <div>
+                                ES: <strong>{es} fps</strong>
+                              </div>
+                              {chrono.temperature && (
+                                <div style={{ color: 'var(--text-secondary)' }}>
+                                  Temp: {chrono.temperature}°F
+                                </div>
+                              )}
+                            </div>
+
+                            {chrono.notes && (
+                              <div
+                                style={{
+                                  fontSize: '0.85rem',
+                                  color: 'var(--text-secondary)',
+                                  marginTop: '0.35rem',
+                                  fontStyle: 'italic',
+                                }}
+                              >
+                                Notes: {chrono.notes}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button
+                            className="btn-primary"
+                            onClick={() => handleApprove(item)}
+                            style={{ background: 'var(--success)' }}
+                          >
+                            Approve & Record
+                          </button>
+                          <button
+                            className="btn-icon"
+                            onClick={() => handleDelete(item.id!)}
+                            style={{ color: 'var(--danger)' }}
+                            title="Decline / Delete"
+                          >
+                            <Trash2 size={20} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  } else if (item.type === 'target_analysis') {
+                    const target = (item as any).target_data || item;
+                    const fId = Number(target.firearmId || target.firearm_id);
+                    const firearm = firearms.find((f) => f.id === fId);
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="card"
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '1.5rem',
+                          background: 'rgba(52, 211, 153, 0.03)',
+                          border: '1px solid rgba(52, 211, 153, 0.3)',
+                        }}
+                      >
+                        <div style={{ flex: 1 }}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem',
+                              marginBottom: '0.5rem',
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: '0.75rem',
+                                padding: '0.2rem 0.5rem',
+                                background: 'rgba(52, 211, 153, 0.15)',
+                                color: '#34d399',
+                                borderRadius: '4px',
+                                textTransform: 'uppercase',
+                                fontWeight: 'bold',
+                              }}
+                            >
+                              Target MOA Grouping Analysis
+                            </span>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                              {target.date ||
+                                (item.timestamp
+                                  ? new Date(item.timestamp).toLocaleDateString()
+                                  : '')}
+                            </span>
+                          </div>
+
+                          <div>
+                            <h3
+                              style={{
+                                fontSize: '1.15rem',
+                                margin: '0 0 0.25rem 0',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                              }}
+                            >
+                              <Target size={18} color="#34d399" />
+                              {firearm
+                                ? `${firearm.make} ${firearm.model}`
+                                : `Firearm #${fId || '?'}`}
+                              <span
+                                style={{
+                                  fontSize: '0.9rem',
+                                  color: '#34d399',
+                                  fontWeight: 'bold',
+                                }}
+                              >
+                                —{' '}
+                                {target.groupMoa != null
+                                  ? `${target.groupMoa} MOA`
+                                  : target.moa != null
+                                    ? `${target.moa} MOA`
+                                    : `${target.extremeSpreadMoa || 0} MOA`}
+                              </span>
+                            </h3>
+
+                            <div
+                              style={{
+                                display: 'flex',
+                                gap: '1.5rem',
+                                marginTop: '0.5rem',
+                                fontSize: '0.85rem',
+                                color: 'var(--text-primary)',
+                                fontFamily: 'monospace',
+                              }}
+                            >
+                              <div>
+                                Distance:{' '}
+                                <strong>
+                                  {target.distanceYards || target.distance_yards || 100} yds
+                                </strong>
+                              </div>
+                              <div>
+                                ES:{' '}
+                                <strong>
+                                  {target.extremeSpreadInches ||
+                                    target.extreme_spread_inches ||
+                                    target.extremeSpread ||
+                                    0}
+                                  "
+                                </strong>
+                              </div>
+                              {(target.meanRadius || target.mean_radius_inches) && (
+                                <div>
+                                  Mean Radius:{' '}
+                                  <strong>{target.meanRadius || target.mean_radius_inches}"</strong>
+                                </div>
+                              )}
+                              {(target.shotCount || target.shot_count) && (
+                                <div>
+                                  Shots: <strong>{target.shotCount || target.shot_count}</strong>
+                                </div>
+                              )}
+                            </div>
+
+                            {target.turretAdjustment && (
+                              <div
+                                style={{
+                                  marginTop: '0.4rem',
+                                  fontSize: '0.85rem',
+                                  color: 'var(--accent)',
+                                }}
+                              >
+                                Scope Clicks:{' '}
+                                <strong>
+                                  {target.turretAdjustment.elevationClicks} clicks{' '}
+                                  {target.turretAdjustment.elevationDirection || 'UP'},{' '}
+                                  {target.turretAdjustment.windageClicks} clicks{' '}
+                                  {target.turretAdjustment.windageDirection || 'RIGHT'}
+                                </strong>
+                              </div>
+                            )}
+
+                            {target.photoBase64 && (
+                              <div style={{ marginTop: '0.75rem' }}>
+                                <img
+                                  src={target.photoBase64}
+                                  alt="Target Group"
+                                  style={{
+                                    height: '80px',
+                                    borderRadius: '6px',
+                                    border: '1px solid var(--border-color)',
+                                    cursor: 'pointer',
+                                    objectFit: 'cover',
+                                  }}
+                                  onClick={() => window.open(target.photoBase64)}
+                                  title="Click to view full target"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button
+                            className="btn-primary"
+                            onClick={() => handleApprove(item)}
+                            style={{ background: 'var(--success)' }}
+                          >
+                            Approve & Save
                           </button>
                           <button
                             className="btn-icon"

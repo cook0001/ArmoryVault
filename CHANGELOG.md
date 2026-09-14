@@ -1,5 +1,50 @@
 # Changelog
 
+## [2.10.0] - 2026-09-13
+### Added
+- **Proactive Maintenance Threshold Detection & Service Routing (`src/pages/SyncInbox.tsx`, `src/modules/maintenance/MaintenanceDashboard.tsx`)**:
+  - In `SyncInbox.tsx`, added dynamic wear and maintenance threshold inspection (`getFirearmMaintenanceWarning`) for incoming round depletions and range session approvals. Checks user-configured maintenance schedules (e.g. recoil spring at 3,000 rds, deep clean at 500 rds) against projected firearm round counts.
+  - Renders amber `AlertTriangle` warning badges directly within queue cards when an incoming batch pushes a firearm past its service threshold.
+  - Displays a persistent, dismissible alert banner upon approval with a 1-click **"Record Service Now"** action that routes directly to `/maintenance` and pre-opens `QuickServiceModal` with the target firearm and overdue task pre-filled.
+- **Typst Armorer Work Order & Inspection PDF Generator (`electron/templates/armorer_work_order.typ`, `electron/main.js`, `src/modules/maintenance/MaintenanceDashboard.tsx`, `src/modules/maintenance/subtabs/PartsLedgerTab.tsx`)**:
+  - Designed publication-grade Typst 0.15 vector template generating an Official Armorer Work Order & Inspection Certificate featuring work order ID, firearm specs, lifetime round counts, work performed notes, parts replaced ledger with cost breakdown, precision torque specifications table, test fire & chronograph telemetry, multi-point safety checklist, and certified armorer sign-off block.
+  - Implemented `generate-work-order` IPC handler with complete 3-tier resilience: Tier 1 (Local native Typst binary compiling in 0.14s), Tier 2 (ArmsTrader Ephemeral Typst API Bridge via `https://armstrader.store/api/work-order/pdf` with 6s timeout, TLS 1.3 encryption, ephemeral temp isolation, zero server storage, and zero PII logging), and Tier 3 (offline Chromium `printToPDF` fallback).
+  - Added serial number privacy masking (`maskSerials`) redacting sensitive numbers (e.g. `***-1234`).
+  - Added 1-click **"Work Order PDF"** generation button in `MaintenanceDashboard.tsx` toolbar and direct row-level **"Work Order"** action buttons across entries in `PartsLedgerTab.tsx`.
+- **Native Typst Bill of Sale & ArmsTrader Consolidation (`electron/main.js`, `electron/templates/bill_of_sale.typ`, `src/pages/FirearmDetails.tsx`)**:
+  - Consolidated private firearm transfer documentation using a Zero-Bloat Hybrid architecture. Bundled the official Typst 0.15 legal template (`templates/bill_of_sale.typ`) matching ArmsTrader.store's single-page layout with 18 U.S.C. § 922 compliance declarations.
+  - Automatically compiles vector PDFs in 0.14s using local `/usr/local/bin/typst` or `/opt/homebrew/bin/typst` with fallback to ArmsTrader API bridge and built-in Chromium print engine.
+  - Added 1-click **Generate Bill of Sale (Typst PDF)** action in `FirearmDetails.tsx` for marked-as-sold firearms, saving external copies and archiving signed records in encrypted vault document storage.
+- **High-Resolution Inspection Loupe & Multi-Angle Firearm Viewer (`src/components/Lightbox.tsx`, `src/pages/FirearmDetails.tsx`)**:
+  - Upgraded Lightbox into a full-featured tactical Inspection Loupe with multi-tier zoom (1x to 5x), click-and-drag pan, mouse wheel zoom, reset hotkeys, and full keyboard navigation (`+`/`-`/`0`/`R`/`Esc`).
+  - Added dedicated angle badging and thumbnail strip matching Mobile's Standardized 4-Angle Studio (Slot 1: Left Profile, Slot 2: Right Profile, Slot 3: Rollmark & Serial, Slot 4: Proofs & Bore, and custom angles) with single-click angle switching.
+- **Interactive FFL Dealer & Shooting Range Finder Modals (`src/components/modals/FflPickerModal.tsx`, `src/components/modals/RangePickerModal.tsx`, `src/pages/FirearmDetails.tsx`, `src/components/modals/RangeSessionModal.tsx`)**:
+  - Created dedicated tactical modal pickers: `FflPickerModal` queries the live `https://armstrader.store/api/ffl/search` API so licensee records stay continuously synchronized with the latest ATF database without maintaining local copies on desktop, while `RangePickerModal` queries verified shooting facilities.
+  - Integrated `FflPickerModal` into `FirearmDetails.tsx` (Bill of Sale and transfer forms) to auto-fill licensed transfer agent details, address, and phone with a single click.
+  - Integrated `RangePickerModal` into `RangeSessionModal.tsx` ("Browse Facilities") to auto-fill range location, facility name, and fees into live range sessions.
+  - Added unit test suites `FflPickerModal.test.tsx` and `RangePickerModal.test.tsx` (100% passing).
+- **Typst Multi-Page Insurance Appraisal & Armory Catalog Binder (`electron/templates/armory_binder.typ`, `electron/main.js`, `src/pages/Dashboard.tsx`)**:
+  - Designed multi-page Typst 0.15 vector template generating a professional Valuation Certificate, category breakdown summary (Firearms, Ammo, Optics, NFA, Accessories), itemized firearm sheets with condition grading, replacement values, and NFA Form 1/4 compliance ledger.
+  - Added `generate-armory-binder` IPC handler compiling Typst in 0.14s with automated fallback to headless Chromium print-to-PDF and encrypted document vault archiving.
+  - Added **"Export Insurance Binder (PDF)"** action button to Dashboard header.
+- **Range Telemetry Sync & Automated Round Count Progression (`src/pages/SyncInbox.tsx`, `src/types/index.ts`)**:
+  - Enhanced `SyncInbox.tsx` approval engine (both individual and batch approval) to parse `range_session` items, auto-recording telemetry into `window.api.addTargetAnalysis` (group metrics, MOA, spread) and `window.api.addChronoString` (shot velocities, avg, SD, ES).
+  - Wired automated firearm round count progression: approving `ammo_adjustment` items with `action === 'remove'` and associated firearm automatically increments the firearm's `round_count` in `firearms_inventory`, displaying live progression badges on the approval card.
+- **Optics & Zero Vault Modular Extension (`src/modules/registry/ModuleHost.tsx`, `src/App.tsx`, `src/components/Layout.tsx`)**:
+  - Integrated the new 6th extension module (`optics`) into the desktop application, enabling zero-distance records, turret click value registries (MRAD/MOA), optic torque specifications, and battery schedules with offline mobile synchronization.
+- **ArmsTrader Server Bridge for Ephemeral Typst Binder Generation (`electron/main.js`, `armstrader.store`)**:
+  - Added resilient multi-tier PDF generation: Tier 1 (local Typst binary in 0.14s), Tier 2 (cloud fallback via `https://armstrader.store/api/armory-binder/pdf` with 6s timeout, TLS 1.3 transit encryption, ephemeral compiling in memory/temp isolation, zero database persistence, zero PII logging, and rate-limiting), and Tier 3 (offline Chromium `printToPDF`).
+  - Added serial number masking toggle (`maskSerials`) for insurance binders, allowing users to redact serial numbers (e.g. `***-1234`) when sharing valuations with underwriters.
+- **Shooting Range Finder Pluggable Module (`modules/ranges/`, `src/App.tsx`, `src/components/Layout.tsx`)**:
+  - Created pluggable 7th extension module (`ranges`) packaged into `module-ranges.zip` for on-demand installation via the Module Center.
+  - Features directory searching across 2,539 verified facilities by 5-digit ZIP and state chips, facility amenity filtering (1,000+ yd long range, tactical bays, steel targets, chronograph benches, trap & skeet, rental counters), home range bookmarking, lane fee tracking, and direct map navigation.
+  - Registered `/ranges` route and navigation bar item with `Compass` vector icon.
+- **Batch Label & QR Print Studio Pluggable Module (`modules/labels/`, `src/App.tsx`, `src/components/Layout.tsx`)**:
+  - Created pluggable 8th extension module (`labels`) packaged into `module-labels.zip` for on-demand installation via the Module Center.
+  - Batch prints vector QR codes and barcodes for ammo boxes, magazines, storage cans, and firearms across standard label sheets (Avery 5160 30-up, Avery 5163 10-up weatherproof) and continuous 62mm thermal rolls (Brother QL / Dymo).
+  - Features multi-select item picker, copy multiplier, element toggles (QR, date, SKU, borders), live print preview grid, and zero-margin print stylesheets.
+  - Registered `/labels` route and navigation bar item with `Printer` vector icon.
+
 ## [2.9.0] - 2026-09-13
 ### Added
 - **Pluggable Installable Modules Architecture & In-App Module Center (`src/modules/`, `ModuleCenterModal.tsx`)**:

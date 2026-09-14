@@ -163,6 +163,7 @@ export interface Firearm {
   condition: string;
   image_path: string;
   photos?: string[];
+  round_count?: number;
 
   // Maintenance Schedule & Rules
   maintenance_round_threshold?: number;
@@ -407,9 +408,7 @@ declare global {
         moduleId: string
       ) => Promise<{ success: boolean; restoredRecords?: number; error?: string }>;
       getModuleArchives?: () => Promise<Record<string, any>>;
-      downloadModule?: (
-        moduleId: string
-      ) => Promise<{
+      downloadModule?: (moduleId: string) => Promise<{
         success: boolean;
         moduleId?: string;
         error?: string;
@@ -424,6 +423,15 @@ declare global {
         repository?: string;
         lastChecked?: string;
         fromCache?: boolean;
+        error?: string;
+      }>;
+      getModuleBundle?: (moduleId: string) => Promise<{
+        success: boolean;
+        moduleId?: string;
+        manifest?: any;
+        hasBundle?: boolean;
+        jsCode?: string | null;
+        cssCode?: string | null;
         error?: string;
       }>;
       onModuleDownloadProgress?: (
@@ -448,8 +456,46 @@ declare global {
       readFileBuffer: (filePath: string) => Promise<Uint8Array | null>;
       openUrl: (url: string) => Promise<void>;
       generateBillOfSale: (data: any) => Promise<string | null>;
+      generateArmoryBinder: (data: any) => Promise<string | null>;
+      generateWorkOrder: (data: any) => Promise<string | null>;
       generateInsuranceReport: (data: any) => Promise<string | null>;
       lookupUPC: (upc: string) => Promise<any>;
+      lookupFFL: (params: { zip?: string; state?: string; limit?: number }) => Promise<{
+        success: boolean;
+        count?: number;
+        source?: string;
+        data: Array<{
+          id: number;
+          license_num?: string;
+          business_name: string;
+          trade_name?: string;
+          street?: string;
+          city?: string;
+          state?: string;
+          zip?: string;
+          phone?: string;
+          standard_fee?: number | null;
+        }>;
+      }>;
+      lookupRanges: (params: { zip?: string; state?: string; limit?: number }) => Promise<{
+        success: boolean;
+        count?: number;
+        source?: string;
+        data: Array<{
+          id: number;
+          name: string;
+          trade_name?: string;
+          range_type?: string;
+          street?: string;
+          city?: string;
+          state?: string;
+          zip?: string;
+          phone?: string;
+          lane_fee?: number | null;
+          amenities?: string;
+          is_public?: number;
+        }>;
+      }>;
 
       logRangeSession: (data: {
         firearm_id: number;
@@ -540,17 +586,20 @@ export interface MalfunctionEntry {
 // ─── Velocity Chronograph String ────────────────────────────────────
 export interface ChronoString {
   id?: number;
-  firearmId: number;
+  firearmId?: number;
+  firearm_id?: number;
   ammoId?: number;
+  ammo_id?: number;
   ammoLabel?: string;
-  shotVelocities: number[];
-  averageVelocity: number;
-  standardDeviation: number;
-  extremeSpread: number;
+  shotVelocities?: number[];
+  averageVelocity?: number;
+  standardDeviation?: number;
+  extremeSpread?: number;
   temperature?: number;
   distanceYards?: number;
   date: string;
   notes?: string;
+  [key: string]: any;
 }
 
 // ─── Target Analysis Record ─────────────────────────────────────────
@@ -559,13 +608,21 @@ export interface TargetAnalysis {
   firearmId?: number;
   imagePath?: string;
   photoBase64?: string;
-  shotsCount: number;
-  groupSizeInches: number;
-  groupSizeMOA: number;
-  distanceYards: number;
+  shotsCount?: number;
+  groupSizeInches?: number;
+  groupSizeMOA?: number;
+  distanceYards?: number;
+  distance_yards?: number;
+  moa?: number;
+  extreme_spread_inches?: number;
+  mean_radius_inches?: number;
+  shot_count?: number;
+  optic_name?: string;
+  photo_path?: string;
   pointOfImpactOffsetInches?: { x: number; y: number };
   date: string;
   notes?: string;
+  [key: string]: any;
 }
 
 // ─── Storage Location / Safe Item ───────────────────────────────────

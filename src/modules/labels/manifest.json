@@ -1,0 +1,12 @@
+{
+  "id": "labels",
+  "name": "Batch Label & QR Print Studio",
+  "version": "1.0.0",
+  "minAppVersion": "2.9.0",
+  "author": "ArmoryVault",
+  "category": "bench",
+  "description": "Batch print QR and barcode labels across Avery sheets (5160, 5163) and continuous thermal rolls for ammo cans, magazine racks, and vault storage.",
+  "dataKeys": ["saved_label_templates"],
+  "entry": "module.bundle.js",
+  "icon": "Printer"
+}

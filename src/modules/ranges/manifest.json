@@ -1,0 +1,12 @@
+{
+  "id": "ranges",
+  "name": "Shooting Range & Facility Finder",
+  "version": "1.0.0",
+  "minAppVersion": "2.9.0",
+  "author": "ArmoryVault",
+  "category": "range",
+  "description": "Locate 2,539 verified shooting ranges by ZIP or state, view lane fees, tactical bays, amenities, and bookmark home facilities.",
+  "dataKeys": ["saved_ranges"],
+  "entry": "module.bundle.js",
+  "icon": "Target"
+}

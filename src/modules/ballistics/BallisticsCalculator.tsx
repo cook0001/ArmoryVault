@@ -1,12 +1,16 @@
 import {
   Activity,
   Crosshair,
+  Eye,
   FileText,
   Gauge,
   Hash,
   Layers,
+  Maximize2,
   PlusCircle,
   Printer,
+  Radio,
+  Sliders,
   Sparkles,
   Target,
   Thermometer,
@@ -16,7 +20,7 @@ import {
   X,
   Zap,
 } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   BallisticsNavIcon,
@@ -36,6 +40,20 @@ export const BallisticsCalculator = () => {
   const [stepYards, setStepYards] = useState(25);
   const [turretUnit, setTurretUnit] = useState<'moa' | 'mil'>('moa');
 
+  // Chronograph & Optics Vault Integration
+  const [chronoStrings, setChronoStrings] = useState<any[]>([]);
+  const [opticsList, setOpticsList] = useState<any[]>([]);
+  const [selectedOpticId, setSelectedOpticId] = useState<string | null>(null);
+
+  // DOPE Card Modal
+  const [isDopeModalOpen, setIsDopeModalOpen] = useState(false);
+  const [dopeCardType, setDopeCardType] = useState<'standard' | 'stock' | 'armband'>('stock');
+
+  // Reticle Simulation HUD
+  const [showReticleSim, setShowReticleSim] = useState(false);
+  const [simDistance, setSimDistance] = useState(300);
+  const [simWindMph, setSimWindMph] = useState(10);
+
   // Form state
   const [form, setForm] = useState<Partial<BallisticProfile>>({
     name: '',
@@ -54,7 +72,40 @@ export const BallisticsCalculator = () => {
 
   useEffect(() => {
     loadProfiles();
+    loadVaultData();
   }, []);
+
+  const loadVaultData = async () => {
+    try {
+      if ((window as any).api?.getChronoStrings) {
+        const cs = await (window as any).api.getChronoStrings();
+        if (Array.isArray(cs)) setChronoStrings(cs);
+      } else {
+        const local = localStorage.getItem('chrono_strings_cache');
+        if (local) setChronoStrings(JSON.parse(local));
+      }
+    } catch {}
+
+    try {
+      if ((window as any).api?.getConfig) {
+        const opts = await (window as any).api.getConfig('optics_vault_inventory');
+        if (Array.isArray(opts)) setOpticsList(opts);
+      } else {
+        const local = localStorage.getItem('optics_vault_inventory');
+        if (local) setOpticsList(JSON.parse(local));
+      }
+    } catch {}
+  };
+
+  const simSolution = useMemo(() => {
+    if (!selectedProfile) return null;
+    const tempProfile: BallisticProfile = {
+      ...selectedProfile,
+      windSpeed: simWindMph,
+    };
+    const s = solveTrajectory(tempProfile, simDistance, simDistance);
+    return s.find((item) => item.range === simDistance) || s[s.length - 1] || null;
+  }, [selectedProfile, simDistance, simWindMph]);
 
   const loadProfiles = async () => {
     if (window.api?.getBallisticProfiles) {
@@ -150,7 +201,7 @@ export const BallisticsCalculator = () => {
     setSolutions(solveTrajectory(tempProfile, maxRange, stepYards));
   };
 
-  const handlePrintDopeCard = () => {
+  const handlePrintDopeCard = (format: 'standard' | 'stock' | 'armband' = 'standard') => {
     if (!selectedProfile || solutions.length === 0) return;
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
@@ -159,47 +210,136 @@ export const BallisticsCalculator = () => {
     const dropKey = turretUnit === 'moa' ? 'dropMOA' : 'dropMIL';
     const driftKey = turretUnit === 'moa' ? 'windDriftMOA' : 'windDriftMIL';
 
-    printWindow.document.write(`
-      <html><head><title>DOPE Card — ${selectedProfile.name}</title>
-      <style>
-        body { font-family: 'Courier New', monospace; padding: 20px; color: #000; }
-        h1 { font-size: 16px; margin-bottom: 4px; }
-        .meta { font-size: 11px; color: #555; margin-bottom: 12px; }
-        table { border-collapse: collapse; width: 100%; font-size: 11px; }
-        th, td { border: 1px solid #333; padding: 3px 6px; text-align: center; }
-        th { background: #222; color: #fff; }
-        tr:nth-child(even) { background: #f0f0f0; }
-        @media print { body { margin: 0; } }
-      </style></head><body>
-      <h1>DOPE CARD — ${selectedProfile.name}</h1>
-      <div class="meta">
-        ${selectedProfile.caliber} | ${selectedProfile.bulletWeight}gr | BC ${selectedProfile.ballisticCoefficient} (${selectedProfile.dragModel}) |
-        MV ${selectedProfile.muzzleVelocity} fps | Zero ${selectedProfile.zeroRange} yds |
-        Wind ${selectedProfile.windSpeed || 0} mph @ ${selectedProfile.windAngle || 90}°
-      </div>
-      <table>
-        <tr><th>Range (yds)</th><th>Drop (${unit})</th><th>Clicks</th><th>Drift (${unit})</th><th>Vel (fps)</th><th>Energy (ft-lbs)</th><th>TOF (s)</th></tr>
-        ${solutions
-          .map((s) => {
-            const clicks =
-              turretUnit === 'moa' ? Math.round(s.dropMOA * 4) : Math.round(s.dropMIL * 10);
-            return `
-          <tr>
-            <td>${s.range}</td>
-            <td>${(s as any)[dropKey]}</td>
-            <td>${clicks}</td>
-            <td>${(s as any)[driftKey]}</td>
-            <td>${s.velocity}</td>
-            <td>${s.energy}</td>
-            <td>${s.timeOfFlight}</td>
-          </tr>
-        `;
-          })
-          .join('')}
-      </table>
-      <div class="meta" style="margin-top: 8px;">Generated by ArmoryVault • ${new Date().toLocaleDateString()}</div>
-      </body></html>
-    `);
+    if (format === 'stock') {
+      // Compact Rifle Stock / Scope Cap Card (High contrast 2-column tactical card)
+      printWindow.document.write(`
+        <html><head><title>Stock DOPE — ${selectedProfile.name}</title>
+        <style>
+          @page { size: 3.5in 2.5in; margin: 0.1in; }
+          body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #fff; color: #000; margin: 0; padding: 6px; }
+          .card { border: 2.5pt solid #000; border-radius: 6px; padding: 6px; height: 100%; box-sizing: border-box; }
+          .title { font-size: 10pt; font-weight: 900; text-transform: uppercase; text-align: center; border-bottom: 1.5pt solid #000; padding-bottom: 3px; margin-bottom: 4px; }
+          .sub { font-size: 6.5pt; font-weight: bold; text-align: center; color: #333; margin-bottom: 5px; }
+          .grid { display: flex; gap: 8px; }
+          table { width: 100%; border-collapse: collapse; font-size: 7.5pt; font-weight: bold; text-align: center; }
+          th { background: #000; color: #fff; padding: 2px 3px; font-size: 6.5pt; }
+          td { border-bottom: 1px solid #ccc; padding: 2px 3px; }
+          .clicks { color: #b91c1c; font-weight: 900; }
+          @media print { body { margin: 0; } }
+        </style></head><body>
+        <div class="card">
+          <div class="title">${selectedProfile.name} • ${selectedProfile.caliber}</div>
+          <div class="sub">${selectedProfile.bulletWeight}gr • MV ${selectedProfile.muzzleVelocity} fps • Zero ${selectedProfile.zeroRange}y • ${unit}</div>
+          <div class="grid">
+            <table>
+              <tr><th>YDS</th><th>${unit}</th><th>CLICKS</th><th>WIND</th></tr>
+              ${solutions
+                .slice(0, Math.ceil(solutions.length / 2))
+                .map((s) => {
+                  const drop = (s as any)[dropKey];
+                  const drift = (s as any)[driftKey];
+                  const clicks =
+                    turretUnit === 'moa' ? Math.round(s.dropMOA * 4) : Math.round(s.dropMIL * 10);
+                  return `<tr><td>${s.range}</td><td>${drop}</td><td class="clicks">${clicks}</td><td>${drift}</td></tr>`;
+                })
+                .join('')}
+            </table>
+            <table>
+              <tr><th>YDS</th><th>${unit}</th><th>CLICKS</th><th>WIND</th></tr>
+              ${solutions
+                .slice(Math.ceil(solutions.length / 2))
+                .map((s) => {
+                  const drop = (s as any)[dropKey];
+                  const drift = (s as any)[driftKey];
+                  const clicks =
+                    turretUnit === 'moa' ? Math.round(s.dropMOA * 4) : Math.round(s.dropMIL * 10);
+                  return `<tr><td>${s.range}</td><td>${drop}</td><td class="clicks">${clicks}</td><td>${drift}</td></tr>`;
+                })
+                .join('')}
+            </table>
+          </div>
+        </div>
+        </body></html>
+      `);
+    } else if (format === 'armband') {
+      // 3-Column Quarterback Wrist / Armband Card
+      printWindow.document.write(`
+        <html><head><title>Armband DOPE — ${selectedProfile.name}</title>
+        <style>
+          @page { size: 2.2in 4.5in; margin: 0.1in; }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #fff; color: #000; margin: 0; padding: 4px; }
+          .card { border: 2pt solid #111; border-radius: 4px; padding: 4px; }
+          .hdr { font-size: 8pt; font-weight: 800; text-align: center; border-bottom: 1.5pt solid #000; padding-bottom: 2px; }
+          .meta { font-size: 6pt; text-align: center; color: #444; margin: 2px 0 4px 0; }
+          table { width: 100%; border-collapse: collapse; font-size: 7.5pt; text-align: center; }
+          th { background: #111; color: #fff; padding: 2px 1px; font-size: 6pt; }
+          td { border-bottom: 0.5pt solid #bbb; padding: 2px 1px; font-weight: 600; }
+          .dial { color: #dc2626; font-weight: 900; }
+          @media print { body { margin: 0; } }
+        </style></head><body>
+        <div class="card">
+          <div class="hdr">${selectedProfile.name} (${unit})</div>
+          <div class="meta">${selectedProfile.caliber} • ${selectedProfile.bulletWeight}gr • Zero ${selectedProfile.zeroRange}y</div>
+          <table>
+            <tr><th>YARDS</th><th>ELEV DIAL</th><th>10MPH WIND</th></tr>
+            ${solutions
+              .map((s) => {
+                const drop = (s as any)[dropKey];
+                const drift = (s as any)[driftKey];
+                const clicks =
+                  turretUnit === 'moa' ? Math.round(s.dropMOA * 4) : Math.round(s.dropMIL * 10);
+                return `<tr><td><strong>${s.range}y</strong></td><td class="dial">+${drop} (${clicks}c)</td><td>${drift} (${unit})</td></tr>`;
+              })
+              .join('')}
+          </table>
+        </div>
+        </body></html>
+      `);
+    } else {
+      // Standard Tabular Report
+      printWindow.document.write(`
+        <html><head><title>DOPE Card — ${selectedProfile.name}</title>
+        <style>
+          body { font-family: 'Courier New', monospace; padding: 20px; color: #000; }
+          h1 { font-size: 16px; margin-bottom: 4px; }
+          .meta { font-size: 11px; color: #555; margin-bottom: 12px; }
+          table { border-collapse: collapse; width: 100%; font-size: 11px; }
+          th, td { border: 1px solid #333; padding: 3px 6px; text-align: center; }
+          th { background: #222; color: #fff; }
+          tr:nth-child(even) { background: #f0f0f0; }
+          @media print { body { margin: 0; } }
+        </style></head><body>
+        <h1>DOPE CARD — ${selectedProfile.name}</h1>
+        <div class="meta">
+          ${selectedProfile.caliber} | ${selectedProfile.bulletWeight}gr | BC ${selectedProfile.ballisticCoefficient} (${selectedProfile.dragModel}) |
+          MV ${selectedProfile.muzzleVelocity} fps | Zero ${selectedProfile.zeroRange} yds |
+          Wind ${selectedProfile.windSpeed || 0} mph @ ${selectedProfile.windAngle || 90}°
+        </div>
+        <table>
+          <tr><th>Range (yds)</th><th>Drop (${unit})</th><th>Clicks</th><th>Drift (${unit})</th><th>Vel (fps)</th><th>Energy (ft-lbs)</th><th>TOF (s)</th></tr>
+          ${solutions
+            .map((s) => {
+              const clicks =
+                turretUnit === 'moa' ? Math.round(s.dropMOA * 4) : Math.round(s.dropMIL * 10);
+              return `
+            <tr>
+              <td>${s.range}</td>
+              <td>${(s as any)[dropKey]}</td>
+              <td>${clicks}</td>
+              <td>${(s as any)[driftKey]}</td>
+              <td>${s.velocity}</td>
+              <td>${s.energy}</td>
+              <td>${s.timeOfFlight}</td>
+            </tr>
+          `;
+            })
+            .join('')}
+        </table>
+        <div class="meta" style="margin-top: 8px;">Generated by ArmoryVault • ${new Date().toLocaleDateString()}</div>
+        </body></html>
+      `);
+    }
+
     printWindow.document.close();
     printWindow.print();
   };
@@ -473,11 +613,399 @@ export const BallisticsCalculator = () => {
           </button>
           <button
             className="btn-secondary"
-            onClick={handlePrintDopeCard}
-            style={{ padding: '0.4rem 0.8rem', fontSize: '0.82rem' }}
+            onClick={() => setIsDopeModalOpen(true)}
+            style={{
+              padding: '0.4rem 0.8rem',
+              fontSize: '0.82rem',
+              background: 'rgba(56, 189, 248, 0.12)',
+              borderColor: 'rgba(56, 189, 248, 0.35)',
+              color: '#38bdf8',
+            }}
           >
-            <Printer size={14} /> Print DOPE Card
+            <Printer size={14} /> DOPE Card Studio
           </button>
+          <button
+            className="btn-secondary"
+            onClick={() => setShowReticleSim(!showReticleSim)}
+            style={{
+              padding: '0.4rem 0.8rem',
+              fontSize: '0.82rem',
+              background: showReticleSim ? 'rgba(34, 197, 94, 0.2)' : 'transparent',
+              borderColor: showReticleSim ? '#22c55e' : 'var(--border-light)',
+              color: showReticleSim ? '#22c55e' : 'var(--text-primary)',
+            }}
+          >
+            <Crosshair size={14} /> Reticle Holdover HUD
+          </button>
+        </div>
+      )}
+
+      {/* Interactive Reticle Holdover Simulator HUD */}
+      {selectedProfile && showReticleSim && (
+        <div
+          style={{
+            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(2, 6, 23, 0.98))',
+            border: '1px solid rgba(56, 189, 248, 0.35)',
+            borderRadius: '16px',
+            padding: '1.5rem',
+            marginBottom: '1.5rem',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '1rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ScopeIcon size={20} color="#38bdf8" />
+              <div>
+                <h3 style={{ margin: 0, color: '#f8fafc', fontSize: '1.1rem' }}>
+                  Reticle Holdover Simulator ({turretUnit.toUpperCase()})
+                </h3>
+                <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.8rem' }}>
+                  Real-time trajectory drop and crosswind deflection projected onto a tactical optic
+                  reticle
+                </p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Target Range:</span>
+              <span
+                style={{
+                  fontSize: '1.1rem',
+                  fontWeight: 'bold',
+                  color: '#38bdf8',
+                  minWidth: '60px',
+                }}
+              >
+                {simDistance} yds
+              </span>
+            </div>
+          </div>
+
+          {/* Interactive Sliders */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: '1rem',
+              marginBottom: '1.5rem',
+            }}
+          >
+            <div
+              style={{
+                background: 'rgba(255, 255, 255, 0.03)',
+                padding: '0.8rem 1rem',
+                borderRadius: '10px',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+              }}
+            >
+              <div
+                style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}
+              >
+                <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Target Distance</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#38bdf8' }}>
+                  {simDistance} Yards
+                </span>
+              </div>
+              <input
+                type="range"
+                min={50}
+                max={maxRange}
+                step={25}
+                value={simDistance}
+                onChange={(e) => setSimDistance(Number(e.target.value))}
+                style={{ width: '100%', accentColor: '#38bdf8' }}
+              />
+            </div>
+
+            <div
+              style={{
+                background: 'rgba(255, 255, 255, 0.03)',
+                padding: '0.8rem 1rem',
+                borderRadius: '10px',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+              }}
+            >
+              <div
+                style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}
+              >
+                <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+                  Crosswind (Full 90° Value)
+                </span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fbbf24' }}>
+                  {simWindMph} MPH
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={30}
+                step={1}
+                value={simWindMph}
+                onChange={(e) => setSimWindMph(Number(e.target.value))}
+                style={{ width: '100%', accentColor: '#fbbf24' }}
+              />
+            </div>
+          </div>
+
+          {/* Reticle Canvas + Telemetry Cards Grid */}
+          <div
+            style={{
+              display: 'flex',
+              gap: '2rem',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {/* SVG Tactical Reticle */}
+            <div
+              style={{
+                width: '320px',
+                height: '320px',
+                borderRadius: '50%',
+                background: '#020617',
+                border: '3px solid #334155',
+                position: 'relative',
+                overflow: 'hidden',
+                boxShadow: 'inset 0 0 40px rgba(0,0,0,0.8), 0 0 25px rgba(56, 189, 248, 0.2)',
+              }}
+            >
+              <svg width="320" height="320" viewBox="0 0 320 320">
+                {/* Outer Field of View Ring */}
+                <circle cx="160" cy="160" r="156" fill="none" stroke="#1e293b" strokeWidth="2" />
+                <circle cx="160" cy="160" r="150" fill="none" stroke="#0f172a" strokeWidth="1" />
+
+                {/* Primary Crosshair Lines */}
+                <line x1="160" y1="10" x2="160" y2="310" stroke="#334155" strokeWidth="1.5" />
+                <line x1="10" y1="160" x2="310" y2="160" stroke="#334155" strokeWidth="1.5" />
+
+                {/* Center Aim Point Dot */}
+                <circle cx="160" cy="160" r="2.5" fill="#38bdf8" />
+
+                {/* Subtension Hash Marks (1 to 10 scale) */}
+                {[-8, -6, -4, -2, 2, 4, 6, 8].map((unit) => {
+                  const y = 160 + unit * 14;
+                  return (
+                    <g key={`y-${unit}`}>
+                      <line x1="152" y1={y} x2="168" y2={y} stroke="#475569" strokeWidth="1" />
+                      <text x="172" y={y + 3} fill="#64748b" fontSize="8" fontFamily="monospace">
+                        {Math.abs(unit)}
+                      </text>
+                    </g>
+                  );
+                })}
+                {[-8, -6, -4, -2, 2, 4, 6, 8].map((unit) => {
+                  const x = 160 + unit * 14;
+                  return (
+                    <g key={`x-${unit}`}>
+                      <line x1={x} y1="152" x2={x} y2="168" stroke="#475569" strokeWidth="1" />
+                      {unit !== 0 && (
+                        <text
+                          x={x}
+                          y="178"
+                          fill="#64748b"
+                          fontSize="8"
+                          fontFamily="monospace"
+                          textAnchor="middle"
+                        >
+                          {Math.abs(unit)}
+                        </text>
+                      )}
+                    </g>
+                  );
+                })}
+
+                {/* Bullet Impact Holdover Point (Dynamic Calculated) */}
+                {(() => {
+                  if (!simSolution) return null;
+                  const dropVal = turretUnit === 'moa' ? simSolution.dropMOA : simSolution.dropMIL;
+                  const driftVal =
+                    turretUnit === 'moa' ? simSolution.windDriftMOA : simSolution.windDriftMIL;
+                  const impactY = Math.min(305, Math.max(15, 160 + dropVal * 14));
+                  const impactX = Math.min(305, Math.max(15, 160 + driftVal * 14));
+
+                  return (
+                    <g>
+                      <line
+                        x1="160"
+                        y1="160"
+                        x2={impactX}
+                        y2={impactY}
+                        stroke="rgba(239, 68, 68, 0.4)"
+                        strokeWidth="1.5"
+                        strokeDasharray="3,3"
+                      />
+                      <circle
+                        cx={impactX}
+                        cy={impactY}
+                        r="7"
+                        fill="none"
+                        stroke="#ef4444"
+                        strokeWidth="1.5"
+                      />
+                      <circle cx={impactX} cy={impactY} r="3" fill="#ef4444" />
+                      <line
+                        x1={impactX - 10}
+                        y1={impactY}
+                        x2={impactX + 10}
+                        y2={impactY}
+                        stroke="#ef4444"
+                        strokeWidth="1"
+                      />
+                      <line
+                        x1={impactX}
+                        y1={impactY - 10}
+                        x2={impactX}
+                        y2={impactY + 10}
+                        stroke="#ef4444"
+                        strokeWidth="1"
+                      />
+                    </g>
+                  );
+                })()}
+              </svg>
+            </div>
+
+            {/* Tactical Dial Telemetry Card */}
+            {simSolution &&
+              (() => {
+                const dropVal = turretUnit === 'moa' ? simSolution.dropMOA : simSolution.dropMIL;
+                const driftVal =
+                  turretUnit === 'moa' ? simSolution.windDriftMOA : simSolution.windDriftMIL;
+                const elevClicks =
+                  turretUnit === 'moa' ? Math.round(dropVal * 4) : Math.round(dropVal * 10);
+                const windClicks =
+                  turretUnit === 'moa' ? Math.round(driftVal * 4) : Math.round(driftVal * 10);
+
+                return (
+                  <div
+                    style={{
+                      flex: 1,
+                      minWidth: '280px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.75rem',
+                    }}
+                  >
+                    <div
+                      style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}
+                    >
+                      <div
+                        style={{
+                          background: 'rgba(56, 189, 248, 0.1)',
+                          border: '1px solid rgba(56, 189, 248, 0.3)',
+                          borderRadius: '10px',
+                          padding: '0.8rem',
+                        }}
+                      >
+                        <div style={{ color: '#38bdf8', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                          ▲ ELEVATION HOLD
+                        </div>
+                        <div
+                          style={{
+                            color: '#fff',
+                            fontSize: '1.25rem',
+                            fontWeight: 'bold',
+                            fontFamily: 'monospace',
+                            margin: '2px 0',
+                          }}
+                        >
+                          +{dropVal.toFixed(1)} {turretUnit.toUpperCase()}
+                        </div>
+                        <div style={{ color: '#94a3b8', fontSize: '0.75rem' }}>
+                          Dial {elevClicks} Clicks UP ({simSolution.drop.toFixed(1)}" Drop)
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          background: 'rgba(251, 191, 36, 0.1)',
+                          border: '1px solid rgba(251, 191, 36, 0.3)',
+                          borderRadius: '10px',
+                          padding: '0.8rem',
+                        }}
+                      >
+                        <div style={{ color: '#fbbf24', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                          ► WIND DEFLECTION
+                        </div>
+                        <div
+                          style={{
+                            color: '#fff',
+                            fontSize: '1.25rem',
+                            fontWeight: 'bold',
+                            fontFamily: 'monospace',
+                            margin: '2px 0',
+                          }}
+                        >
+                          {driftVal.toFixed(1)} {turretUnit.toUpperCase()}
+                        </div>
+                        <div style={{ color: '#94a3b8', fontSize: '0.75rem' }}>
+                          Hold {windClicks} Clicks RIGHT ({simSolution.windDrift.toFixed(1)}" Drift)
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(3, 1fr)',
+                        gap: '0.5rem',
+                        background: 'rgba(0,0,0,0.3)',
+                        padding: '0.75rem',
+                        borderRadius: '10px',
+                        border: '1px solid rgba(255,255,255,0.06)',
+                      }}
+                    >
+                      <div>
+                        <div style={{ color: '#94a3b8', fontSize: '0.7rem' }}>TERMINAL VEL</div>
+                        <div
+                          style={{
+                            color: '#f8fafc',
+                            fontWeight: 600,
+                            fontSize: '0.9rem',
+                            fontFamily: 'monospace',
+                          }}
+                        >
+                          {simSolution.velocity} fps
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ color: '#94a3b8', fontSize: '0.7rem' }}>ENERGY</div>
+                        <div
+                          style={{
+                            color: '#f8fafc',
+                            fontWeight: 600,
+                            fontSize: '0.9rem',
+                            fontFamily: 'monospace',
+                          }}
+                        >
+                          {simSolution.energy} ft-lbs
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ color: '#94a3b8', fontSize: '0.7rem' }}>FLIGHT TIME</div>
+                        <div
+                          style={{
+                            color: '#f8fafc',
+                            fontWeight: 600,
+                            fontSize: '0.9rem',
+                            fontFamily: 'monospace',
+                          }}
+                        >
+                          {simSolution.timeOfFlight} s
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+          </div>
         </div>
       )}
 
@@ -823,6 +1351,130 @@ export const BallisticsCalculator = () => {
                 </select>
               </div>
 
+              {/* Chrono & Optics Auto-Fill integration */}
+              {(chronoStrings.length > 0 || opticsList.length > 0) && (
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '0.75rem',
+                    marginBottom: '1.25rem',
+                  }}
+                >
+                  {chronoStrings.length > 0 && (
+                    <div
+                      style={{
+                        padding: '0.65rem',
+                        background: 'rgba(96, 165, 250, 0.08)',
+                        border: '1px solid rgba(96, 165, 250, 0.25)',
+                        borderRadius: '10px',
+                      }}
+                    >
+                      <label
+                        style={{
+                          display: 'block',
+                          color: '#60a5fa',
+                          fontSize: '0.78rem',
+                          fontWeight: 600,
+                          marginBottom: 4,
+                        }}
+                      >
+                        Import Chrono Velocity:
+                      </label>
+                      <select
+                        className="glass-input"
+                        onChange={(e) => {
+                          const idx = Number(e.target.value);
+                          const c = chronoStrings[idx];
+                          if (c) {
+                            const avgVel =
+                              c.averageVelocity ||
+                              c.average_velocity ||
+                              (c.shotVelocities
+                                ? Math.round(
+                                    c.shotVelocities.reduce((a: any, b: any) => a + b, 0) /
+                                      c.shotVelocities.length
+                                  )
+                                : null);
+                            if (avgVel) {
+                              setForm((prev) => ({
+                                ...prev,
+                                muzzleVelocity: avgVel,
+                                name: prev.name || c.ammoLabel || 'Chrono Load',
+                              }));
+                            }
+                          }
+                        }}
+                        defaultValue=""
+                      >
+                        <option value="" disabled>
+                          -- Pick Shot String --
+                        </option>
+                        {chronoStrings.map((c, idx) => (
+                          <option key={idx} value={idx}>
+                            {c.ammoLabel || `String #${idx + 1}`} (
+                            {c.averageVelocity || c.average_velocity} fps)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {opticsList.length > 0 && (
+                    <div
+                      style={{
+                        padding: '0.65rem',
+                        background: 'rgba(56, 189, 248, 0.08)',
+                        border: '1px solid rgba(56, 189, 248, 0.25)',
+                        borderRadius: '10px',
+                      }}
+                    >
+                      <label
+                        style={{
+                          display: 'block',
+                          color: '#38bdf8',
+                          fontSize: '0.78rem',
+                          fontWeight: 600,
+                          marginBottom: 4,
+                        }}
+                      >
+                        Link Mounted Optic:
+                      </label>
+                      <select
+                        className="glass-input"
+                        onChange={(e) => {
+                          const o = opticsList.find((opt) => opt.id === e.target.value);
+                          if (o) {
+                            setSelectedOpticId(o.id);
+                            const cv = (o.clickValue || '').toUpperCase();
+                            if (cv.includes('MRAD') || cv.includes('MIL')) {
+                              setTurretUnit('mil');
+                            } else {
+                              setTurretUnit('moa');
+                            }
+                            setForm((prev) => ({
+                              ...prev,
+                              zeroRange: o.zeroDistance || prev.zeroRange || 100,
+                              sightHeight: 1.5,
+                            }));
+                          }
+                        }}
+                        defaultValue=""
+                      >
+                        <option value="" disabled>
+                          -- Select Optic Profile --
+                        </option>
+                        {opticsList.map((o) => (
+                          <option key={o.id} value={o.id}>
+                            {o.name || `${o.manufacturer} ${o.model}`} ({o.clickValue})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 {[
                   { label: 'Profile Name', key: 'name', type: 'text', span: 2 },
@@ -900,6 +1552,253 @@ export const BallisticsCalculator = () => {
                 </button>
                 <button className="btn-primary" onClick={handleSaveProfile}>
                   Save Profile
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* DOPE Card Studio Modal */}
+      {isDopeModalOpen &&
+        selectedProfile &&
+        createPortal(
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0, 0, 0, 0.75)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999,
+              padding: '1rem',
+            }}
+          >
+            <div
+              style={{
+                background: 'var(--card-bg)',
+                border: '1px solid var(--border-light)',
+                borderRadius: '16px',
+                padding: '1.5rem',
+                width: '100%',
+                maxWidth: '640px',
+                maxHeight: '90vh',
+                overflow: 'auto',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '1rem',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Printer size={20} color="#38bdf8" />
+                  <h2 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1.15rem' }}>
+                    DOPE Card Studio — {selectedProfile.name}
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setIsDopeModalOpen(false)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <p
+                style={{
+                  color: 'var(--text-muted)',
+                  fontSize: '0.84rem',
+                  marginTop: 0,
+                  marginBottom: '1.25rem',
+                }}
+              >
+                Select physical card format tailored for long-range field engagement, sniper stocks,
+                or quarterback wrist sleeves.
+              </p>
+
+              {/* Format Cards Selector */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: '0.75rem',
+                  marginBottom: '1.5rem',
+                }}
+              >
+                {[
+                  {
+                    type: 'stock',
+                    title: 'Stock / Scope Cap',
+                    desc: '2.5"×3.5" or circular cap for Butler Creek lids / buttstocks',
+                    icon: (
+                      <Target size={18} color={dopeCardType === 'stock' ? '#38bdf8' : '#94a3b8'} />
+                    ),
+                  },
+                  {
+                    type: 'armband',
+                    title: 'Forearm Sleeve',
+                    desc: 'Narrow 3-col format for quarterback wrist playbooks',
+                    icon: (
+                      <Layers
+                        size={18}
+                        color={dopeCardType === 'armband' ? '#38bdf8' : '#94a3b8'}
+                      />
+                    ),
+                  },
+                  {
+                    type: 'standard',
+                    title: 'Full Bench Sheet',
+                    desc: 'Full trajectory sheet with energy, velocity, and flight time',
+                    icon: (
+                      <FileText
+                        size={18}
+                        color={dopeCardType === 'standard' ? '#38bdf8' : '#94a3b8'}
+                      />
+                    ),
+                  },
+                ].map((fmt) => (
+                  <div
+                    key={fmt.type}
+                    onClick={() => setDopeCardType(fmt.type as any)}
+                    style={{
+                      padding: '0.85rem',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      border:
+                        dopeCardType === fmt.type
+                          ? '2px solid #38bdf8'
+                          : '1px solid var(--border-light)',
+                      background:
+                        dopeCardType === fmt.type
+                          ? 'rgba(56, 189, 248, 0.12)'
+                          : 'rgba(255, 255, 255, 0.02)',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <div
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: 4 }}
+                    >
+                      {fmt.icon}
+                      <span
+                        style={{
+                          fontWeight: 'bold',
+                          fontSize: '0.85rem',
+                          color: dopeCardType === fmt.type ? '#38bdf8' : 'var(--text-primary)',
+                        }}
+                      >
+                        {fmt.title}
+                      </span>
+                    </div>
+                    <div
+                      style={{ fontSize: '0.74rem', color: 'var(--text-muted)', lineHeight: 1.3 }}
+                    >
+                      {fmt.desc}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Preview Box */}
+              <div
+                style={{
+                  background: '#f8fafc',
+                  color: '#0f172a',
+                  borderRadius: '8px',
+                  padding: '1rem',
+                  marginBottom: '1.25rem',
+                  fontFamily: 'monospace',
+                  fontSize: '0.8rem',
+                  border: '2px dashed #94a3b8',
+                  maxHeight: '220px',
+                  overflow: 'auto',
+                }}
+              >
+                <div
+                  style={{
+                    fontWeight: 'bold',
+                    textAlign: 'center',
+                    borderBottom: '1px solid #cbd5e1',
+                    paddingBottom: 4,
+                    marginBottom: 6,
+                  }}
+                >
+                  PRINT PREVIEW: {dopeCardType.toUpperCase()} FORMAT
+                </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: '0.75rem',
+                    marginBottom: 4,
+                  }}
+                >
+                  <span>
+                    {selectedProfile.name} • {selectedProfile.caliber}
+                  </span>
+                  <span>
+                    MV {selectedProfile.muzzleVelocity} fps | {turretUnit.toUpperCase()}
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#475569', marginBottom: 8 }}>
+                  Zero: {selectedProfile.zeroRange}y | Wind: {selectedProfile.windSpeed || 10}mph
+                  full value
+                </div>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
+                    gap: '4px',
+                  }}
+                >
+                  {solutions.slice(0, 8).map((s) => (
+                    <div
+                      key={s.range}
+                      style={{
+                        background: '#e2e8f0',
+                        padding: '3px 6px',
+                        borderRadius: '4px',
+                        fontSize: '0.72rem',
+                      }}
+                    >
+                      <strong>{s.range}y:</strong> +{turretUnit === 'moa' ? s.dropMOA : s.dropMIL} (
+                      {turretUnit === 'moa'
+                        ? Math.round(s.dropMOA * 4)
+                        : Math.round(s.dropMIL * 10)}
+                      c)
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+                <button className="btn-secondary" onClick={() => setIsDopeModalOpen(false)}>
+                  Cancel
+                </button>
+                <button
+                  className="btn-primary"
+                  onClick={() => {
+                    handlePrintDopeCard(dopeCardType);
+                    setIsDopeModalOpen(false);
+                  }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Printer size={15} /> Print{' '}
+                  {dopeCardType === 'stock'
+                    ? 'Stock Card'
+                    : dopeCardType === 'armband'
+                      ? 'Armband Sleeve'
+                      : 'DOPE Sheet'}
                 </button>
               </div>
             </div>

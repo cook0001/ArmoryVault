@@ -11,6 +11,7 @@ import {
   DollarSign,
   Eye,
   EyeOff,
+  FileText,
   Flame,
   Flashlight,
   LayoutGrid,
@@ -104,8 +105,114 @@ export const Dashboard = () => {
     }
   });
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
+  const [isExportingBinder, setIsExportingBinder] = useState(false);
 
   const navigate = useNavigate();
+
+  const handleExportInsuranceBinder = async () => {
+    if (!window.api?.generateArmoryBinder) return;
+    try {
+      setIsExportingBinder(true);
+      const activeFirearms = firearms.filter((f) => !f.is_sold);
+      const totalRounds = ammoList.reduce((sum, a) => sum + (Number(a.count) || 0), 0);
+      const nfaItems = activeFirearms
+        .filter((f) => f.is_nfa)
+        .map((f) => ({
+          name: `${f.make} ${f.model}`,
+          serial: f.serial_number,
+          type: f.nfa_type || 'NFA Registered',
+          value: Number(f.purchase_price) || 0,
+        }));
+
+      let maskSerials = false;
+      if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
+        try {
+          maskSerials = window.confirm(
+            'Mask firearm serial numbers (e.g. ***-1234) for privacy in this export?\n\n' +
+              '• Click OK to MASK serial numbers (Recommended when sharing with underwriters)\n' +
+              '• Click Cancel to include FULL serial numbers'
+          );
+        } catch {
+          maskSerials = false;
+        }
+      }
+
+      const payload = {
+        maskSerials,
+        date: new Date().toISOString().split('T')[0],
+        owner_name: 'Armory Vault Holder',
+        total_valuation: grandTotalVal.toLocaleString('en-US', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+        firearms_count: activeFirearms.length,
+        firearms_val: firearmsVal.toLocaleString('en-US', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+        ammo_rounds: totalRounds,
+        ammo_val: ammoVal.toLocaleString('en-US', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+        optics_count: accessories.filter(
+          (a) => a.type?.toLowerCase().includes('optic') || a.type?.toLowerCase().includes('scope')
+        ).length,
+        optics_val: accessories
+          .filter(
+            (a) =>
+              a.type?.toLowerCase().includes('optic') || a.type?.toLowerCase().includes('scope')
+          )
+          .reduce((s, a) => s + (Number(a.value) || 0), 0)
+          .toLocaleString('en-US', { minimumFractionDigits: 2 }),
+        nfa_count: nfaItems.length,
+        nfa_val: nfaItems
+          .reduce((s, n) => s + (Number(n.value) || 0), 0)
+          .toLocaleString('en-US', { minimumFractionDigits: 2 }),
+        accessories_count: accessories.length,
+        accessories_val: accessoriesVal.toLocaleString('en-US', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+        firearms: activeFirearms.map((f) => ({
+          make: f.make,
+          model: f.model,
+          serial_number: f.serial_number,
+          caliber: f.caliber,
+          action_type: f.action_type || (f as any).type || 'N/A',
+          condition: f.condition || 'Excellent',
+          finish: f.finish || 'Standard',
+          purchase_date: f.purchase_date || 'N/A',
+          purchase_price: (Number(f.purchase_price) || 0).toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+          }),
+          replacement_price: ((Number(f.purchase_price) || 0) * 1.15).toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+          }),
+          round_count:
+            f.logs
+              ?.filter((l) => l.type === 'Range')
+              .reduce((sum, l) => sum + (l.rounds_fired || 0), 0) ||
+            (f as any).round_count ||
+            0,
+          notes: f.notes || '',
+        })),
+        nfa_items: nfaItems,
+      };
+
+      const res = await window.api.generateArmoryBinder(payload);
+      if (res) {
+        alert(
+          'Armory Insurance & Appraisal Binder successfully compiled via Typst and saved to your Documents!'
+        );
+      }
+    } catch (err: any) {
+      console.error('Error generating insurance binder:', err);
+      alert('Failed to generate insurance binder: ' + err.message);
+    } finally {
+      setIsExportingBinder(false);
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -394,89 +501,111 @@ export const Dashboard = () => {
           </p>
         </div>
 
-        {/* Customize Cards Dropdown */}
-        <div className="customize-metrics-wrap">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
-            className="btn-secondary"
-            onClick={() => setIsCustomizeOpen(!isCustomizeOpen)}
-            title="Customize Metric Cards"
-            style={{ padding: '0.45rem 0.85rem', fontSize: '0.85rem' }}
+            type="button"
+            className="btn-primary"
+            onClick={handleExportInsuranceBinder}
+            disabled={isExportingBinder}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              padding: '0.45rem 0.85rem',
+              fontSize: '0.85rem',
+              background: 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)',
+              border: '1px solid rgba(59, 130, 246, 0.4)',
+            }}
+            title="Export Full Armory Insurance & Appraisal Binder (Typst PDF)"
           >
-            <SlidersHorizontal size={15} />
-            <span>Customize Cards</span>
+            <FileText size={15} color="#60a5fa" />
+            <span>{isExportingBinder ? 'Compiling...' : 'Export Insurance Binder (PDF)'}</span>
           </button>
 
-          {isCustomizeOpen && (
-            <div className="customize-metrics-popover">
-              <div
-                style={{
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  color: 'var(--text-muted)',
-                  marginBottom: '0.4rem',
-                }}
-              >
-                Metric Cards Display
+          {/* Customize Cards Dropdown */}
+          <div className="customize-metrics-wrap">
+            <button
+              className="btn-secondary"
+              onClick={() => setIsCustomizeOpen(!isCustomizeOpen)}
+              title="Customize Metric Cards"
+              style={{ padding: '0.45rem 0.85rem', fontSize: '0.85rem' }}
+            >
+              <SlidersHorizontal size={15} />
+              <span>Customize Cards</span>
+            </button>
+
+            {isCustomizeOpen && (
+              <div className="customize-metrics-popover">
+                <div
+                  style={{
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: 'var(--text-muted)',
+                    marginBottom: '0.4rem',
+                  }}
+                >
+                  Metric Cards Display
+                </div>
+                <label className="metric-toggle-row">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <Shield size={14} style={{ color: 'var(--accent)' }} />
+                    <span>Total Firearms</span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={statVisibility.firearms}
+                    onChange={() => handleToggleStat('firearms')}
+                  />
+                </label>
+                <label className="metric-toggle-row">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <CartridgesIcon size={14} color="#f59e0b" />
+                    <span>Ammunition Stock</span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={statVisibility.ammo}
+                    onChange={() => handleToggleStat('ammo')}
+                  />
+                </label>
+                <label className="metric-toggle-row">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <Flame size={14} color="#f97316" />
+                    <span>Lifetime Rounds</span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={statVisibility.rounds}
+                    onChange={() => handleToggleStat('rounds')}
+                  />
+                </label>
+                <label className="metric-toggle-row">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <DollarSign size={14} color="#10b981" />
+                    <span>Vault Valuation</span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={statVisibility.valuation}
+                    onChange={() => handleToggleStat('valuation')}
+                  />
+                </label>
+                <label className="metric-toggle-row">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <AlertTriangle size={14} color="#f59e0b" />
+                    <span>Service Status</span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={statVisibility.service}
+                    onChange={() => handleToggleStat('service')}
+                  />
+                </label>
               </div>
-              <label className="metric-toggle-row">
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <Shield size={14} style={{ color: 'var(--accent)' }} />
-                  <span>Total Firearms</span>
-                </span>
-                <input
-                  type="checkbox"
-                  checked={statVisibility.firearms}
-                  onChange={() => handleToggleStat('firearms')}
-                />
-              </label>
-              <label className="metric-toggle-row">
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <CartridgesIcon size={14} color="#f59e0b" />
-                  <span>Ammunition Stock</span>
-                </span>
-                <input
-                  type="checkbox"
-                  checked={statVisibility.ammo}
-                  onChange={() => handleToggleStat('ammo')}
-                />
-              </label>
-              <label className="metric-toggle-row">
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <Flame size={14} color="#f97316" />
-                  <span>Lifetime Rounds</span>
-                </span>
-                <input
-                  type="checkbox"
-                  checked={statVisibility.rounds}
-                  onChange={() => handleToggleStat('rounds')}
-                />
-              </label>
-              <label className="metric-toggle-row">
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <DollarSign size={14} color="#10b981" />
-                  <span>Vault Valuation</span>
-                </span>
-                <input
-                  type="checkbox"
-                  checked={statVisibility.valuation}
-                  onChange={() => handleToggleStat('valuation')}
-                />
-              </label>
-              <label className="metric-toggle-row">
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <AlertTriangle size={14} color="#f59e0b" />
-                  <span>Service Status</span>
-                </span>
-                <input
-                  type="checkbox"
-                  checked={statVisibility.service}
-                  onChange={() => handleToggleStat('service')}
-                />
-              </label>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 

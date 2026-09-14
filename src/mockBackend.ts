@@ -312,7 +312,84 @@ export function setupMockBackend() {
         console.log('Mock generate Insurance', data);
         return null;
       },
-      lookupUPC: async (upc: string) => ({ items: [] }),
+      generateArmoryBinder: async (data: any) => {
+        console.log('Mock generate Armory Binder', data);
+        return 'file:///mock/path/Armory_Insurance_Appraisal.pdf';
+      },
+      generateWorkOrder: async (data: any) => {
+        console.log('Mock generate Work Order', data);
+        return 'file:///mock/path/Armorer_Work_Order.pdf';
+      },
+      lookupFFL: async (params: any) => {
+        const mockFFLs = [
+          {
+            id: 1,
+            license_num: '1-54-001-01-4A-12345',
+            business_name: 'Apex Tactical & Armory LLC',
+            trade_name: 'Apex Armory',
+            street: '1004 Tactical Way',
+            city: 'Dallas',
+            state: 'TX',
+            zip: '75201',
+            phone: '(214) 555-0199',
+            standard_fee: 25,
+          },
+          {
+            id: 2,
+            license_num: '9-84-015-02-7B-67890',
+            business_name: 'Heritage Arms & Curio Co.',
+            trade_name: 'Heritage Gunsmithing',
+            street: '450 Liberty Rd',
+            city: 'Fort Worth',
+            state: 'TX',
+            zip: '76102',
+            phone: '(817) 555-0144',
+            standard_fee: 30,
+          },
+        ];
+        return { success: true, count: mockFFLs.length, source: 'mock_database', data: mockFFLs };
+      },
+      lookupRanges: async (params: any) => {
+        const mockRanges = [
+          {
+            id: 1,
+            name: 'Eagle Eye Precision Shooting Complex',
+            trade_name: 'Eagle Eye Range',
+            range_type: 'Outdoor 1000yd / Tactical Bays',
+            street: '8820 Marksman Rd',
+            city: 'Dallas',
+            state: 'TX',
+            zip: '75201',
+            phone: '(214) 555-0812',
+            lane_fee: 20,
+            amenities: '1000yd High Power, 50yd Pistol, Chrono Bay, Steel Targets',
+            is_public: 1,
+          },
+          {
+            id: 2,
+            name: 'Lone Star Defense & Sportsman Club',
+            trade_name: 'Lone Star Range',
+            range_type: 'Indoor 25yd Tactical',
+            street: '120 Sportsman Blvd',
+            city: 'Fort Worth',
+            state: 'TX',
+            zip: '76102',
+            phone: '(817) 555-0955',
+            lane_fee: 25,
+            amenities: 'Climate Controlled, Programmable Turning Targets, Action Bays',
+            is_public: 1,
+          },
+        ];
+        return {
+          success: true,
+          count: mockRanges.length,
+          source: 'mock_database',
+          data: mockRanges,
+        };
+      },
+      lookupUPC: async (upc: string) => {
+        return { items: [] };
+      },
       exportData: async (dataString: string, filename: string) => {
         const blob = new Blob([dataString], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');

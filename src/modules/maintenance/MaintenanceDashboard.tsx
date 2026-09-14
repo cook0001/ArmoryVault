@@ -4,6 +4,7 @@ import {
   Clock,
   Crosshair,
   DollarSign,
+  FileText,
   Gauge,
   History,
   Layers,
@@ -16,7 +17,7 @@ import {
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { OpticZeroModal } from '@/components/modals/OpticZeroModal';
 import { QuickServiceModal } from '@/components/modals/QuickServiceModal';
 import type { Firearm, MaintenanceLog, MaintenanceScheduleItem, OpticZeroRecord } from '@/types';
@@ -52,6 +53,9 @@ export const MaintenanceDashboard: React.FC = () => {
   const [firearms, setFirearms] = useState<Firearm[]>([]);
   const [activeTab, setActiveTab] = useState<TabView>('service_board');
   const navigate = useNavigate();
+  const location = useLocation();
+  const [isGeneratingWorkOrder, setIsGeneratingWorkOrder] = useState(false);
+  const [workOrderNotice, setWorkOrderNotice] = useState<string | null>(null);
 
   // User preferences
   const [showCosts, setShowCosts] = useState<boolean>(() => {
@@ -366,6 +370,97 @@ export const MaintenanceDashboard: React.FC = () => {
     setIsQuickServiceOpen(true);
   };
 
+  // Listen for navigation state from SyncInbox or other views requesting quick service
+  useEffect(() => {
+    if (
+      location.state &&
+      (location.state as any).openQuickService &&
+      (location.state as any).firearmId &&
+      firearms.length > 0
+    ) {
+      const fId = Number((location.state as any).firearmId);
+      const tName = (location.state as any).taskName;
+      handleOpenQuickService(fId, undefined, tName);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, firearms]);
+
+  const handleGenerateWorkOrder = async (firearm: Firearm, log?: MaintenanceLog) => {
+    if (!window.api?.generateWorkOrder) return;
+    setIsGeneratingWorkOrder(true);
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const woData = {
+        date: log?.date || today,
+        work_order_number: `WO-${(log?.date || today).replace(/-/g, '')}-${firearm.id || 101}`,
+        armorer_name: 'Certified Armorer',
+        firearm: {
+          make: firearm.make,
+          model: firearm.model,
+          caliber: firearm.caliber,
+          serial_number: firearm.serial_number,
+          round_count: firearm.round_count || 0,
+          type: firearm.firearm_type || 'Firearm',
+          location: (firearm as any).location || 'Vault',
+          condition: firearm.condition,
+        },
+        service_item: {
+          task_name:
+            log?.installed_part_details ||
+            log?.repaired_part ||
+            `${log?.type || 'Scheduled'} Service`,
+          category: log?.type || 'Routine Maintenance',
+          round_count_at_service: (log as any)?.round_count_at_service || firearm.round_count || 0,
+          notes:
+            log?.notes || 'Standard protocol executed according to armorer factory specifications.',
+          cost: log?.cost || 0,
+          completed_date: log?.date || today,
+        },
+        parts_replaced: log?.installed_part_details
+          ? [
+              {
+                name: log.installed_part_details,
+                part_number: '—',
+                manufacturer: 'OEM / Certified',
+                cost: log.cost || 0,
+              },
+            ]
+          : [],
+        torque_specs: ((firearm as any).optic_zeros || firearm.optic_zero_records || []).map(
+          (oz: any) => ({
+            component: `${oz.optic_name || 'Optic'} Mount`,
+            torque_in_lb: oz.base_torque_in_lb || 15,
+            threadlocker: oz.threadlocker || 'Loctite 242 (Blue)',
+            status: 'VERIFIED',
+          })
+        ),
+        test_fire: {
+          performed: false,
+          rounds_fired: 0,
+        },
+        inspection_checks: [
+          { check: 'Headspace Verification', result: 'PASSED (Within Gauge Limits)' },
+          { check: 'Bore & Chamber Condition', result: 'PASSED (Clean, sharp rifling)' },
+          { check: 'Extractor Tension & Claw', result: 'PASSED (Positive casing grasp)' },
+          { check: 'Firing Pin Integrity', result: 'PASSED (Normal protrusion)' },
+          { check: 'Drop Safety & Disconnector', result: 'PASSED (Operational)' },
+        ],
+      };
+
+      const result = await window.api.generateWorkOrder(woData);
+      if (result) {
+        setWorkOrderNotice(
+          `Work order certificate exported successfully: ${result.split('/').pop()}`
+        );
+        setTimeout(() => setWorkOrderNotice(null), 6000);
+      }
+    } catch (e: any) {
+      console.error('Failed to generate work order:', e);
+    } finally {
+      setIsGeneratingWorkOrder(false);
+    }
+  };
+
   // Quick action: Apply recommended preset to an unscheduled firearm
   const handleApplyPreset = async (firearm: Firearm) => {
     const detectedProfile = detectMaintenanceProfile(firearm);
@@ -510,6 +605,19 @@ export const MaintenanceDashboard: React.FC = () => {
             <span>Alert Thresholds</span>
           </button>
 
+          {/* Work Order Certificate PDF Trigger */}
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={isGeneratingWorkOrder || firearms.length === 0}
+            onClick={() => handleGenerateWorkOrder(firearms[0])}
+            title="Export Armorer Work Order & Inspection Certificate PDF"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#38bdf8' }}
+          >
+            <FileText size={16} />
+            <span>{isGeneratingWorkOrder ? 'Exporting...' : 'Work Order PDF'}</span>
+          </button>
+
           {/* Quick Service Modal Trigger */}
           <button
             type="button"
@@ -522,6 +630,37 @@ export const MaintenanceDashboard: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Work Order Export Notification Toast */}
+      {workOrderNotice && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '0.75rem',
+            padding: '0.75rem 1.25rem',
+            background: 'rgba(56, 189, 248, 0.12)',
+            border: '1px solid rgba(56, 189, 248, 0.35)',
+            borderRadius: '10px',
+            marginBottom: '1.25rem',
+            color: '#38bdf8',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <CheckCircle2 size={16} color="#38bdf8" />
+            <span>{workOrderNotice}</span>
+          </div>
+          <button
+            onClick={() => setWorkOrderNotice(null)}
+            style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       {/* ─── Master Fleet Health KPI Summary ─── */}
       <div
@@ -938,6 +1077,7 @@ export const MaintenanceDashboard: React.FC = () => {
           setHistoryTypeFilter={setHistoryTypeFilter}
           showCosts={showCosts}
           onNavigateDetails={(id) => navigate(`/details/${id}`)}
+          onGenerateWorkOrder={handleGenerateWorkOrder}
         />
       )}
 

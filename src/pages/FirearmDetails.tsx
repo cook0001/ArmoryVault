@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   Bookmark,
+  Building2,
   Calendar,
   Check,
   CheckCircle,
@@ -26,6 +27,7 @@ import {
   Unlink,
   Upload,
   Wrench,
+  ZoomIn,
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -38,6 +40,7 @@ import {
   getAccessoryTypeColor,
 } from '../components/modals/AccessoryDetailModal';
 import { AccessoryModal } from '../components/modals/AccessoryModal';
+import { FflPickerModal } from '../components/modals/FflPickerModal';
 import { MountAccessoryModal } from '../components/modals/MountAccessoryModal';
 import { StorageBadge } from '../components/StorageBadge';
 import { useUndoToast } from '../components/UndoToast';
@@ -69,9 +72,12 @@ export const FirearmDetails = () => {
   const navigate = useNavigate();
   const [firearm, setFirearm] = useState<Firearm | null>(null);
   const [isSelling, setIsSelling] = useState(false);
+  const [isFflPickerOpen, setIsFflPickerOpen] = useState(false);
   const [isLogging, setIsLogging] = useState(false);
   const [lightboxImages, setLightboxImages] = useState<string[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
+  const [isGeneratingBOS, setIsGeneratingBOS] = useState(false);
   const [sellForm, setSellForm] = useState({
     seller_name: '',
     sold_to_name: '',
@@ -255,6 +261,34 @@ export const FirearmDetails = () => {
       await window.api.updateFirearm(firearm.id!, updated);
       setFirearm(updated);
       setIsSelling(false);
+    }
+  };
+
+  const handleGenerateBillOfSale = async () => {
+    if (!firearm) return;
+    try {
+      setIsGeneratingBOS(true);
+      const res = await window.api.generateBillOfSale({
+        make: firearm.make,
+        model: firearm.model,
+        serial_number: firearm.serial_number,
+        caliber: firearm.caliber,
+        firearm_type: firearm.firearm_type || (firearm as any).type || 'N/A',
+        sold_date: firearm.sold_date || new Date().toISOString().split('T')[0],
+        sold_price: firearm.sold_price || 0,
+        sale_notes: firearm.sale_notes || '',
+        sold_to_name: firearm.sold_to_name || '',
+      });
+      if (res) {
+        alert(
+          'Bill of Sale PDF successfully compiled via Typst and saved to your Vault documents directory!'
+        );
+      }
+    } catch (err: any) {
+      console.error('Failed to generate Bill of Sale:', err);
+      alert('Error generating Bill of Sale: ' + err.message);
+    } finally {
+      setIsGeneratingBOS(false);
     }
   };
 
@@ -815,23 +849,120 @@ export const FirearmDetails = () => {
         <div className="details-content">
           <div className="details-card main-info">
             {firearm.photos && firearm.photos.length > 0 ? (
-              <div className="details-image-wrapper">
+              <div className="details-image-wrapper" style={{ position: 'relative' }}>
                 <img
-                  src={`local-file://${firearm.photos[0]}`}
+                  src={`local-file://${firearm.photos[selectedPhotoIndex] || firearm.photos[0]}`}
                   alt="Firearm"
                   className="details-image"
                   onClick={() => {
                     setLightboxImages(firearm.photos!);
-                    setLightboxIndex(0);
+                    setLightboxIndex(selectedPhotoIndex);
                   }}
-                  title="Click to view full photo in lightbox"
+                  title="Click to launch high-resolution inspection loupe"
                 />
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '8px',
+                    right: '8px',
+                    display: 'flex',
+                    gap: '6px',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLightboxImages(firearm.photos!);
+                      setLightboxIndex(selectedPhotoIndex);
+                    }}
+                    style={{
+                      background: 'rgba(15, 23, 42, 0.88)',
+                      border: '1px solid rgba(56, 189, 248, 0.4)',
+                      color: '#38bdf8',
+                      borderRadius: '6px',
+                      padding: '4px 10px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                    }}
+                  >
+                    <ZoomIn size={13} /> Inspect Loupe ({selectedPhotoIndex + 1}/
+                    {firearm.photos.length})
+                  </button>
+                </div>
                 {firearm.photos.length > 1 && (
-                  <div className="details-image-count">1 / {firearm.photos.length} Photos</div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: '8px',
+                      marginTop: '10px',
+                      overflowX: 'auto',
+                      paddingBottom: '4px',
+                    }}
+                  >
+                    {firearm.photos.map((p, idx) => {
+                      const slotName =
+                        idx === 0
+                          ? 'Left Profile'
+                          : idx === 1
+                            ? 'Right Profile'
+                            : idx === 2
+                              ? 'Rollmark / Serial'
+                              : idx === 3
+                                ? 'Proofs / Bore'
+                                : `Angle ${idx + 1}`;
+                      const isSel = idx === selectedPhotoIndex;
+                      return (
+                        <div
+                          key={idx}
+                          onClick={() => setSelectedPhotoIndex(idx)}
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '3px',
+                            cursor: 'pointer',
+                            opacity: isSel ? 1 : 0.6,
+                            flexShrink: 0,
+                          }}
+                        >
+                          <img
+                            src={`local-file://${p}`}
+                            alt={slotName}
+                            style={{
+                              width: '54px',
+                              height: '38px',
+                              borderRadius: '4px',
+                              objectFit: 'cover',
+                              border: isSel ? '2px solid #38bdf8' : '1px solid #334155',
+                            }}
+                          />
+                          <span
+                            style={{
+                              fontSize: '0.65rem',
+                              color: isSel ? '#38bdf8' : '#94a3b8',
+                              fontWeight: isSel ? 700 : 500,
+                              maxWidth: '65px',
+                              textAlign: 'center',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {slotName}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             ) : firearm.image_path ? (
-              <div className="details-image-wrapper">
+              <div className="details-image-wrapper" style={{ position: 'relative' }}>
                 <img
                   src={`local-file://${firearm.image_path}`}
                   alt="Firearm"
@@ -840,8 +971,33 @@ export const FirearmDetails = () => {
                     setLightboxImages([firearm.image_path]);
                     setLightboxIndex(0);
                   }}
-                  title="Click to view full photo in lightbox"
+                  title="Click to launch high-resolution inspection loupe"
                 />
+                <div style={{ position: 'absolute', bottom: '8px', right: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLightboxImages([firearm.image_path]);
+                      setLightboxIndex(0);
+                    }}
+                    style={{
+                      background: 'rgba(15, 23, 42, 0.88)',
+                      border: '1px solid rgba(56, 189, 248, 0.4)',
+                      color: '#38bdf8',
+                      borderRadius: '6px',
+                      padding: '4px 10px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                    }}
+                  >
+                    <ZoomIn size={13} /> Inspect Loupe
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="no-image">No Photo Available</div>
@@ -1007,6 +1163,17 @@ export const FirearmDetails = () => {
                   }}
                 >
                   Unmark as Sold
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  disabled={isGeneratingBOS}
+                  onClick={handleGenerateBillOfSale}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '8px' }}
+                  title="Generate official Typst Firearm Bill of Sale & Transfer Record PDF"
+                >
+                  <FileText size={14} />{' '}
+                  {isGeneratingBOS ? 'Compiling PDF...' : 'Bill of Sale (PDF)'}
                 </button>
               </div>
               <div className="info-grid">
@@ -2431,14 +2598,41 @@ export const FirearmDetails = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Buyer Name</label>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '4px',
+                    }}
+                  >
+                    <label style={{ margin: 0 }}>Buyer Name</label>
+                    <button
+                      type="button"
+                      onClick={() => setIsFflPickerOpen(true)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#3b82f6',
+                        fontSize: '0.8rem',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontWeight: 600,
+                      }}
+                    >
+                      <Building2 size={13} />
+                      Lookup Licensed FFL
+                    </button>
+                  </div>
                   <input
                     required
                     type="text"
                     className="form-input"
                     value={sellForm.sold_to_name}
                     onChange={(e) => setSellForm({ ...sellForm, sold_to_name: e.target.value })}
-                    placeholder="e.g. Jane Smith"
+                    placeholder="e.g. Jane Smith or Apex Armory FFL"
                   />
                 </div>
                 <div className="form-group">
@@ -2485,6 +2679,23 @@ export const FirearmDetails = () => {
           </div>,
           document.body
         )}
+      <FflPickerModal
+        isOpen={isFflPickerOpen}
+        onClose={() => setIsFflPickerOpen(false)}
+        onSelect={(dealer) => {
+          const fflName = dealer.trade_name
+            ? `${dealer.business_name} (DBA: ${dealer.trade_name})`
+            : dealer.business_name;
+          const fflDetails = `FFL: ${dealer.license_num}\nAddress: ${dealer.street ? `${dealer.street}, ` : ''}${dealer.city}, ${dealer.state} ${dealer.zip}\nPhone: ${dealer.phone || 'N/A'}`;
+          setSellForm((prev) => ({
+            ...prev,
+            sold_to_name: fflName,
+            sale_notes: prev.sale_notes
+              ? `${prev.sale_notes}\n\n[Transfer FFL Dealer]\n${fflDetails}`
+              : `[Transfer FFL Dealer]\n${fflDetails}`,
+          }));
+        }}
+      />
       {isLogging &&
         createPortal(
           <div

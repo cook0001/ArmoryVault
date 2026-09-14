@@ -78,25 +78,150 @@ const PageLoader = () => (
   </div>
 );
 
+import { ModuleHost } from './modules/registry/ModuleHost';
+
+interface AppRoutesProps {
+  lockVault: () => Promise<void>;
+}
+
+const AppRoutes: React.FC<AppRoutesProps> = ({ lockVault }) => {
+  const { activeRoutes } = useModules();
+  const staticPaths = new Set([
+    '/',
+    '/add',
+    '/edit/:id',
+    '/details/:id',
+    '/firearms/:id',
+    '/bound-book',
+    '/ammo',
+    '/components',
+    '/accessories',
+    '/maintenance',
+    '/sync',
+    '/ballistics',
+    '/storage',
+    '/load-development',
+    '/nfa-tracker',
+  ]);
+
+  const dynamicRoutes = activeRoutes.filter((r) => !staticPaths.has(r.path));
+
+  return (
+    <Routes>
+      <Route path="/" element={<Layout onLockVault={lockVault} />}>
+        <Route index element={<Dashboard />} />
+        <Route path="add" element={<FirearmForm />} />
+        <Route path="edit/:id" element={<FirearmForm />} />
+        <Route path="details/:id" element={<FirearmDetails />} />
+        <Route path="firearms/:id" element={<FirearmDetails />} />
+        <Route
+          path="bound-book"
+          element={
+            <ModularRoute
+              moduleId="boundbook"
+              featureName="FFL / C&R Bound Book"
+              element={<BoundBook />}
+            />
+          }
+        />
+        <Route path="ammo" element={<AmmoDashboard />} />
+        <Route
+          path="components"
+          element={
+            <ModularRoute
+              moduleId="reloading"
+              featureName="Reloading Components"
+              element={<ReloadingComponents />}
+            />
+          }
+        />
+        <Route path="accessories" element={<Accessories />} />
+        <Route
+          path="maintenance"
+          element={
+            <ModularRoute
+              moduleId="maintenance"
+              featureName="Armorer & Maintenance"
+              element={<MaintenanceDashboard />}
+            />
+          }
+        />
+        <Route path="sync" element={<SyncInbox />} />
+        <Route
+          path="ballistics"
+          element={
+            <ModularRoute
+              moduleId="ballistics"
+              featureName="Ballistics Calculator"
+              element={<BallisticsCalculator />}
+            />
+          }
+        />
+        <Route path="storage" element={<StorageOrganizer />} />
+        <Route
+          path="load-development"
+          element={
+            <ModularRoute
+              moduleId="reloading"
+              featureName="Load Development"
+              element={<LoadDevelopment />}
+            />
+          }
+        />
+        <Route
+          path="nfa-tracker"
+          element={
+            <ModularRoute moduleId="nfa" featureName="NFA Tracker" element={<NfaTracker />} />
+          }
+        />
+
+        {/* Dynamic & Modular Extension Routes */}
+        {dynamicRoutes.map((r) => {
+          const cleanPath = r.path.startsWith('/') ? r.path.slice(1) : r.path;
+          const Component = r.element;
+          return <Route key={r.path} path={cleanPath} element={<Component />} />;
+        })}
+        <Route
+          path="optics"
+          element={<ModuleHost moduleId="optics" featureName="Optics & Zero Vault" />}
+        />
+        <Route
+          path="ranges"
+          element={<ModuleHost moduleId="ranges" featureName="Shooting Range Directory" />}
+        />
+        <Route
+          path="labels"
+          element={<ModuleHost moduleId="labels" featureName="Batch Label & QR Print Studio" />}
+        />
+        <Route path="modules/:moduleId/*" element={<ModuleHost />} />
+        <Route path="modules/:moduleId" element={<ModuleHost />} />
+      </Route>
+    </Routes>
+  );
+};
+
 const AUTO_LOCK_MS = 15 * 60 * 1000; // 15 minutes of inactivity
 
 function App() {
   const [isLocked, setIsLocked] = useState(true);
   const [isSetup, setIsSetup] = useState(false);
   const [loading, setLoading] = useState(true);
-  const autoLockTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoLockTimer = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const checkVault = async () => {
-      if (window.api?.isVaultSetup) {
-        const setup = await window.api.isVaultSetup();
-        const locked = await window.api.isVaultLocked();
-        setIsSetup(setup);
-        setIsLocked(locked);
-      } else {
-        // Fallback for tests/environments without the updated api
-        setIsLocked(false);
-        setIsSetup(true);
+      try {
+        if (window.api && window.api.isVaultSetup) {
+          const setup = await window.api.isVaultSetup();
+          setIsSetup(setup);
+          const locked = await window.api.isVaultLocked();
+          setIsLocked(locked);
+        } else {
+          setIsSetup(true);
+          setIsLocked(false);
+        }
+      } catch (e) {
+        console.error('Error checking vault state:', e);
       }
       setLoading(false);
     };
@@ -175,79 +300,7 @@ function App() {
           <UndoToastProvider>
             <CommandPalette />
             <Suspense fallback={<PageLoader />}>
-              <Routes>
-                <Route path="/" element={<Layout onLockVault={lockVault} />}>
-                  <Route index element={<Dashboard />} />
-                  <Route path="add" element={<FirearmForm />} />
-                  <Route path="edit/:id" element={<FirearmForm />} />
-                  <Route path="details/:id" element={<FirearmDetails />} />
-                  <Route path="firearms/:id" element={<FirearmDetails />} />
-                  <Route
-                    path="bound-book"
-                    element={
-                      <ModularRoute
-                        moduleId="boundbook"
-                        featureName="FFL / C&R Bound Book"
-                        element={<BoundBook />}
-                      />
-                    }
-                  />
-                  <Route path="ammo" element={<AmmoDashboard />} />
-                  <Route
-                    path="components"
-                    element={
-                      <ModularRoute
-                        moduleId="reloading"
-                        featureName="Reloading Components"
-                        element={<ReloadingComponents />}
-                      />
-                    }
-                  />
-                  <Route path="accessories" element={<Accessories />} />
-                  <Route
-                    path="maintenance"
-                    element={
-                      <ModularRoute
-                        moduleId="maintenance"
-                        featureName="Armorer & Maintenance"
-                        element={<MaintenanceDashboard />}
-                      />
-                    }
-                  />
-                  <Route path="sync" element={<SyncInbox />} />
-                  <Route
-                    path="ballistics"
-                    element={
-                      <ModularRoute
-                        moduleId="ballistics"
-                        featureName="Ballistics Calculator"
-                        element={<BallisticsCalculator />}
-                      />
-                    }
-                  />
-                  <Route path="storage" element={<StorageOrganizer />} />
-                  <Route
-                    path="load-development"
-                    element={
-                      <ModularRoute
-                        moduleId="reloading"
-                        featureName="Load Development"
-                        element={<LoadDevelopment />}
-                      />
-                    }
-                  />
-                  <Route
-                    path="nfa-tracker"
-                    element={
-                      <ModularRoute
-                        moduleId="nfa"
-                        featureName="NFA Tracker"
-                        element={<NfaTracker />}
-                      />
-                    }
-                  />
-                </Route>
-              </Routes>
+              <AppRoutes lockVault={lockVault} />
             </Suspense>
           </UndoToastProvider>
         </ErrorBoundary>

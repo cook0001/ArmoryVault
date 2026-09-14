@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Lock,
   PlusCircle,
+  Printer,
   RefreshCw,
   Settings,
   Shield,
@@ -26,6 +27,7 @@ import {
   MaintenanceNavIcon,
   NfaTrackerNavIcon,
   SafeIcon,
+  ScopeIcon,
 } from './CustomIcons';
 import { ActivityLogModal } from './modals/ActivityLogModal';
 import { ChangePasswordModal } from './modals/ChangePasswordModal';
@@ -54,8 +56,14 @@ export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
   const [isRecoveryKeyModalOpen, setIsRecoveryKeyModalOpen] = useState(false);
   const [isSkuManagerOpen, setIsSkuManagerOpen] = useState(false);
   const [isActivityLogOpen, setIsActivityLogOpen] = useState(false);
-  const { isInstalled, isModuleCenterOpen, openModuleCenter, closeModuleCenter, targetModuleId } =
-    useModules();
+  const {
+    isInstalled,
+    isModuleCenterOpen,
+    openModuleCenter,
+    closeModuleCenter,
+    targetModuleId,
+    activeNavItems,
+  } = useModules();
 
   useEffect(() => {
     let unsubSync: (() => void) | undefined;
@@ -194,8 +202,56 @@ export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
         label: 'NFA Tracker',
       });
     }
+    if (isInstalled('optics')) {
+      items.push({
+        path: '/optics',
+        icon: <ScopeIcon size={18} />,
+        label: 'Optics Vault',
+      });
+    }
+    if (isInstalled('ranges')) {
+      items.push({
+        path: '/ranges',
+        icon: <Target size={18} />,
+        label: 'Range Finder',
+      });
+    }
+    if (isInstalled('labels')) {
+      items.push({
+        path: '/labels',
+        icon: <Printer size={18} />,
+        label: 'Label Studio',
+      });
+    }
+
+    // Dynamic modules installed from disk/remote not in static paths
+    const staticPaths = new Set([
+      '/',
+      '/bound-book',
+      '/ammo',
+      '/accessories',
+      '/maintenance',
+      '/ballistics',
+      '/storage',
+      '/load-development',
+      '/nfa-tracker',
+      '/optics',
+      '/ranges',
+      '/labels',
+    ]);
+
+    activeNavItems.forEach((nav) => {
+      if (!staticPaths.has(nav.path) && isInstalled(nav.path.replace(/^\//, ''))) {
+        items.push({
+          path: nav.path,
+          icon: <Blocks size={18} />,
+          label: nav.label,
+        });
+      }
+    });
+
     return items;
-  }, [isInstalled]);
+  }, [isInstalled, activeNavItems]);
 
   return (
     <div className={`app-layout ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>

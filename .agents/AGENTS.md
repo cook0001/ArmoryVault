@@ -1,7 +1,8 @@
 # ArmoryVault AI Agent Rules
 
-## 1. Pre-Push & Versioning Requirements
-- **Version Control Protocol**: Before preparing any push to GitHub or generating a release, ALWAYS determine the correct version bump by following the rules in `VersionControl` (Major.Minor.Patch). Update the version string in `package.json` to reflect this change.
+## 1. Package-Centric Versioning & Release Requirements
+- **Lock Versions During Active Development**: During active feature development and iterative refactoring, NEVER bump the version in `package.json`. The version remains locked in development while features and fixes are added. Document all changes in `CHANGELOG.md` under an `[Unreleased]` or in-progress package header.
+- **Atomic Final Release Bumping**: Before preparing any push to GitHub or generating an official release, ALWAYS determine the correct version bump by following the rules in `VersionControl` (Major.Minor.Patch) once the entire update package is finalized. Update the version string in `package.json` to reflect this change.
 - **Changelog Maintenance**: Every significant change MUST be documented in `CHANGELOG.md` under the appropriate version header. Keep a clear record of features, bug fixes, and improvements.
 - **Documentation Updates**: Ensure `README.md` is kept up-to-date if any new scripts, architectural patterns, features, or setup steps are introduced.
 - **Gitignore Hygiene**: If new environment files, build artifacts, keystores, or temporary folders are added to the project, ensure they are properly excluded in `.gitignore`.

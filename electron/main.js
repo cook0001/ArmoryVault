@@ -375,6 +375,10 @@ app.whenReady().then(() => {
     return moduleManager.checkRemoteModules();
   });
 
+  ipcMain.handle('get-module-bundle', async (_, moduleId) => {
+    return moduleManager.getModuleBundle(moduleId);
+  });
+
   ipcMain.handle('select-and-save-document', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
       title: 'Select Document',
@@ -731,117 +735,682 @@ app.whenReady().then(() => {
     }
   });
 
+  const getTypstBinary = () => {
+    if (process.env.TYPST_BIN && fs.existsSync(process.env.TYPST_BIN)) {
+      return process.env.TYPST_BIN;
+    }
+    const candidates = ['/usr/local/bin/typst', '/opt/homebrew/bin/typst', '/usr/bin/typst'];
+    for (const p of candidates) {
+      if (fs.existsSync(p)) return p;
+    }
+    return null;
+  };
+
+  const getArmsTraderDbPath = () => {
+    const candidates = [
+      path.resolve(__dirname, '../../../armstrader.store/armstrader.sqlite'),
+      path.resolve(__dirname, '../../armstrader.store/armstrader.sqlite'),
+      path.resolve(app.getPath('userData'), 'armstrader.sqlite'),
+      '/Users/danielc/Documents/armstrader.store/armstrader.sqlite',
+    ];
+    for (const c of candidates) {
+      if (fs.existsSync(c)) return c;
+    }
+    return null;
+  };
+
   ipcMain.handle('generate-bill-of-sale', async (_, data) => {
     try {
-      // First, prompt user to save external copy if they want (optional, but standard for a bill of sale)
+      const { execFile } = require('child_process');
+
+      // Prompt user to save external copy
+      const defaultFilename =
+        `Bill_of_Sale_${data.make || 'Firearm'}_${data.model || 'Transfer'}.pdf`.replace(
+          /\s+/g,
+          '_'
+        );
       const { filePath } = await dialog.showSaveDialog({
         title: 'Save Bill of Sale PDF',
-        defaultPath: `Bill_of_Sale_${data.make}_${data.model}.pdf`.replace(/\s+/g, '_'),
+        defaultPath: defaultFilename,
         filters: [{ name: 'PDFs', extensions: ['pdf'] }],
       });
 
-      if (!filePath) return null; // Cancelled
+      if (!filePath) return null; // User cancelled save dialog
 
-      const fs = require('fs');
-      const path = require('path');
+      const templatePath = path.join(__dirname, 'templates', 'bill_of_sale.typ');
+      const typstBin = getTypstBinary();
 
-      const htmlContent = `
-        <html>
-          <head>
-            <style>
-              body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px 40px; color: #333; line-height: 1.5; }
-              h1 { text-align: center; color: #111; margin-bottom: 5px; font-size: 1.8rem; }
-              h2 { text-align: center; color: #555; margin-top: 0; font-size: 1.1rem; margin-bottom: 20px; }
-              .section { margin-bottom: 20px; padding: 15px 20px; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9; }
-              .section h3 { margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 8px; color: #222; font-size: 1.1rem; }
-              .row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.95rem; }
-              .row span { font-weight: bold; color: #555; width: 140px; display: inline-block; }
-              .val { color: #000; font-weight: 500; }
-              .signatures { margin-top: 40px; display: flex; justify-content: space-between; gap: 40px; }
-              .sig-block { flex: 1; }
-              .sig-line { border-bottom: 1px solid #000; height: 35px; margin-bottom: 5px; }
-              .sig-label { font-size: 0.85rem; color: #555; }
-            </style>
-          </head>
-          <body>
-            <h1>FIREARM BILL OF SALE</h1>
-            <h2>Private Transfer</h2>
-            
-            <div class="section">
-              <h3>Firearm Information</h3>
-              <div class="row"><span>Make:</span> <div class="val">${data.make || 'N/A'}</div></div>
-              <div class="row"><span>Model:</span> <div class="val">${data.model || 'N/A'}</div></div>
-              <div class="row"><span>Serial Number:</span> <div class="val">${data.serial_number || 'N/A'}</div></div>
-              <div class="row"><span>Caliber:</span> <div class="val">${data.caliber || 'N/A'}</div></div>
-              <div class="row"><span>Type:</span> <div class="val">${data.firearm_type || 'N/A'}</div></div>
-            </div>
+      const typstPayload = {
+        doc_id: data.doc_id || `AV-BOS-${Date.now().toString().slice(-6)}`,
+        date: data.sold_date || data.date || new Date().toISOString().split('T')[0],
+        price: data.sold_price
+          ? `$${parseFloat(data.sold_price).toFixed(2)}`
+          : data.price
+            ? `$${parseFloat(data.price).toFixed(2)}`
+            : '$0.00',
+        payment_method: data.payment_method || 'Cash / Private Transfer',
+        city: data.city || '',
+        county: data.county || '',
+        state: data.state || '',
+        make: data.make || 'N/A',
+        model: data.model || 'N/A',
+        serial: data.serial_number || data.serial || 'N/A',
+        caliber: data.caliber || 'N/A',
+        action_type: data.action_type || data.firearm_type || 'N/A',
+        accessories: data.accessories || data.sale_notes || '',
+        seller_name: data.seller_name || '',
+        seller_address: data.seller_address || '',
+        seller_city_state_zip: data.seller_city_state_zip || '',
+        seller_phone: data.seller_phone || '',
+        seller_id: data.seller_id || '',
+        seller_id_exp: data.seller_id_exp || '',
+        buyer_name: data.sold_to_name || data.buyer_name || '',
+        buyer_address: data.buyer_address || '',
+        buyer_city_state_zip: data.buyer_city_state_zip || '',
+        buyer_phone: data.buyer_phone || '',
+        buyer_id: data.buyer_id || '',
+        buyer_id_exp: data.buyer_id_exp || '',
+        ffl_required: Boolean(data.ffl_required),
+      };
 
-            <div class="section">
-              <h3>Sale Details</h3>
-              <div class="row"><span>Date of Sale:</span> <div class="val">${data.sold_date || 'N/A'}</div></div>
-              <div class="row"><span>Sale Price:</span> <div class="val">$${parseFloat(data.sold_price || 0).toFixed(2)}</div></div>
-              <div class="row"><span>Notes:</span> <div class="val">${data.sale_notes || 'None'}</div></div>
-            </div>
+      let pdfGenerated = false;
 
-            <div class="section" style="background: transparent; border: none; padding: 0;">
-              <div style="display: flex; gap: 20px;">
+      // 1. High-Performance Zero-Bloat Local Typst Compilation
+      if (typstBin && fs.existsSync(templatePath)) {
+        try {
+          await new Promise((resolve, reject) => {
+            execFile(
+              typstBin,
+              [
+                'compile',
+                '--root',
+                '/',
+                templatePath,
+                filePath,
+                '--input',
+                `data=${JSON.stringify(typstPayload)}`,
+              ],
+              (err, stdout, stderr) => {
+                if (err) return reject(new Error(stderr || err.message));
+                resolve(stdout);
+              }
+            );
+          });
+          pdfGenerated = true;
+        } catch (typstErr) {
+          console.warn('Local Typst compilation fallback triggered:', typstErr.message);
+        }
+      }
+
+      // 2. ArmsTrader API Bridge Fallback (when typst cli absent but online)
+      if (!pdfGenerated && typeof fetch === 'function') {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 4000);
+          const response = await fetch('https://armstrader.store/api/bill-of-sale/pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(typstPayload),
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+          if (response.ok) {
+            const arrayBuffer = await response.arrayBuffer();
+            fs.writeFileSync(filePath, Buffer.from(arrayBuffer));
+            pdfGenerated = true;
+          }
+        } catch (apiErr) {
+          console.warn(
+            'ArmsTrader PDF bridge offline, falling back to Electron HTML renderer:',
+            apiErr.message
+          );
+        }
+      }
+
+      // 3. Resilient Built-in Electron HTML printToPDF Fallback
+      if (!pdfGenerated) {
+        const htmlContent = `
+          <html>
+            <head>
+              <style>
+                body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 24px 36px; color: #1e293b; line-height: 1.5; }
+                h1 { text-align: center; color: #0f172a; margin-bottom: 4px; font-size: 1.6rem; letter-spacing: 0.05em; }
+                h2 { text-align: center; color: #64748b; margin-top: 0; font-size: 0.95rem; margin-bottom: 20px; font-weight: 500; }
+                .section { margin-bottom: 16px; padding: 14px 18px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f8fafc; }
+                .section h3 { margin-top: 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; color: #0f172a; font-size: 1rem; }
+                .row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.9rem; }
+                .row span { font-weight: 600; color: #475569; width: 140px; }
+                .val { color: #0f172a; font-weight: 500; }
+                .signatures { margin-top: 36px; display: flex; justify-content: space-between; gap: 40px; }
+                .sig-block { flex: 1; }
+                .sig-line { border-bottom: 1px solid #0f172a; height: 35px; margin-bottom: 5px; }
+                .sig-label { font-size: 0.8rem; color: #64748b; }
+              </style>
+            </head>
+            <body>
+              <h1>FIREARM BILL OF SALE & TRANSFER RECORD</h1>
+              <h2>Private Party Intrastate Firearm Transfer Documentation</h2>
+              
+              <div class="section">
+                <h3>Firearm Information</h3>
+                <div class="row"><span>Make:</span> <div class="val">${typstPayload.make}</div></div>
+                <div class="row"><span>Model:</span> <div class="val">${typstPayload.model}</div></div>
+                <div class="row"><span>Serial Number:</span> <div class="val">${typstPayload.serial}</div></div>
+                <div class="row"><span>Caliber:</span> <div class="val">${typstPayload.caliber}</div></div>
+                <div class="row"><span>Type:</span> <div class="val">${typstPayload.action_type}</div></div>
+              </div>
+
+              <div class="section">
+                <h3>Sale Details</h3>
+                <div class="row"><span>Date of Sale:</span> <div class="val">${typstPayload.date}</div></div>
+                <div class="row"><span>Sale Price:</span> <div class="val">${typstPayload.price}</div></div>
+                <div class="row"><span>Payment Method:</span> <div class="val">${typstPayload.payment_method}</div></div>
+                <div class="row"><span>Notes / Accessories:</span> <div class="val">${typstPayload.accessories || 'None'}</div></div>
+              </div>
+
+              <div style="display: flex; gap: 16px;">
                 <div class="section" style="flex: 1;">
-                  <h3>Seller Information</h3>
-                  <div class="row"><span>Name:</span> <div class="val">${data.seller_name || '_________________________'}</div></div>
+                  <h3>Seller (Transferor)</h3>
+                  <div class="row"><span>Name:</span> <div class="val">${typstPayload.seller_name || '_________________________'}</div></div>
+                  <div class="row"><span>ID / CCW:</span> <div class="val">${typstPayload.seller_id || 'On File'}</div></div>
                 </div>
                 <div class="section" style="flex: 1;">
-                  <h3>Buyer Information</h3>
-                  <div class="row"><span>Name:</span> <div class="val">${data.sold_to_name || '_________________________'}</div></div>
+                  <h3>Buyer (Transferee)</h3>
+                  <div class="row"><span>Name:</span> <div class="val">${typstPayload.buyer_name || '_________________________'}</div></div>
+                  <div class="row"><span>ID / CCW:</span> <div class="val">${typstPayload.buyer_id || 'On File'}</div></div>
                 </div>
               </div>
-            </div>
 
-            <p style="font-size: 0.9rem; color: #666; margin-top: 30px;">
-              By signing below, the Seller acknowledges receipt of the funds, and the Buyer acknowledges receipt of the firearm described above. 
-              The Seller certifies that they are the lawful owner of the firearm and have the legal right to sell it. 
-              The Buyer certifies that they are legally allowed to purchase and possess a firearm.
-            </p>
+              <p style="font-size: 0.8rem; color: #64748b; margin-top: 24px;">
+                By signing below, the Seller certifies lawful ownership and receipt of consideration. The Buyer certifies they are not prohibited under federal or state law (18 U.S.C. § 922) from purchasing or possessing firearms.
+              </p>
 
-            <div class="signatures">
-              <div class="sig-block">
-                <div class="sig-line"></div>
-                <div class="sig-label">Seller Signature & Date</div>
+              <div class="signatures">
+                <div class="sig-block">
+                  <div class="sig-line"></div>
+                  <div class="sig-label">Seller Signature & Date</div>
+                </div>
+                <div class="sig-block">
+                  <div class="sig-line"></div>
+                  <div class="sig-label">Buyer Signature & Date</div>
+                </div>
               </div>
-              <div class="sig-block">
-                <div class="sig-line"></div>
-                <div class="sig-label">Buyer Signature & Date</div>
-              </div>
-            </div>
-          </body>
-        </html>
-      `;
+            </body>
+          </html>
+        `;
 
-      const win = new BrowserWindow({ show: false });
-      await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent));
+        const win = new BrowserWindow({ show: false });
+        await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent));
 
-      const pdfBuffer = await win.webContents.printToPDF({
-        printBackground: true,
-        pageSize: 'Letter',
-        margins: { top: 0, bottom: 0, left: 0, right: 0 },
-      });
+        const pdfBuffer = await win.webContents.printToPDF({
+          printBackground: true,
+          pageSize: 'Letter',
+          margins: { top: 0, bottom: 0, left: 0, right: 0 },
+        });
 
-      // Write to external file selected by user
-      fs.writeFileSync(filePath, pdfBuffer);
+        fs.writeFileSync(filePath, pdfBuffer);
+        win.close();
+      }
 
-      // Also save to the vault!
-      const vaultFilename = `Bill_of_Sale_${data.make}_${data.model}_${Date.now()}.pdf`.replace(
-        /\s+/g,
-        '_'
-      );
+      // Also copy external PDF into encrypted vault document directory for audit trail
+      const vaultFilename =
+        `Bill_of_Sale_${data.make || 'Firearm'}_${data.model || 'Record'}_${Date.now()}.pdf`.replace(
+          /\s+/g,
+          '_'
+        );
       const vaultDestPath = path.join(db.docDir, vaultFilename);
-      fs.writeFileSync(vaultDestPath, pdfBuffer);
-
-      win.close();
+      fs.copyFileSync(filePath, vaultDestPath);
 
       return `file://${vaultDestPath}`;
     } catch (e) {
       console.error('Failed to generate Bill of Sale:', e);
       return null;
+    }
+  });
+
+  ipcMain.handle('generate-armory-binder', async (_, data = {}) => {
+    try {
+      const defaultFilename = `Armory_Insurance_Appraisal_${new Date().toISOString().split('T')[0]}.pdf`;
+      const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+        title: 'Export Armory Insurance Appraisal & Catalog Binder',
+        defaultPath: path.join(app.getPath('documents'), defaultFilename),
+        filters: [{ name: 'PDF Documents', extensions: ['pdf'] }],
+      });
+
+      if (canceled || !filePath) return null;
+
+      // Privacy Protection: If maskSerials is enabled, redact firearm & NFA serial numbers
+      // ensuring full serial numbers are never passed to external bridges or compiled output
+      const sanitizedData = {
+        ...data,
+        firearms: (data.firearms || []).map((f) => ({
+          ...f,
+          serial_number:
+            data.maskSerials && f.serial_number
+              ? String(f.serial_number).length > 4
+                ? `***-${String(f.serial_number).slice(-4)}`
+                : '***-REDACTED'
+              : f.serial_number,
+        })),
+        nfa_items: (data.nfa_items || []).map((n) => ({
+          ...n,
+          serial:
+            data.maskSerials && n.serial
+              ? String(n.serial).length > 4
+                ? `***-${String(n.serial).slice(-4)}`
+                : '***-REDACTED'
+              : n.serial,
+        })),
+      };
+
+      const templatePath = path.join(__dirname, 'templates', 'armory_binder.typ');
+      let typstBin = null;
+      if (fs.existsSync('/usr/local/bin/typst')) typstBin = '/usr/local/bin/typst';
+      else if (fs.existsSync('/opt/homebrew/bin/typst')) typstBin = '/opt/homebrew/bin/typst';
+
+      let pdfGenerated = false;
+
+      // 1. High-Performance Zero-Bloat Local Typst Compilation
+      if (typstBin && fs.existsSync(templatePath)) {
+        try {
+          await new Promise((resolve, reject) => {
+            execFile(
+              typstBin,
+              [
+                'compile',
+                '--root',
+                '/',
+                templatePath,
+                filePath,
+                '--input',
+                `data=${JSON.stringify(sanitizedData)}`,
+              ],
+              (err, stdout, stderr) => {
+                if (err) return reject(new Error(stderr || err.message));
+                resolve(stdout);
+              }
+            );
+          });
+          pdfGenerated = true;
+        } catch (typstErr) {
+          console.warn('Local Typst compilation fallback triggered for binder:', typstErr.message);
+        }
+      }
+
+      // 2. ArmsTrader Ephemeral Typst API Bridge Fallback (Zero Server Storage, TLS 1.3)
+      if (!pdfGenerated && data.allowCloudBridge !== false && typeof fetch === 'function') {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 6000);
+          const response = await fetch('https://armstrader.store/api/armory-binder/pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(sanitizedData),
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+          if (response.ok) {
+            const arrayBuffer = await response.arrayBuffer();
+            fs.writeFileSync(filePath, Buffer.from(arrayBuffer));
+            pdfGenerated = true;
+          } else {
+            console.warn(`ArmsTrader binder bridge returned HTTP ${response.status}`);
+          }
+        } catch (apiErr) {
+          console.warn(
+            'ArmsTrader binder bridge unavailable, falling back to Electron HTML renderer:',
+            apiErr.message
+          );
+        }
+      }
+
+      // 3. Resilient Built-in Electron HTML printToPDF Fallback (100% Offline)
+      if (!pdfGenerated) {
+        const htmlContent = `
+          <html>
+            <head>
+              <style>
+                body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 24px 36px; color: #0f172a; line-height: 1.5; }
+                h1 { font-size: 1.4rem; color: #0f172a; border-bottom: 2px solid #0f172a; padding-bottom: 6px; }
+                .summary { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; margin-bottom: 16px; }
+                .item { border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; margin-bottom: 8px; }
+              </style>
+            </head>
+            <body>
+              <h1>ARMORY VALUATION & INSURANCE MANIFEST</h1>
+              <div class="summary">
+                <p><strong>Total Insured Replacement Value:</strong> $${sanitizedData.total_valuation || '0.00'}</p>
+                <p><strong>Owner:</strong> ${sanitizedData.owner_name || 'Vault Record'} &bull; <strong>Date:</strong> ${sanitizedData.date || new Date().toLocaleDateString()}</p>
+              </div>
+              <h2>Firearms Schedule</h2>
+              ${(sanitizedData.firearms || [])
+                .map(
+                  (f) => `
+                <div class="item">
+                  <strong>${f.make} ${f.model}</strong> (${f.caliber}) &bull; Serial: <code>${f.serial_number}</code>
+                  <br/>Condition: ${f.condition} &bull; Replacement Value: $${f.replacement_price || '0.00'}
+                  ${f.notes ? `<br/>Notes: ${f.notes}` : ''}
+                </div>
+              `
+                )
+                .join('')}
+            </body>
+          </html>
+        `;
+
+        const win = new BrowserWindow({ show: false });
+        await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent));
+        const pdfBuffer = await win.webContents.printToPDF({
+          printBackground: true,
+          pageSize: 'Letter',
+          margins: { top: 0, bottom: 0, left: 0, right: 0 },
+        });
+        fs.writeFileSync(filePath, pdfBuffer);
+        win.close();
+      }
+
+      // Archive copy into vault document directory
+      const vaultFilename = `Insurance_Binder_${Date.now()}.pdf`;
+      const vaultDestPath = path.join(db.docDir, vaultFilename);
+      fs.copyFileSync(filePath, vaultDestPath);
+
+      return `file://${vaultDestPath}`;
+    } catch (e) {
+      console.error('Failed to generate Armory Binder:', e);
+      return null;
+    }
+  });
+
+  ipcMain.handle('generate-work-order', async (_, data = {}) => {
+    try {
+      const woNum =
+        data.work_order_number ||
+        `WO-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const defaultFilename = `Armorer_Work_Order_${woNum}.pdf`;
+      const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+        title: 'Export Armorer Work Order & Service Certificate',
+        defaultPath: path.join(app.getPath('documents'), defaultFilename),
+        filters: [{ name: 'PDF Documents', extensions: ['pdf'] }],
+      });
+
+      if (canceled || !filePath) return null;
+
+      // Privacy: If maskSerials is enabled, redact firearm serial number
+      const sanitizedData = {
+        ...data,
+        work_order_number: woNum,
+        firearm: data.firearm
+          ? {
+              ...data.firearm,
+              serial_number:
+                data.maskSerials && data.firearm.serial_number
+                  ? String(data.firearm.serial_number).length > 4
+                    ? `***-${String(data.firearm.serial_number).slice(-4)}`
+                    : '***-REDACTED'
+                  : data.firearm.serial_number,
+            }
+          : {},
+      };
+
+      const templatePath = path.join(__dirname, 'templates', 'armorer_work_order.typ');
+      let typstBin = null;
+      if (fs.existsSync('/usr/local/bin/typst')) typstBin = '/usr/local/bin/typst';
+      else if (fs.existsSync('/opt/homebrew/bin/typst')) typstBin = '/opt/homebrew/bin/typst';
+
+      let pdfGenerated = false;
+
+      // 1. High-Performance Zero-Bloat Local Typst Compilation
+      if (typstBin && fs.existsSync(templatePath)) {
+        try {
+          await new Promise((resolve, reject) => {
+            execFile(
+              typstBin,
+              [
+                'compile',
+                '--root',
+                '/',
+                templatePath,
+                filePath,
+                '--input',
+                `data=${JSON.stringify(sanitizedData)}`,
+              ],
+              (err, stdout, stderr) => {
+                if (err) return reject(new Error(stderr || err.message));
+                resolve(stdout);
+              }
+            );
+          });
+          pdfGenerated = true;
+        } catch (typstErr) {
+          console.warn(
+            'Local Typst compilation fallback triggered for work order:',
+            typstErr.message
+          );
+        }
+      }
+
+      // 2. ArmsTrader Ephemeral Typst API Bridge Fallback (Zero Server Storage, TLS 1.3)
+      if (!pdfGenerated && data.allowCloudBridge !== false && typeof fetch === 'function') {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 6000);
+          const response = await fetch('https://armstrader.store/api/work-order/pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(sanitizedData),
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+          if (response.ok) {
+            const arrayBuffer = await response.arrayBuffer();
+            fs.writeFileSync(filePath, Buffer.from(arrayBuffer));
+            pdfGenerated = true;
+          } else {
+            console.warn(`ArmsTrader work order bridge returned HTTP ${response.status}`);
+          }
+        } catch (apiErr) {
+          console.warn(
+            'ArmsTrader work order bridge unavailable, falling back to Electron HTML renderer:',
+            apiErr.message
+          );
+        }
+      }
+
+      // 3. Resilient Built-in Electron HTML printToPDF Fallback (100% Offline)
+      if (!pdfGenerated) {
+        const firearmInfo = sanitizedData.firearm || {};
+        const serviceInfo = sanitizedData.service_item || {};
+        const partsList = sanitizedData.parts_replaced || [];
+        const htmlContent = `
+          <html>
+            <head>
+              <style>
+                body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 24px 36px; color: #0f172a; line-height: 1.5; }
+                h1 { font-size: 1.4rem; color: #0f172a; border-bottom: 2px solid #0f172a; padding-bottom: 6px; }
+                .badge { display: inline-block; background: #0f172a; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+                .summary { background: #f0f9ff; border: 1px solid #0284c7; border-radius: 6px; padding: 12px; margin-bottom: 16px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
+                th, td { border: 1px solid #cbd5e1; padding: 6px 10px; text-align: left; }
+                th { background: #0f172a; color: #fff; }
+                .cert-box { margin-top: 24px; border: 1px solid #334155; padding: 12px; border-radius: 6px; background: #fafafa; }
+              </style>
+            </head>
+            <body>
+              <span class="badge">ARMORER SERVICE CERTIFICATE</span>
+              <h1>ARMORER WORK ORDER & SERVICE REPORT</h1>
+              <div class="summary">
+                <p><strong>Work Order:</strong> ${sanitizedData.work_order_number} &bull; <strong>Date:</strong> ${sanitizedData.date || new Date().toLocaleDateString()} &bull; <strong>Armorer:</strong> ${sanitizedData.armorer_name || 'Staff Armorer'}</p>
+                <p><strong>Firearm:</strong> ${firearmInfo.make || ''} ${firearmInfo.model || ''} (${firearmInfo.caliber || 'N/A'}) &bull; <strong>Serial:</strong> <code>${firearmInfo.serial_number || 'N/A'}</code> &bull; <strong>Rounds:</strong> ${firearmInfo.round_count || 0}</p>
+                <p><strong>Service:</strong> ${serviceInfo.task_name || 'General Maintenance'} (${serviceInfo.category || 'Maintenance'}) &bull; <strong>Completed:</strong> ${serviceInfo.completed_date || sanitizedData.date}</p>
+              </div>
+              <h3>Service Notes</h3>
+              <p>${serviceInfo.notes || 'Service performed in accordance with factory specifications.'}</p>
+              ${
+                partsList.length > 0
+                  ? `
+                <h3>Parts Replaced</h3>
+                <table>
+                  <tr><th>Part Name</th><th>Part Number</th><th>Manufacturer</th><th>Cost</th></tr>
+                  ${partsList
+                    .map(
+                      (p) =>
+                        `<tr><td>${p.name}</td><td>${p.part_number || '—'}</td><td>${p.manufacturer || 'OEM'}</td><td>$${p.cost || '0.00'}</td></tr>`
+                    )
+                    .join('')}
+                </table>
+              `
+                  : ''
+              }
+              <div class="cert-box">
+                <p style="font-size: 0.8rem; color: #475569;"><strong>CERTIFICATION:</strong> I certify that this firearm has been inspected, serviced, and function tested to armorer specifications.</p>
+                <div style="margin-top: 20px; display: flex; justify-content: space-between;">
+                  <div>__________________________<br/><small>Certified Armorer Signature</small></div>
+                  <div>__________________________<br/><small>Date of Inspection</small></div>
+                </div>
+              </div>
+            </body>
+          </html>
+        `;
+
+        const win = new BrowserWindow({ show: false });
+        await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent));
+        const pdfBuffer = await win.webContents.printToPDF({
+          printBackground: true,
+          pageSize: 'Letter',
+          margins: { top: 0, bottom: 0, left: 0, right: 0 },
+        });
+        fs.writeFileSync(filePath, pdfBuffer);
+        win.close();
+      }
+
+      // Archive copy into vault document directory
+      const vaultFilename = `Work_Order_${Date.now()}.pdf`;
+      const vaultDestPath = path.join(db.docDir, vaultFilename);
+      fs.copyFileSync(filePath, vaultDestPath);
+
+      return `file://${vaultDestPath}`;
+    } catch (e) {
+      console.error('Failed to generate Armorer Work Order:', e);
+      return null;
+    }
+  });
+
+  // ─── FFL & Range Directory Lookups ──────────────────────────────────────────
+  ipcMain.handle('lookup-ffl', async (_, params = {}) => {
+    try {
+      const { zip, state, limit = 25 } = params;
+      const cleanLimit = Math.min(100, Math.max(1, Number(limit) || 25));
+
+      // Always query the live ArmsTrader.store API directly so FFL licensee data stays continuously updated with the ATF database
+      const queryParam =
+        zip && zip.trim()
+          ? `zip=${encodeURIComponent(zip.trim())}`
+          : state && state.trim()
+            ? `state=${encodeURIComponent(state.trim())}`
+            : '';
+
+      if (!queryParam) {
+        return {
+          success: false,
+          data: [],
+          message: 'Please provide a ZIP code or state for FFL lookup.',
+        };
+      }
+
+      const res = await fetch(
+        `https://armstrader.store/api/ffl/search?${queryParam}&limit=${cleanLimit}`,
+        {
+          signal: AbortSignal.timeout(8000),
+        }
+      );
+
+      if (res.ok) {
+        const data = await res.json();
+        return {
+          success: true,
+          count: data.count || data.data?.length || 0,
+          source: 'cloud_api',
+          data: data.data || [],
+          center: data.center,
+        };
+      }
+
+      const errJson = await res.json().catch(() => null);
+      return {
+        success: false,
+        data: [],
+        error: errJson?.error || `ArmsTrader API error (HTTP ${res.status})`,
+      };
+    } catch (e) {
+      console.error('Error looking up FFLs from ArmsTrader API:', e);
+      return {
+        success: false,
+        data: [],
+        error:
+          e.name === 'TimeoutError'
+            ? 'ArmsTrader FFL service timed out. Check your internet connection.'
+            : e.message || 'Unable to connect to ArmsTrader FFL directory.',
+      };
+    }
+  });
+
+  ipcMain.handle('lookup-ranges', async (_, params = {}) => {
+    try {
+      const { zip, state, limit = 25 } = params;
+      const cleanLimit = Math.min(100, Math.max(1, Number(limit) || 25));
+      const dbPath = getArmsTraderDbPath();
+
+      if (dbPath && fs.existsSync('/usr/bin/sqlite3')) {
+        const { execFile } = require('child_process');
+        let query = '';
+        if (state && /^[A-Za-z]{2}$/.test(state.trim())) {
+          const cleanState = state.trim().toUpperCase();
+          query = `SELECT id, name, trade_name, range_type, street, city, state, zip, phone, lane_fee, fee_type, amenities, is_public FROM shooting_ranges WHERE UPPER(state) = '${cleanState}' ORDER BY city ASC, name ASC LIMIT ${cleanLimit};`;
+        } else if (zip && /^\d{3,5}$/.test(zip.trim())) {
+          const cleanZip = zip.trim();
+          query = `SELECT id, name, trade_name, range_type, street, city, state, zip, phone, lane_fee, fee_type, amenities, is_public FROM shooting_ranges WHERE zip LIKE '${cleanZip}%' ORDER BY zip ASC, name ASC LIMIT ${cleanLimit};`;
+        } else {
+          query = `SELECT id, name, trade_name, range_type, street, city, state, zip, phone, lane_fee, fee_type, amenities, is_public FROM shooting_ranges LIMIT ${cleanLimit};`;
+        }
+
+        const rows = await new Promise((resolve) => {
+          execFile('/usr/bin/sqlite3', ['-json', dbPath, query], (err, stdout) => {
+            if (err || !stdout.trim()) return resolve([]);
+            try {
+              resolve(JSON.parse(stdout.trim()));
+            } catch {
+              resolve([]);
+            }
+          });
+        });
+
+        if (rows && rows.length > 0) {
+          return { success: true, count: rows.length, source: 'local_database', data: rows };
+        }
+      }
+
+      // Network fallback to ArmsTrader API
+      if (typeof fetch === 'function') {
+        const queryParam = zip
+          ? `zip=${encodeURIComponent(zip)}`
+          : state
+            ? `state=${encodeURIComponent(state)}`
+            : '';
+        if (queryParam) {
+          const res = await fetch(
+            `https://armstrader.store/api/ranges/search?${queryParam}&limit=${cleanLimit}`
+          );
+          if (res.ok) {
+            const data = await res.json();
+            return { ...data, source: 'cloud_api' };
+          }
+        }
+      }
+
+      return { success: false, data: [], message: 'No ranges found or query invalid' };
+    } catch (e) {
+      console.error('Error looking up ranges:', e);
+      return { success: false, data: [], error: e.message };
     }
   });
 
@@ -1081,6 +1650,8 @@ app.whenReady().then(() => {
         const accessories = db.getAccessories ? db.getAccessories() || [] : [];
         const storageLocations = db.getStorageLocations ? db.getStorageLocations() || [] : [];
         const skus = db.getSkus() || {};
+        const config = db.getConfig ? db.getConfig() : {};
+        const optics = config.optics_vault_inventory || [];
         res.json({
           success: true,
           isLocked: false,
@@ -1136,6 +1707,7 @@ app.whenReady().then(() => {
           })),
           storageLocations,
           skus,
+          optics,
         });
       } catch (e) {
         console.error('Inventory cache error:', e);

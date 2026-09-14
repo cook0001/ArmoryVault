@@ -67,6 +67,7 @@ contextBridge.exposeInMainWorld('api', {
   deleteModuleFiles: (moduleId) => ipcRenderer.invoke('delete-module-files', moduleId),
   getInstalledDiskModules: () => ipcRenderer.invoke('get-installed-disk-modules'),
   checkRemoteModules: () => ipcRenderer.invoke('check-remote-modules'),
+  getModuleBundle: (moduleId) => ipcRenderer.invoke('get-module-bundle', moduleId),
   onModuleDownloadProgress: (callback) => {
     const handler = (_, data) => callback(data);
     ipcRenderer.on('module-download-progress', handler);
@@ -78,12 +79,16 @@ contextBridge.exposeInMainWorld('api', {
   openExternalFile: (filePath) => ipcRenderer.invoke('open-external-file', filePath),
   openUrl: (url) => ipcRenderer.invoke('open-url', url),
   generateBillOfSale: (data) => ipcRenderer.invoke('generate-bill-of-sale', data),
+  generateArmoryBinder: (data) => ipcRenderer.invoke('generate-armory-binder', data),
+  generateWorkOrder: (data) => ipcRenderer.invoke('generate-work-order', data),
   generateInsuranceReport: (data) => ipcRenderer.invoke('generate-insurance-report', data),
   printQRLabel: (data) => ipcRenderer.invoke('print-qr-label', data),
   saveQRImage: (data) => ipcRenderer.invoke('save-qr-image', data),
   readFileBase64: (filePath) => ipcRenderer.invoke('read-file-base64', filePath),
   readFileBuffer: (filePath) => ipcRenderer.invoke('read-file-buffer', filePath),
   lookupUPC: (upc) => ipcRenderer.invoke('lookup-upc', upc),
+  lookupFFL: (params) => ipcRenderer.invoke('lookup-ffl', params),
+  lookupRanges: (params) => ipcRenderer.invoke('lookup-ranges', params),
 
   exportData: (dataString, filename) => ipcRenderer.invoke('export-data', dataString, filename),
   onUpdateMessage: (callback) => {

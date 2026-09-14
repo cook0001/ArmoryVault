@@ -389,6 +389,56 @@ class ModuleManager {
       });
     });
   }
+
+  /**
+   * Retrieves the executable JavaScript bundle, manifest, and styles for an installed module.
+   */
+  getModuleBundle(moduleId) {
+    let modDir = path.join(this.installedDir, moduleId);
+    let manifestPath = path.join(modDir, 'manifest.json');
+
+    // Dev fallback if not found in installedDir
+    if (!fs.existsSync(manifestPath)) {
+      const devDir = path.join(this.devModulesDir, moduleId);
+      if (fs.existsSync(path.join(devDir, 'manifest.json'))) {
+        modDir = devDir;
+        manifestPath = path.join(devDir, 'manifest.json');
+      }
+    }
+
+    if (!fs.existsSync(manifestPath)) {
+      return { success: false, error: `Module "${moduleId}" is not installed on disk.` };
+    }
+
+    try {
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+      const entryFile = manifest.entry || 'module.bundle.js';
+      const bundlePath = path.join(modDir, entryFile);
+      const cssPath = path.join(modDir, manifest.styles || 'module.bundle.css');
+
+      let jsCode = null;
+      let cssCode = null;
+
+      if (fs.existsSync(bundlePath)) {
+        jsCode = fs.readFileSync(bundlePath, 'utf8');
+      }
+
+      if (fs.existsSync(cssPath)) {
+        cssCode = fs.readFileSync(cssPath, 'utf8');
+      }
+
+      return {
+        success: true,
+        moduleId,
+        manifest,
+        hasBundle: !!jsCode,
+        jsCode,
+        cssCode,
+      };
+    } catch (err) {
+      return { success: false, error: `Failed to read module bundle: ${err.message}` };
+    }
+  }
 }
 
 module.exports = ModuleManager;

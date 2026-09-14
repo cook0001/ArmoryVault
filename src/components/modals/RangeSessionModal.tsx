@@ -12,6 +12,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AutocompleteInput } from '@/components/AutocompleteInput';
 import { Ammo, Firearm } from '@/types';
+import { RangePickerModal } from './RangePickerModal';
 
 interface RangeSessionModalProps {
   isOpen: boolean;
@@ -37,6 +38,7 @@ export const RangeSessionModal: React.FC<RangeSessionModalProps> = ({
   const [cost, setCost] = useState<string>('');
   const [notes, setNotes] = useState('');
 
+  const [isRangePickerOpen, setIsRangePickerOpen] = useState(false);
   const [showAllAmmo, setShowAllAmmo] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -379,20 +381,47 @@ export const RangeSessionModal: React.FC<RangeSessionModalProps> = ({
               />
             </div>
             <div>
-              <label
+              <div
                 style={{
-                  display: 'block',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
                   marginBottom: '0.4rem',
-                  fontSize: '0.85rem',
-                  color: 'var(--text-secondary)',
                 }}
               >
-                <MapPin
-                  size={14}
-                  style={{ display: 'inline', marginRight: '0.3rem', verticalAlign: 'middle' }}
-                />
-                Range Location
-              </label>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '0.85rem',
+                    color: 'var(--text-secondary)',
+                  }}
+                >
+                  <MapPin
+                    size={14}
+                    style={{ display: 'inline', marginRight: '0.3rem', verticalAlign: 'middle' }}
+                  />
+                  Range Location
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setIsRangePickerOpen(true)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#3b82f6',
+                    fontSize: '0.78rem',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: 0,
+                    fontWeight: 600,
+                  }}
+                >
+                  <Target size={12} />
+                  Browse Facilities
+                </button>
+              </div>
               <input
                 type="text"
                 className="form-input"
@@ -481,6 +510,16 @@ export const RangeSessionModal: React.FC<RangeSessionModalProps> = ({
           </div>
         </form>
       </div>
+      <RangePickerModal
+        isOpen={isRangePickerOpen}
+        onClose={() => setIsRangePickerOpen(false)}
+        onSelect={(range) => {
+          setLocation(`${range.name} (${range.city}, ${range.state})`);
+          if (range.lane_fee != null && !cost) {
+            setCost(String(range.lane_fee));
+          }
+        }}
+      />
     </div>,
     document.body
   );

@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { ModuleHost } from './ModuleHost';
 import {
   AVAILABLE_MODULES,
   installModule as apiInstallModule,
@@ -16,6 +17,45 @@ import {
   ModuleNavItem,
   ModuleRoute,
 } from './types';
+
+const buildDynamicModule = (id: string, modData: any): ArmoryModule => ({
+  manifest: {
+    id,
+    name: (modData as any).name || id,
+    version: (modData as any).version || '1.0.0',
+    minAppVersion: (modData as any).minAppVersion || '1.0.0',
+    author: (modData as any).author || 'ArmoryVault',
+    category: (modData as any).category || 'bench',
+    description: (modData as any).description || '',
+    dataKeys: (modData as any).dataKeys || [],
+    entry: (modData as any).entry || 'module.bundle.js',
+  },
+  routes: [
+    {
+      path: `/${id}`,
+      element: (() => (
+        <ModuleHost moduleId={id} featureName={(modData as any).name || id} />
+      )) as any,
+    },
+  ],
+  navItems: [
+    {
+      label: (modData as any).name || id,
+      path: `/${id}`,
+      icon: null,
+      group: (modData as any).category === 'compliance' ? 'vault' : 'tools',
+    },
+  ],
+  commands: [
+    {
+      id: `search-module-${id}`,
+      label: (modData as any).name || id,
+      sublabel: (modData as any).description || 'Modular Extension',
+      path: `/${id}`,
+      keywords: [id, (modData as any).name || '', 'module', 'extension'],
+    },
+  ],
+});
 
 interface ModuleContextValue {
   installedModules: string[];
@@ -105,28 +145,7 @@ export const ModuleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const newDyn: ArmoryModule[] = [];
         for (const [id, modData] of Object.entries(modulesRecord)) {
           if (!localIds.has(id)) {
-            newDyn.push({
-              manifest: {
-                id,
-                name: (modData as any).name || id,
-                version: (modData as any).version || '1.0.0',
-                minAppVersion: (modData as any).minAppVersion || '1.0.0',
-                author: (modData as any).author || 'ArmoryVault',
-                category: (modData as any).category || 'bench',
-                description: (modData as any).description || '',
-                dataKeys: (modData as any).dataKeys || [],
-                entry: (modData as any).entry || 'index.tsx',
-              },
-              routes: [],
-              navItems: [
-                {
-                  label: (modData as any).name || id,
-                  path: `/${id}`,
-                  icon: null,
-                  group: 'tools',
-                },
-              ],
-            });
+            newDyn.push(buildDynamicModule(id, modData));
           }
         }
         setDynamicModules(newDyn);
@@ -151,6 +170,27 @@ export const ModuleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           setInstalledModules(ids);
           setDiskModules(disk);
           setArchives(arch || {});
+
+          // Pre-populate dynamic modules from disk for instant offline access
+          const localIds = new Set(AVAILABLE_MODULES.map((m) => m.manifest.id));
+          const diskDynamic: ArmoryModule[] = [];
+          for (const dId of disk) {
+            if (!localIds.has(dId) && window.api && window.api.getModuleBundle) {
+              try {
+                const b = await window.api.getModuleBundle(dId);
+                if (b && b.success && b.manifest) {
+                  diskDynamic.push(buildDynamicModule(dId, b.manifest));
+                }
+              } catch {}
+            }
+          }
+          if (diskDynamic.length > 0) {
+            setDynamicModules((prev) => {
+              const existingIds = new Set(prev.map((m) => m.manifest.id));
+              const additions = diskDynamic.filter((m) => !existingIds.has(m.manifest.id));
+              return [...prev, ...additions];
+            });
+          }
         }
         checkRemote();
       } catch (e) {

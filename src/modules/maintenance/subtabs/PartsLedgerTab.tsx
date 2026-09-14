@@ -1,4 +1,4 @@
-import { Calendar, ExternalLink, History, Search } from 'lucide-react';
+import { Calendar, ExternalLink, FileText, History, Search } from 'lucide-react';
 import React, { memo, useMemo } from 'react';
 import type { Firearm, MaintenanceLog } from '@/types';
 
@@ -10,6 +10,7 @@ interface PartsLedgerTabProps {
   setHistoryTypeFilter: (val: string) => void;
   showCosts: boolean;
   onNavigateDetails: (id: number) => void;
+  onGenerateWorkOrder?: (firearm: Firearm, log: MaintenanceLog) => void;
 }
 
 export const PartsLedgerTab: React.FC<PartsLedgerTabProps> = memo(
@@ -21,6 +22,7 @@ export const PartsLedgerTab: React.FC<PartsLedgerTabProps> = memo(
     setHistoryTypeFilter,
     showCosts,
     onNavigateDetails,
+    onGenerateWorkOrder,
   }) => {
     // Filtered service history computed inside tab
     const filteredServiceHistory = useMemo(() => {
@@ -234,24 +236,58 @@ export const PartsLedgerTab: React.FC<PartsLedgerTabProps> = memo(
                         </td>
                       )}
 
-                      <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
-                        <button
-                          type="button"
-                          className="btn-secondary"
-                          onClick={() => {
-                            if (firearm.id != null) onNavigateDetails(firearm.id);
-                          }}
+                      <td
+                        style={{
+                          padding: '0.75rem 1rem',
+                          textAlign: 'right',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        <div
                           style={{
-                            padding: '0.25rem 0.5rem',
-                            fontSize: '0.75rem',
                             display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.3rem',
+                            gap: '0.4rem',
+                            justifyContent: 'flex-end',
                           }}
                         >
-                          <ExternalLink size={12} />
-                          <span>Firearm</span>
-                        </button>
+                          {onGenerateWorkOrder && (
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              onClick={() => onGenerateWorkOrder(firearm, log)}
+                              title="Export Official Armorer Work Order & Inspection Certificate PDF"
+                              style={{
+                                padding: '0.25rem 0.5rem',
+                                fontSize: '0.75rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.3rem',
+                                color: '#38bdf8',
+                                borderColor: 'rgba(56, 189, 248, 0.3)',
+                              }}
+                            >
+                              <FileText size={12} />
+                              <span>Work Order</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            onClick={() => {
+                              if (firearm.id != null) onNavigateDetails(firearm.id);
+                            }}
+                            style={{
+                              padding: '0.25rem 0.5rem',
+                              fontSize: '0.75rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.3rem',
+                            }}
+                          >
+                            <ExternalLink size={12} />
+                            <span>Firearm</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

@@ -15,12 +15,14 @@ A secure, premium, cross-platform desktop application designed for serious firea
 
 ## Key Features
 
-- **Lean Core & Pluggable Modular Architecture**: Core essentials (Dashboard, Firearms, Ammunition Depot, Storage Organizer, Accessories, Vault Security) remain lean, fast, and 100% air-gapped. Specialized features are installed on-demand via the in-app **Module Center** (`Reloading Workbench`, `Armorer & Maintenance`, `Ballistics Calculator`, `NFA Tracker`, and `Bound Book`).
+- **Lean Core & Pluggable Modular Architecture**: Core essentials (Dashboard, Firearms, Ammunition Depot, Storage Organizer, Accessories, Vault Security) remain lean, fast, and 100% air-gapped. Specialized features are installed on-demand via the in-app **Module Center** (`Reloading Workbench`, `Armorer & Maintenance`, `Ballistics Calculator`, `NFA Tracker`, `Bound Book`, `Optics Vault`, `Range Finder`, and `Batch Label Studio`).
+- **Typst Vector PDF Documentation Suite**: Generates publication-grade multi-page Insurance Appraisal Binders and Official Armorer Work Order & Inspection Certificates in 0.14s using native Typst with 3-tier cloud & offline Chromium fallbacks.
 - **Dedicated Modules Repository & Dynamic Discovery**: Pluggable modules are maintained independently in [cook0001/ArmoryVault-Modules](https://github.com/cook0001/ArmoryVault-Modules). The core application queries the remote catalog and registers newly published extensions without requiring a core application re-compile.
 - **Encrypted Module Archiving & Data Mobility**: Uninstalled modules have their data pruned from memory and securely written to AES-256-GCM encrypted archives (`userData/module_archives/`). All module archives travel with your automated `.zip` backups so your historical records are never lost.
 - **End-to-End Inventory Tracking**: Log make, model, caliber, serial number, purchase price, storage locations, optic torque specs, and high-resolution local photos.
-- **Maintenance & Round Telemetry**: Keep detailed logs of gunsmithing work, deep cleanings, part replacements, and range sessions. Lifetime round counts increment dynamically across weapons and mounted accessories.
+- **Maintenance & Round Telemetry**: Keep detailed logs of gunsmithing work, deep cleanings, part replacements, and range sessions. Lifetime round counts increment dynamically across weapons and mounted accessories with proactive wear alerts.
 - **ATF A&D Bound Book**: Generate professional Acquisition & Disposition (A&D) ledger views specifically formatted for 27 CFR Part 478 compliance and optimized for standard 8.5x11 printing.
+- **Interactive FFL & Shooting Range Pickers**: Integrated directory lookup querying live ATF license records and 2,539 verified shooting facilities across all 50 states.
 - **Local Wi-Fi Companion Sync**: Securely pair and synchronize inventory telemetry with the ArmoryVault Mobile Companion app over local Wi-Fi with zero cloud relay servers.
 - **100% Private & Air-Gapped**: Built with Electron, React 19, and Vite. Your data is encrypted locally with PBKDF2/AES-256-GCM. No accounts, no cloud servers, and zero third-party telemetry.
 
@@ -29,7 +31,8 @@ A secure, premium, cross-platform desktop application designed for serious firea
 - **Frontend**: React 19, TypeScript, Vite, Biome
 - **Styling**: Vanilla CSS (Modern Dark Glassmorphism) with Lucide Vector Icons
 - **Desktop Engine**: Electron with secure context-isolated IPC bridge
-- **Testing**: Vitest CI Suite (147 automated tests across 25 suites)
+- **Document Engine**: Typst 0.15 native vector compiler with 3-tier resilient fallback
+- **Testing**: Vitest CI Suite (154 automated tests across 29 suites)
 - **Storage**: Native File-System & Encrypted AES-256-GCM persistence
 - **CI/CD**: `electron-builder`, `electron-updater`, and GitHub Pages
 
