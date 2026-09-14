@@ -2,6 +2,10 @@
 
 ## [2.10.0] - 2026-09-13
 ### Added
+- **Official Documentation Website & Dynamic Version Synchronization (`website/`, `.github/workflows/website.yml`)**:
+  - Updated live GitHub Pages documentation website (`https://cook0001.github.io/ArmoryVault/`) to reflect Desktop v2.10.0 and Companion v2.7.12 (versionCode 321).
+  - Updated AppImage and Windows setup download instructions to 2.10.0 and expanded `sitemap.xml` with `/privacy.html`.
+  - Added an automated pre-deployment version synchronization step to `.github/workflows/website.yml` that dynamically extracts the current release version from `package.json` and updates website badges automatically.
 - **Proactive Maintenance Threshold Detection & Service Routing (`src/pages/SyncInbox.tsx`, `src/modules/maintenance/MaintenanceDashboard.tsx`)**:
   - In `SyncInbox.tsx`, added dynamic wear and maintenance threshold inspection (`getFirearmMaintenanceWarning`) for incoming round depletions and range session approvals. Checks user-configured maintenance schedules (e.g. recoil spring at 3,000 rds, deep clean at 500 rds) against projected firearm round counts.
   - Renders amber `AlertTriangle` warning badges directly within queue cards when an incoming batch pushes a firearm past its service threshold.
