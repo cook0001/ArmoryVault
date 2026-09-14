@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+### Security
+- **CodeQL Tainted Format String Mitigation (`src/modules/registry/ModuleHost.tsx`)**:
+  - Replaced template literal string interpolation in `console.error` and `console.warn` handlers with separate argument parameters to resolve CodeQL `js/tainted-format-string` alerts #9, #10, and #11.
+
 ## [2.10.0] - 2026-09-13
 ### Added
 - **Official Documentation Website & Dynamic Version Synchronization (`website/`, `.github/workflows/website.yml`)**:

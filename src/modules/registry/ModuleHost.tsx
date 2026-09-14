@@ -46,7 +46,7 @@ export class ModuleErrorBoundary extends Component<
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     this.setState({ error, errorInfo });
-    console.error(`[ModuleHost] Error in module "${this.props.moduleId}":`, error, errorInfo);
+    console.error('[ModuleHost] Error in module:', this.props.moduleId, error, errorInfo);
   }
 
   render() {
@@ -265,13 +265,14 @@ export const ModuleHost: React.FC<ModuleHostProps> = ({
               }
             } catch (evalErr: any) {
               console.warn(
-                `[ModuleHost] Failed to execute dynamic bundle for ${targetModuleId}:`,
+                '[ModuleHost] Failed to execute dynamic bundle for module:',
+                targetModuleId,
                 evalErr
               );
             }
           }
         } catch (e: any) {
-          console.warn(`[ModuleHost] Error loading bundle for ${targetModuleId}:`, e);
+          console.warn('[ModuleHost] Error loading bundle for module:', targetModuleId, e);
         }
       }
 
