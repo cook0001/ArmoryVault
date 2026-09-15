@@ -7,42 +7,31 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Node dependencies & web builds
 node_modules
 dist
-dist-electron
-dist-electron/stable
-dist-electron/nightly
 dist-ssr
-release
-out
 *.local
-*.tsbuildinfo
-vite.config.js
-vite.config.d.ts
-vite.config.js.map
 
-# Editor directories and files
+# Tauri & Rust build artifacts
+/src-tauri/target
+target
+
+# Local databases & vault storage
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.enc
+armoryvault_data
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-
-# Environment files
-.env
-.env.local
-.env.*
-
-# Encrypted vault data (user data — never commit)
-*.enc
-*.bak
-dist-modules
-
-# AI Agent rules & configurations
-agents.md
-AGENTS.md
-.agents/

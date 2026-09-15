@@ -809,7 +809,7 @@ export const FirearmDetails = () => {
             {firearm.photos && firearm.photos.length > 0 ? (
               <div className="details-image-wrapper" style={{ position: 'relative' }}>
                 <img
-                  src={`local-file://${firearm.photos[selectedPhotoIndex] || firearm.photos[0]}`}
+                  src={getLocalImageUrl(firearm.photos[selectedPhotoIndex] || firearm.photos[0])}
                   alt="Firearm"
                   className="details-image"
                   onClick={() => {
@@ -924,7 +924,7 @@ export const FirearmDetails = () => {
             ) : firearm.image_path ? (
               <div className="details-image-wrapper" style={{ position: 'relative' }}>
                 <img
-                  src={`local-file://${firearm.image_path}`}
+                  src={getLocalImageUrl(firearm.image_path)}
                   alt="Firearm"
                   className="details-image"
                   onClick={() => {

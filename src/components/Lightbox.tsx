@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight, Maximize2, RotateCcw, X, ZoomIn, ZoomOut } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { getLocalImageUrl } from '../utils/imageUrl';
 
 interface LightboxProps {
   images: string[];
@@ -119,9 +120,7 @@ export const Lightbox: React.FC<LightboxProps> = ({ images, initialIndex = 0, on
 
   if (!images || images.length === 0) return null;
 
-  const currentImageSrc = images[currentIndex].startsWith('local-file://')
-    ? images[currentIndex]
-    : `local-file://${images[currentIndex]}`;
+  const currentImageSrc = getLocalImageUrl(images[currentIndex]);
 
   return createPortal(
     <div
@@ -378,7 +377,7 @@ export const Lightbox: React.FC<LightboxProps> = ({ images, initialIndex = 0, on
           }}
         >
           {images.map((img, idx) => {
-            const src = img.startsWith('local-file://') ? img : `local-file://${img}`;
+            const src = getLocalImageUrl(img, true);
             const isActive = idx === currentIndex;
             return (
               <div

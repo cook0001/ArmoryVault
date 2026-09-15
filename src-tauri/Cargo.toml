@@ -1,0 +1,58 @@
+[package]
+name = "armoryvault_desktop_tauri"
+version = "2.11.0"
+description = "ArmoryVault Native Desktop Application"
+authors = ["cook0001"]
+edition = "2021"
+
+[lib]
+name = "armoryvault_desktop_tauri_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-process = "2"
+tauri-plugin-os = "2"
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Database: Native Rust SQLite
+rusqlite = { version = "0.31", features = ["bundled"] }
+
+# Cryptography for Vault Security (PBKDF2 + AES-256-GCM)
+aes-gcm = "0.10"
+pbkdf2 = { version = "0.12", default-features = false, features = ["hmac"] }
+sha2 = "0.10"
+hmac = "0.12"
+rand = "0.8"
+hex = "0.4"
+
+# LAN Sync Server (Async HTTP replacing Express)
+tokio = { version = "1", features = ["full"] }
+axum = "0.7"
+tower-http = { version = "0.5", features = ["cors"] }
+
+# Media, Thumbnails, & ZIP Backups
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
+zip = { version = "2", default-features = false, features = ["deflate"] }
+base64 = "0.22"
+
+# System & Networking Helpers
+dirs = "5"
+local-ip-address = "0.6"
+percent-encoding = "2.3"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true

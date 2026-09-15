@@ -18,6 +18,7 @@ import {
   getItemStorageLocation,
   saveStorageLocations,
 } from '../utils/StorageSync';
+import { getLocalImageUrl } from '../utils/imageUrl';
 
 export const FirearmForm = () => {
   const navigate = useNavigate();

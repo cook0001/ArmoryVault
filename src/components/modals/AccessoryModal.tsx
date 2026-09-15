@@ -7,6 +7,7 @@ import { StorageLocationSelect } from '@/components/StorageBadge';
 import { Accessory, Firearm, StorageLocation } from '@/types';
 import { parseBarcodeData } from '@/utils/BarcodeEngine';
 import { parseCurrencyOrNull } from '@/utils/currency';
+import { getLocalImageUrl } from '@/utils/imageUrl';
 import {
   assignItemToStorage,
   getItemStorageLocation,
@@ -1509,11 +1510,7 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({
             <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
               {formData.photo && (
                 <img
-                  src={
-                    formData.photo.startsWith('local-file://')
-                      ? formData.photo
-                      : `local-file://${formData.photo}`
-                  }
+                  src={getLocalImageUrl(formData.photo, true)}
                   alt="Preview"
                   style={{
                     width: '60px',

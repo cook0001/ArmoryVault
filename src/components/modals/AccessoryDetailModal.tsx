@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { getLocalImageUrl } from '../../utils/imageUrl';
 import { useNavigate } from 'react-router-dom';
 import {
   ChassisIcon,
@@ -393,11 +394,7 @@ export const AccessoryDetailModal: React.FC<AccessoryDetailModalProps> = ({
                   title="Click to view full-resolution photo in Lightbox"
                 >
                   <img
-                    src={
-                      allPhotos[0].startsWith('local-file://')
-                        ? allPhotos[0]
-                        : `local-file://${allPhotos[0]}`
-                    }
+                    src={getLocalImageUrl(allPhotos[0])}
                     alt={accessory.model}
                     style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                   />
@@ -446,7 +443,7 @@ export const AccessoryDetailModal: React.FC<AccessoryDetailModalProps> = ({
                         }}
                       >
                         <img
-                          src={photo.startsWith('local-file://') ? photo : `local-file://${photo}`}
+                          src={getLocalImageUrl(photo, true)}
                           alt={`Thumbnail ${idx + 1}`}
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />

@@ -5,12 +5,22 @@
  */
 export const getLocalImageUrl = (path?: string | null, isThumb = false): string => {
   if (!path) return '';
-  let url = path;
-  if (!url.startsWith('http') && !url.startsWith('data:') && !url.startsWith('local-file://')) {
-    url = `local-file://${url}`;
+  let url = path.trim();
+
+  // If already a remote URL or data URI, return as-is
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+    return url;
   }
-  if (isThumb && url.startsWith('local-file://')) {
-    return `${url}?thumb=1`;
+
+  // Strip redundant local-file:// and file:// prefixes
+  url = url.replace(/^local-file:\/+/, '');
+  url = url.replace(/^file:\/+/, '');
+
+  // Ensure leading slash for Unix absolute paths
+  if (!url.startsWith('/') && !/^[a-zA-Z]:/.test(url)) {
+    url = `/${url}`;
   }
-  return url;
+
+  const base = `local-file://localhost${url.startsWith('/') ? url : `/${url}`}`;
+  return isThumb ? `${base}?thumb=1` : base;
 };
