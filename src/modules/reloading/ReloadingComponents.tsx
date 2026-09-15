@@ -21,6 +21,7 @@ import { ReloadingComponentModal } from '@/components/modals/ReloadingComponentM
 import { StorageBadge } from '@/components/StorageBadge';
 import { useUndoToast } from '@/components/UndoToast';
 import { ReloadingComponent, StorageLocation } from '@/types';
+import { formatCurrency, parseCurrency } from '@/utils/currency';
 import { calcCostPerGrain, formatPowderMultiUnit, toGrains } from '@/utils/powderUnits';
 import {
   getItemStorageLocation,
@@ -148,7 +149,7 @@ export const ReloadingComponents = () => {
     setIsModalOpen(true);
   };
 
-  const totalValue = components.reduce((sum, c) => sum + (c.cost || 0), 0);
+  const totalValue = components.reduce((sum, c) => sum + parseCurrency(c.cost), 0);
 
   // Group components by type
   const grouped = filteredComponents.reduce(
@@ -383,11 +384,7 @@ export const ReloadingComponents = () => {
             <div>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Total Value</div>
               <div style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--accent)' }}>
-                $
-                {totalValue.toLocaleString(undefined, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
+                {formatCurrency(totalValue)}
               </div>
             </div>
           </div>
@@ -558,7 +555,7 @@ export const ReloadingComponents = () => {
                                 fontWeight: 600,
                               }}
                             >
-                              {c.cost ? `$${c.cost.toFixed(2)}` : ''}
+                              {c.cost != null ? formatCurrency(c.cost) : ''}
                             </div>
                             {c.cost !== undefined &&
                               c.cost !== null &&
@@ -568,8 +565,8 @@ export const ReloadingComponents = () => {
                                   style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}
                                 >
                                   {c.type === 'Powder'
-                                    ? `≈ $${calcCostPerGrain(c.cost, c.quantity, c.weightUnit).toFixed(4)} / grain`
-                                    : `≈ $${(c.cost / c.quantity).toFixed(3)} / ea`}
+                                    ? `≈ $${calcCostPerGrain(parseCurrency(c.cost), c.quantity, c.weightUnit).toFixed(4)} / grain`
+                                    : `≈ $${(parseCurrency(c.cost) / c.quantity).toFixed(3)} / ea`}
                                 </div>
                               )}
                           </div>

@@ -336,27 +336,50 @@ declare global {
 
       getFirearms: () => Promise<Firearm[]>;
       addFirearm: (firearm: Firearm) => Promise<number>;
+      importFirearmsBatch?: (
+        firearmsList: Firearm[],
+        updatesList?: { existingId: number; updatedItem: Partial<Firearm> }[]
+      ) => Promise<{ insertedCount: number; updatedCount: number }>;
       updateFirearm: (id: number, firearm: Firearm) => Promise<number>;
       deleteFirearm: (id: number) => Promise<number>;
 
       getAmmo: () => Promise<Ammo[]>;
       addAmmo: (ammo: Ammo) => Promise<number>;
+      importAmmoBatch?: (
+        ammoList: Ammo[],
+        updatesList?: { existingId: number; updatedItem: Partial<Ammo> }[]
+      ) => Promise<{ insertedCount: number; updatedCount: number }>;
       updateAmmo: (id: number, ammo: Ammo) => Promise<number>;
       deleteAmmo: (id: number) => Promise<number>;
 
       getAccessories: () => Promise<Accessory[]>;
       addAccessory: (accessory: Accessory) => Promise<number>;
+      importAccessoriesBatch?: (accessoriesList: Accessory[]) => Promise<{ insertedCount: number }>;
       updateAccessory: (id: number, accessory: Accessory) => Promise<number>;
       deleteAccessory: (id: number) => Promise<number>;
 
       getComponents: () => Promise<ReloadingComponent[]>;
       addComponent: (component: ReloadingComponent) => Promise<number>;
+      importComponentsBatch?: (
+        componentsList: ReloadingComponent[]
+      ) => Promise<{ insertedCount: number }>;
       updateComponent: (id: number, component: ReloadingComponent) => Promise<number>;
       deleteComponent: (id: number) => Promise<number>;
 
       getSkus: () => Promise<CustomSkuDatabase>;
       saveSkus: (skus: CustomSkuDatabase) => Promise<boolean>;
       deleteSku: (skuId: string) => Promise<string>;
+      exportSkusCatalog?: () => Promise<{
+        format: string;
+        version: number;
+        exportedAt: string;
+        itemCount: number;
+        skus: CustomSkuDatabase;
+      }>;
+      importSkusCatalog?: (
+        catalogData: any,
+        mode?: 'merge' | 'overwrite'
+      ) => Promise<{ success: boolean; count: number }>;
 
       getCustomSchedulePresets: () => Promise<CustomSchedulePreset[]>;
       saveCustomSchedulePresets: (presets: CustomSchedulePreset[]) => Promise<boolean>;
@@ -522,11 +545,24 @@ declare global {
           notes?: string;
         }
       ) => Promise<boolean>;
+      selectCSVFile?: () => Promise<{ name: string; path: string; content: string } | null>;
       exportData: (dataString: string, filename: string) => Promise<string | null>;
       onUpdateMessage: (callback: (msg: any) => void) => () => void;
       restartApp: () => void;
       getPlatform: () => string;
       getLocalIp: () => Promise<string>;
+      getAllLocalIps?: () => Promise<
+        Array<{ name: string; address: string; score: number; isVirtual: boolean }>
+      >;
+      getPairingInfo?: () => Promise<{
+        primaryIp: string;
+        fallbackIps: string[];
+        hostname: string;
+        port: number;
+        token: string;
+        qrData: string;
+        interfaces: Array<{ name: string; address: string; score: number; isVirtual: boolean }>;
+      }>;
       getPairingToken?: () => Promise<string | null>;
       revokePairingToken?: () => Promise<boolean>;
       onSyncReceived: (callback: () => void) => () => void;

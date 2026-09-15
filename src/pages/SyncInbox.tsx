@@ -1,32 +1,18 @@
-import {
-  AlertTriangle,
-  Blocks,
-  Camera,
-  CheckCircle,
-  CheckCircle2,
-  Edit3,
-  FileText,
-  Info,
-  Paperclip,
-  PlusCircle,
-  Radio,
-  RefreshCw,
-  Server,
-  Shield,
-  Smartphone,
-  Sparkles,
-  Target,
-  Trash2,
-  Wifi,
-  X,
-} from 'lucide-react';
+import { CheckCircle, RefreshCw, Server, Smartphone, Trash2 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ScopeIcon } from '../components/CustomIcons';
+import {
+  BoxSizePromptModal,
+  LanPairingModal,
+  MaintenanceAlertBanner,
+  PairSuccessToast,
+  SyncInboxItemCard,
+  UnknownRouteModal,
+} from '../components/sync';
 import { useModules } from '../modules/registry/ModuleContext';
 import { Ammo, Firearm, ReloadingComponent, SyncItem } from '../types';
 import { parseBarcodeData } from '../utils/BarcodeEngine';
+import { parseCurrency, parseCurrencyOrNull } from '../utils/currency';
 import { assignItemToStorage, saveStorageLocations } from '../utils/StorageSync';
 
 export const SyncInbox = () => {
@@ -34,6 +20,9 @@ export const SyncInbox = () => {
   const [queue, setQueue] = useState<SyncItem[]>([]);
   const [syncQrUrl, setSyncQrUrl] = useState('');
   const [localIp, setLocalIp] = useState('');
+  const [networkInterfaces, setNetworkInterfaces] = useState<
+    Array<{ name: string; address: string; score: number; isVirtual: boolean }>
+  >([]);
   const [isPairModalOpen, setIsPairModalOpen] = useState(false);
   const [pairSuccess, setPairSuccess] = useState<{ deviceName: string; timestamp: number } | null>(
     null
@@ -213,16 +202,40 @@ export const SyncInbox = () => {
     }
   };
 
-  const generateQr = async () => {
+  const generateQr = async (overrideIp?: string) => {
     if (window.api) {
-      const ip = await window.api.getLocalIp();
-      let token = '';
-      if (window.api.getPairingToken) {
-        token = (await window.api.getPairingToken()) || '';
+      let qrData = '';
+      let activeIp = overrideIp || '127.0.0.1';
+
+      if (window.api.getPairingInfo) {
+        const info = await window.api.getPairingInfo();
+        setNetworkInterfaces(info.interfaces || []);
+        if (overrideIp) {
+          activeIp = overrideIp;
+          const tokenParam = info.token ? `&token=${encodeURIComponent(info.token)}` : '';
+          const hostParam = info.hostname ? `&host=${encodeURIComponent(info.hostname)}` : '';
+          const otherIps = (info.interfaces || [])
+            .map((i) => i.address)
+            .filter((a) => a !== activeIp);
+          const fallbacksParam =
+            otherIps.length > 0 ? `&fallbacks=${encodeURIComponent(otherIps.join(','))}` : '';
+          qrData = `armoryvault://sync?ip=${activeIp}&port=${info.port || 3456}${tokenParam}${fallbacksParam}${hostParam}`;
+        } else {
+          activeIp = info.primaryIp;
+          qrData = info.qrData;
+        }
+      } else {
+        const ip = await window.api.getLocalIp();
+        let token = '';
+        if (window.api.getPairingToken) {
+          token = (await window.api.getPairingToken()) || '';
+        }
+        activeIp = overrideIp || ip || '127.0.0.1';
+        const tokenParam = token ? `&token=${encodeURIComponent(token)}` : '';
+        qrData = `armoryvault://sync?ip=${activeIp}&port=3456${tokenParam}`;
       }
-      setLocalIp(ip || '127.0.0.1');
-      const tokenParam = token ? `&token=${encodeURIComponent(token)}` : '';
-      const qrData = `armoryvault://sync?ip=${ip}&port=3456${tokenParam}`;
+
+      setLocalIp(activeIp);
       const QRCode = (await import('qrcode')).default;
       const url = await QRCode.toDataURL(qrData, {
         width: 320,
@@ -603,7 +616,7 @@ export const SyncInbox = () => {
           rounds_fired: rounds,
           date: item.date || new Date(item.timestamp).toISOString().split('T')[0],
           notes: item.notes || '',
-          cost: item.cost || 0,
+          cost: parseCurrency(item.cost),
           location: item.location || '',
         });
 
@@ -696,10 +709,7 @@ export const SyncInbox = () => {
           is_sold: true,
           sold_date: item.date || new Date().toISOString().split('T')[0],
           sold_to_name: item.buyer_name || 'Buyer',
-          sold_price:
-            typeof item.sale_price === 'number'
-              ? item.sale_price
-              : parseFloat(String(item.sale_price || 0)) || 0,
+          sold_price: parseCurrency(item.sale_price),
           sale_notes: item.notes || '',
           condition: 'Sold / Transferred',
           notes: updatedNotes,
@@ -772,7 +782,7 @@ export const SyncInbox = () => {
           barrel_length: data.barrel_length || '',
           finish: data.finish || '',
           condition: data.condition || 'Excellent',
-          purchase_price: data.purchase_price !== undefined ? data.purchase_price : null,
+          purchase_price: parseCurrencyOrNull(data.purchase_price),
           purchase_date: data.purchase_date || '',
           purchased_from: data.purchased_from || '',
           notes: data.notes || '',
@@ -831,6 +841,14 @@ export const SyncInbox = () => {
         const updated = {
           ...firearm,
           ...data,
+          purchase_price:
+            data.purchase_price !== undefined
+              ? parseCurrencyOrNull(data.purchase_price)
+              : firearm.purchase_price,
+          sold_price:
+            data.sold_price !== undefined
+              ? parseCurrencyOrNull(data.sold_price)
+              : firearm.sold_price,
           photos: [...(firearm.photos || []), ...savedPhotos],
           image_path: firearm.image_path || (savedPhotos.length > 0 ? savedPhotos[0] : ''),
         };
@@ -859,7 +877,7 @@ export const SyncInbox = () => {
           barrel_length: data.barrel_length || '',
           finish: data.finish || '',
           condition: data.condition || 'Excellent',
-          purchase_price: data.purchase_price !== undefined ? data.purchase_price : null,
+          purchase_price: parseCurrencyOrNull(data.purchase_price),
           purchase_date: data.purchase_date || '',
           purchased_from: data.purchased_from || '',
           notes: data.notes || '',
@@ -1098,7 +1116,7 @@ export const SyncInbox = () => {
             barrel_length: data.barrel_length || '',
             finish: data.finish || '',
             condition: data.condition || 'Excellent',
-            purchase_price: data.purchase_price !== undefined ? data.purchase_price : null,
+            purchase_price: parseCurrencyOrNull(data.purchase_price),
             purchase_date: data.purchase_date || '',
             purchased_from: data.purchased_from || '',
             notes: data.notes || '',
@@ -1159,6 +1177,14 @@ export const SyncInbox = () => {
           const updated = {
             ...firearm,
             ...data,
+            purchase_price:
+              data.purchase_price !== undefined
+                ? parseCurrencyOrNull(data.purchase_price)
+                : firearm.purchase_price,
+            sold_price:
+              data.sold_price !== undefined
+                ? parseCurrencyOrNull(data.sold_price)
+                : firearm.sold_price,
             photos: [...(firearm.photos || []), ...savedPhotos],
             image_path: firearm.image_path || (savedPhotos.length > 0 ? savedPhotos[0] : ''),
           };
@@ -1189,7 +1215,7 @@ export const SyncInbox = () => {
             barrel_length: data.barrel_length || '',
             finish: data.finish || '',
             condition: data.condition || 'Excellent',
-            purchase_price: data.purchase_price !== undefined ? data.purchase_price : null,
+            purchase_price: parseCurrencyOrNull(data.purchase_price),
             purchase_date: data.purchase_date || '',
             purchased_from: data.purchased_from || '',
             notes: data.notes || '',
@@ -1279,7 +1305,7 @@ export const SyncInbox = () => {
             rounds_fired: rounds,
             date: item.date || new Date(item.timestamp).toISOString().split('T')[0],
             notes: item.notes || '',
-            cost: item.cost || 0,
+            cost: parseCurrency(item.cost),
             location: item.location || '',
           });
 
@@ -1351,6 +1377,40 @@ export const SyncInbox = () => {
         await window.api.clearSyncQueue();
         loadData();
       }
+    }
+  };
+
+  const handleResolveAmmo = (upcOrId: string, count: number, syncItemId: number) => {
+    navigate('/ammo', {
+      state: {
+        openAddModal: true,
+        upc: upcOrId,
+        count,
+        syncItemId,
+      },
+    });
+  };
+
+  const handleResolveComponent = (upcOrId: string, count: number, syncItemId: number) => {
+    navigate('/components', {
+      state: {
+        openAddModal: true,
+        upc: upcOrId,
+        count,
+        syncItemId,
+      },
+    });
+  };
+
+  const handleEditFirearm = (data: any, syncItemId: number, existingFirearmId?: number) => {
+    if (existingFirearmId) {
+      navigate(`/edit/${existingFirearmId}`, {
+        state: { parsedData: data, syncItemId },
+      });
+    } else {
+      navigate('/add', {
+        state: { parsedData: data, syncItemId },
+      });
     }
   };
 
@@ -1428,302 +1488,35 @@ export const SyncInbox = () => {
       </div>
 
       {/* Auto-Disappearing Pair Success Toast Notification */}
-      {pairSuccess &&
-        createPortal(
-          <div className="toast-floating-container">
-            <div className="toast-success-card">
-              <div
-                style={{
-                  background: 'rgba(16, 185, 129, 0.2)',
-                  padding: '0.5rem',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <CheckCircle2 size={28} style={{ color: '#10b981' }} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div
-                  style={{
-                    fontWeight: 700,
-                    fontSize: '1rem',
-                    color: '#10b981',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.4rem',
-                  }}
-                >
-                  Device Paired Successfully!
-                </div>
-                <div
-                  style={{
-                    fontSize: '0.85rem',
-                    color: 'var(--text-secondary)',
-                    marginTop: '0.15rem',
-                  }}
-                >
-                  <strong>{pairSuccess.deviceName}</strong> is now securely linked to ArmoryVault.
-                </div>
-              </div>
-              <button
-                onClick={() => setPairSuccess(null)}
-                className="btn-icon"
-                style={{ padding: '0.25rem', color: 'var(--text-secondary)' }}
-                title="Dismiss"
-              >
-                <X size={16} />
-              </button>
-              <div className="toast-progress-bar" />
-            </div>
-          </div>,
-          document.body
-        )}
+      <PairSuccessToast pairSuccess={pairSuccess} onDismiss={() => setPairSuccess(null)} />
 
       {/* Dedicated QR Code Pairing Modal */}
-      {isPairModalOpen &&
-        createPortal(
-          <div className="modal-overlay" onClick={() => setIsPairModalOpen(false)}>
-            <div
-              className="modal"
-              onClick={(e) => e.stopPropagation()}
-              style={{ maxWidth: '480px', textAlign: 'center' }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '1.25rem',
-                  borderBottom: '1px solid var(--border-light)',
-                  paddingBottom: '0.75rem',
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.6rem',
-                    textAlign: 'left',
-                  }}
-                >
-                  <Smartphone size={22} style={{ color: 'var(--accent)' }} />
-                  <div>
-                    <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Pair Mobile Companion</h2>
-                    <p
-                      style={{
-                        margin: '0.15rem 0 0',
-                        color: 'var(--text-secondary)',
-                        fontSize: '0.8rem',
-                      }}
-                    >
-                      Connect phone over Wi-Fi to sync barcode scans & logs.
-                    </p>
-                  </div>
-                </div>
-                <button
-                  className="btn-icon"
-                  onClick={() => setIsPairModalOpen(false)}
-                  title="Close"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '1.25rem',
-                }}
-              >
-                <p
-                  style={{
-                    color: 'var(--text-secondary)',
-                    fontSize: '0.9rem',
-                    margin: 0,
-                    lineHeight: 1.4,
-                  }}
-                >
-                  Open the <strong>ArmoryVault Companion App</strong> on your phone and point your
-                  camera at this QR code.
-                </p>
-
-                <div
-                  style={{
-                    background: '#ffffff',
-                    padding: '1rem',
-                    borderRadius: '16px',
-                    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.4), 0 0 20px rgba(56, 189, 248, 0.2)',
-                    border: '2px solid rgba(255, 255, 255, 0.2)',
-                  }}
-                >
-                  {syncQrUrl ? (
-                    <img
-                      src={syncQrUrl}
-                      alt="Pairing QR Code"
-                      style={{
-                        width: '220px',
-                        height: '220px',
-                        display: 'block',
-                        borderRadius: '8px',
-                      }}
-                    />
-                  ) : (
-                    <div
-                      style={{
-                        width: '220px',
-                        height: '220px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#64748b',
-                      }}
-                    >
-                      <RefreshCw size={24} className="spin" />
-                    </div>
-                  )}
-                </div>
-
-                {/* Real-time Listening Badge */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.6rem',
-                    background: 'rgba(56, 189, 248, 0.08)',
-                    border: '1px solid rgba(56, 189, 248, 0.25)',
-                    borderRadius: '20px',
-                    padding: '0.4rem 1rem',
-                    fontSize: '0.85rem',
-                    color: 'var(--text-primary)',
-                  }}
-                >
-                  <span className="pulse-dot" />
-                  <span>
-                    Listening on Wi-Fi: <strong>{localIp || 'Local Network'}:3456</strong>
-                  </span>
-                </div>
-
-                <div
-                  style={{
-                    fontSize: '0.8rem',
-                    color: 'var(--text-secondary)',
-                    background: 'rgba(255,255,255,0.02)',
-                    padding: '0.75rem',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-light)',
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                  }}
-                >
-                  <Info size={15} color="#38bdf8" style={{ flexShrink: 0 }} />
-                  <span>
-                    Once scanned, this window will automatically close and show your paired
-                    confirmation.
-                  </span>
-                </div>
-              </div>
-
-              <div
-                className="modal-actions"
-                style={{
-                  marginTop: '1.5rem',
-                  paddingTop: '1rem',
-                  borderTop: '1px solid var(--border-light)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => handlePairSuccess('Companion App (Simulated)')}
-                  style={{ fontSize: '0.8rem', opacity: 0.7 }}
-                  title="Test pair event locally"
-                >
-                  <Sparkles size={14} /> Test Pair
-                </button>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => setIsPairModalOpen(false)}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
+      <LanPairingModal
+        isOpen={isPairModalOpen}
+        syncQrUrl={syncQrUrl}
+        localIp={localIp}
+        networkInterfaces={networkInterfaces}
+        onClose={() => setIsPairModalOpen(false)}
+        onSelectIp={(ip) => generateQr(ip)}
+        onTestPair={(name) => handlePairSuccess(name)}
+      />
 
       {activeTab === 'inbox' && (
         <div>
-          {maintenanceAlert && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '1rem',
-                padding: '0.85rem 1.25rem',
-                background: 'rgba(245, 158, 11, 0.12)',
-                border: '1px solid rgba(245, 158, 11, 0.4)',
-                borderRadius: '10px',
-                marginBottom: '1rem',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <AlertTriangle size={20} color="#fbbf24" />
-                <div>
-                  <div style={{ fontWeight: 600, color: '#f8fafc', fontSize: '0.9rem' }}>
-                    Maintenance Threshold Reached: {maintenanceAlert.firearmName}
-                  </div>
-                  <div style={{ color: '#fbbf24', fontSize: '0.8rem' }}>
-                    Lifetime rounds reached {maintenanceAlert.projectedRounds} rds —{' '}
-                    {maintenanceAlert.taskName} is recommended.
-                  </div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <button
-                  type="button"
-                  className="btn-primary"
-                  style={{ padding: '0.4rem 0.85rem', fontSize: '0.8rem' }}
-                  onClick={() => {
-                    navigate('/maintenance', {
-                      state: {
-                        openQuickService: true,
-                        firearmId: maintenanceAlert.firearmId,
-                        taskName: maintenanceAlert.taskName,
-                      },
-                    });
-                    setMaintenanceAlert(null);
-                  }}
-                >
-                  Record Service Now
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMaintenanceAlert(null)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-muted)',
-                    cursor: 'pointer',
-                    padding: '4px',
-                  }}
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            </div>
-          )}
+          <MaintenanceAlertBanner
+            maintenanceAlert={maintenanceAlert}
+            onDismiss={() => setMaintenanceAlert(null)}
+            onRecordService={(alert) => {
+              navigate('/maintenance', {
+                state: {
+                  openQuickService: true,
+                  firearmId: alert.firearmId,
+                  taskName: alert.taskName,
+                },
+              });
+              setMaintenanceAlert(null);
+            }}
+          />
 
           {queue.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-secondary)' }}>
@@ -1765,2055 +1558,51 @@ export const SyncInbox = () => {
                 </button>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {queue.map((item) => {
-                  if (item.type === 'ammo_adjustment') {
-                    const upcOrId = String(item.upcOrId);
-                    const ammo = ammoList.find(
-                      (a) => String(a.id) === upcOrId || a.upc_code === upcOrId
-                    );
-
-                    return (
-                      <div
-                        key={item.id}
-                        className="card"
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '1.5rem',
-                        }}
-                      >
-                        <div style={{ flex: 1 }}>
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.5rem',
-                              marginBottom: '0.5rem',
-                            }}
-                          >
-                            <span
-                              style={{
-                                fontSize: '0.75rem',
-                                padding: '0.2rem 0.5rem',
-                                background: 'rgba(56, 189, 248, 0.1)',
-                                color: '#38bdf8',
-                                borderRadius: '4px',
-                                textTransform: 'uppercase',
-                                fontWeight: 'bold',
-                              }}
-                            >
-                              Ammo
-                            </span>
-                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                              {new Date(item.timestamp).toLocaleString()}
-                            </span>
-                          </div>
-
-                          {ammo ? (
-                            <div>
-                              <h3
-                                style={{
-                                  fontSize: '1.1rem',
-                                  margin: '0 0 0.25rem 0',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '0.5rem',
-                                }}
-                              >
-                                <CheckCircle size={18} color="var(--success)" />
-                                {ammo.caliber} - {ammo.manufacturer}
-                              </h3>
-                              <p
-                                style={{
-                                  margin: 0,
-                                  color: 'var(--text-secondary)',
-                                  fontSize: '0.9rem',
-                                }}
-                              >
-                                Action:{' '}
-                                <strong
-                                  style={{
-                                    color:
-                                      item.action === 'add' ? 'var(--success)' : 'var(--danger)',
-                                  }}
-                                >
-                                  {item.action === 'add' ? 'ADD' : 'REMOVE'} {item.count}{' '}
-                                  {item.measurement || ''} rds
-                                </strong>
-                                <span style={{ opacity: 0.5, marginLeft: '0.5rem' }}>
-                                  (Current stock: {ammo.count})
-                                </span>
-                              </p>
-                              {(() => {
-                                const fId = Number(
-                                  (item as any).firearmId ||
-                                    (item as any).firearm_id ||
-                                    (item.data &&
-                                      ((item.data as any).firearmId ||
-                                        (item.data as any).firearm_id))
-                                );
-                                const matchedFirearm = fId
-                                  ? firearms.find((f) => f.id === fId)
-                                  : null;
-                                if (!matchedFirearm) return null;
-                                const warn = getFirearmMaintenanceWarning(
-                                  matchedFirearm,
-                                  Number(item.count) || 0
-                                );
-                                return (
-                                  <>
-                                    <div
-                                      style={{
-                                        marginTop: '0.35rem',
-                                        fontSize: '0.85rem',
-                                        color: '#38bdf8',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.35rem',
-                                      }}
-                                    >
-                                      <Target size={13} />
-                                      <span>
-                                        Depleted via:{' '}
-                                        <strong>
-                                          {matchedFirearm.make} {matchedFirearm.model}
-                                        </strong>{' '}
-                                        (Round count: {matchedFirearm.round_count || 0} &rarr;{' '}
-                                        {(Number(matchedFirearm.round_count) || 0) +
-                                          (Number(item.count) || 0)}{' '}
-                                        rds)
-                                      </span>
-                                    </div>
-                                    {warn && (
-                                      <div
-                                        style={{
-                                          display: 'inline-flex',
-                                          alignItems: 'center',
-                                          gap: '6px',
-                                          background: 'rgba(245, 158, 11, 0.15)',
-                                          border: '1px solid rgba(245, 158, 11, 0.4)',
-                                          color: '#fbbf24',
-                                          padding: '3px 8px',
-                                          borderRadius: '6px',
-                                          fontSize: '0.78rem',
-                                          fontWeight: 600,
-                                          marginTop: '5px',
-                                        }}
-                                      >
-                                        <AlertTriangle size={13} />
-                                        <span>
-                                          Service Due: {warn.taskName} ({warn.projectedRounds} rds
-                                          reaches {warn.interval} rd threshold)
-                                        </span>
-                                      </div>
-                                    )}
-                                  </>
-                                );
-                              })()}
-                            </div>
-                          ) : (
-                            <div>
-                              <h3
-                                style={{
-                                  fontSize: '1.1rem',
-                                  margin: '0 0 0.25rem 0',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '0.5rem',
-                                  color: 'var(--warning)',
-                                }}
-                              >
-                                <AlertTriangle size={18} />
-                                Unknown Barcode: {upcOrId}
-                              </h3>
-                              <p
-                                style={{
-                                  margin: 0,
-                                  color: 'var(--text-secondary)',
-                                  fontSize: '0.9rem',
-                                }}
-                              >
-                                Action:{' '}
-                                <strong
-                                  style={{
-                                    color:
-                                      item.action === 'add' ? 'var(--success)' : 'var(--danger)',
-                                  }}
-                                >
-                                  {item.action === 'add' ? 'ADD' : 'REMOVE'} {item.count} rds
-                                </strong>
-                              </p>
-                            </div>
-                          )}
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          {ammo ? (
-                            <button className="btn-primary" onClick={() => handleApprove(item)}>
-                              Approve
-                            </button>
-                          ) : (
-                            <button
-                              className="btn-primary"
-                              onClick={() =>
-                                navigate('/ammo', {
-                                  state: {
-                                    openAddModal: true,
-                                    upc: upcOrId,
-                                    count: item.count,
-                                    syncItemId: item.id,
-                                  },
-                                })
-                              }
-                              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                            >
-                              <PlusCircle size={16} /> Resolve & Add
-                            </button>
-                          )}
-                          <button
-                            className="btn-icon"
-                            onClick={() => handleDelete(item.id!)}
-                            style={{ color: 'var(--danger)' }}
-                            title="Delete"
-                          >
-                            <Trash2 size={20} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  } else if (item.type === 'component_adjustment') {
-                    const upcOrId = String(item.upcOrId);
-                    const isReloadingInstalled = isInstalled('reloading');
-
-                    if (!isReloadingInstalled) {
-                      return (
-                        <div
-                          key={item.id}
-                          className="card"
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            padding: '1.5rem',
-                            borderLeft: '4px solid #c084fc',
-                            backgroundColor: 'rgba(30, 41, 59, 0.45)',
-                          }}
-                        >
-                          <div style={{ flex: 1 }}>
-                            <div
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                marginBottom: '0.5rem',
-                              }}
-                            >
-                              <span
-                                style={{
-                                  fontSize: '0.75rem',
-                                  padding: '0.2rem 0.5rem',
-                                  background: 'rgba(192, 132, 252, 0.15)',
-                                  color: '#c084fc',
-                                  borderRadius: '4px',
-                                  textTransform: 'uppercase',
-                                  fontWeight: 'bold',
-                                }}
-                              >
-                                Reloading Component
-                              </span>
-                              <span
-                                style={{
-                                  fontSize: '0.75rem',
-                                  padding: '0.2rem 0.5rem',
-                                  background: 'rgba(251, 191, 36, 0.15)',
-                                  color: '#fbbf24',
-                                  borderRadius: '4px',
-                                  fontWeight: 600,
-                                }}
-                              >
-                                Module Required
-                              </span>
-                              <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                                {new Date(item.timestamp).toLocaleString()}
-                              </span>
-                            </div>
-
-                            <div>
-                              <h3
-                                style={{
-                                  fontSize: '1.05rem',
-                                  margin: '0 0 0.25rem 0',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '0.5rem',
-                                  color: '#f8fafc',
-                                }}
-                              >
-                                <Blocks size={18} color="#c084fc" />
-                                Reloading Workbench Module Required
-                              </h3>
-                              <p
-                                style={{
-                                  margin: 0,
-                                  color: 'var(--text-secondary)',
-                                  fontSize: '0.875rem',
-                                  lineHeight: 1.4,
-                                }}
-                              >
-                                Mobile companion logged an adjustment for <strong>{upcOrId}</strong>{' '}
-                                (
-                                <strong
-                                  style={{
-                                    color:
-                                      item.action === 'add' ? 'var(--success)' : 'var(--danger)',
-                                  }}
-                                >
-                                  {item.action === 'add' ? 'ADD' : 'REMOVE'} {item.count}
-                                </strong>
-                                ). Install the Reloading Workbench module to view stock and apply
-                                this update.
-                              </p>
-                            </div>
-                          </div>
-
-                          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                            <button
-                              className="btn-primary"
-                              onClick={() => openModuleCenter('reloading')}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.4rem',
-                                backgroundColor: '#8b5cf6',
-                                border: 'none',
-                                fontSize: '0.85rem',
-                              }}
-                            >
-                              <Blocks size={16} /> Install Module
-                            </button>
-                            <button
-                              className="btn-icon"
-                              onClick={() => handleDelete(item.id!)}
-                              style={{ color: 'var(--danger)' }}
-                              title="Discard"
-                            >
-                              <Trash2 size={20} />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    const component = componentsList.find(
-                      (c) => String(c.id) === upcOrId || c.upc_code === upcOrId
-                    );
-
-                    return (
-                      <div
-                        key={item.id}
-                        className="card"
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '1.5rem',
-                        }}
-                      >
-                        <div style={{ flex: 1 }}>
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.5rem',
-                              marginBottom: '0.5rem',
-                            }}
-                          >
-                            <span
-                              style={{
-                                fontSize: '0.75rem',
-                                padding: '0.2rem 0.5rem',
-                                background: 'rgba(139, 92, 246, 0.1)',
-                                color: '#8b5cf6',
-                                borderRadius: '4px',
-                                textTransform: 'uppercase',
-                                fontWeight: 'bold',
-                              }}
-                            >
-                              Component
-                            </span>
-                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                              {new Date(item.timestamp).toLocaleString()}
-                            </span>
-                          </div>
-
-                          {component ? (
-                            <div>
-                              <h3
-                                style={{
-                                  fontSize: '1.1rem',
-                                  margin: '0 0 0.25rem 0',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '0.5rem',
-                                }}
-                              >
-                                <CheckCircle size={18} color="var(--success)" />
-                                {component.name} - {component.manufacturer}
-                              </h3>
-                              <p
-                                style={{
-                                  margin: 0,
-                                  color: 'var(--text-secondary)',
-                                  fontSize: '0.9rem',
-                                }}
-                              >
-                                Action:{' '}
-                                <strong
-                                  style={{
-                                    color:
-                                      item.action === 'add' ? 'var(--success)' : 'var(--danger)',
-                                  }}
-                                >
-                                  {item.action === 'add' ? 'ADD' : 'REMOVE'} {item.count}
-                                </strong>
-                                <span style={{ opacity: 0.5, marginLeft: '0.5rem' }}>
-                                  (Current stock: {component.quantity})
-                                </span>
-                              </p>
-                            </div>
-                          ) : (
-                            <div>
-                              <h3
-                                style={{
-                                  fontSize: '1.1rem',
-                                  margin: '0 0 0.25rem 0',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '0.5rem',
-                                  color: 'var(--warning)',
-                                }}
-                              >
-                                <AlertTriangle size={18} />
-                                Unknown Barcode: {upcOrId}
-                              </h3>
-                              <p
-                                style={{
-                                  margin: 0,
-                                  color: 'var(--text-secondary)',
-                                  fontSize: '0.9rem',
-                                }}
-                              >
-                                Action:{' '}
-                                <strong
-                                  style={{
-                                    color:
-                                      item.action === 'add' ? 'var(--success)' : 'var(--danger)',
-                                  }}
-                                >
-                                  {item.action === 'add' ? 'ADD' : 'REMOVE'} {item.count}
-                                </strong>
-                              </p>
-                            </div>
-                          )}
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          {component ? (
-                            <button className="btn-primary" onClick={() => handleApprove(item)}>
-                              Approve
-                            </button>
-                          ) : (
-                            <button
-                              className="btn-primary"
-                              onClick={() =>
-                                navigate('/components', {
-                                  state: {
-                                    openAddModal: true,
-                                    upc: upcOrId,
-                                    count: item.count,
-                                    syncItemId: item.id,
-                                  },
-                                })
-                              }
-                              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                            >
-                              <PlusCircle size={16} /> Resolve & Add
-                            </button>
-                          )}
-                          <button
-                            className="btn-icon"
-                            onClick={() => handleDelete(item.id!)}
-                            style={{ color: 'var(--danger)' }}
-                            title="Delete"
-                          >
-                            <Trash2 size={20} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  if (item.type === 'new_firearm') {
-                    const data: any = item.data || item;
-                    const make = data.make || 'Unknown Make';
-                    const model = data.model || 'Unknown Model';
-                    const caliber = data.caliber || '';
-                    const serial = data.serial_number || '';
-                    const hasPhoto =
-                      data.photoBase64 || (data.photosBase64 && data.photosBase64.length > 0);
-                    const photoSrc =
-                      data.photoBase64 || (data.photosBase64 && data.photosBase64[0]);
-                    const existing = firearms.find(
-                      (f) =>
-                        serial &&
-                        f.serial_number &&
-                        f.serial_number.trim().toLowerCase() === serial.trim().toLowerCase()
-                    );
-
-                    return (
-                      <div
-                        key={item.id}
-                        className="card"
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '1.5rem',
-                          gap: '1rem',
-                        }}
-                      >
-                        {hasPhoto && photoSrc && (
-                          <img
-                            src={photoSrc}
-                            alt={`${make} ${model}`}
-                            style={{
-                              width: '72px',
-                              height: '72px',
-                              borderRadius: '8px',
-                              objectFit: 'cover',
-                              border: '1px solid var(--border)',
-                              backgroundColor: 'rgba(0,0,0,0.2)',
-                            }}
-                          />
-                        )}
-
-                        <div style={{ flex: 1 }}>
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.5rem',
-                              marginBottom: '0.5rem',
-                              flexWrap: 'wrap',
-                            }}
-                          >
-                            <span
-                              style={{
-                                fontSize: '0.75rem',
-                                padding: '0.2rem 0.5rem',
-                                background: existing
-                                  ? 'rgba(245, 158, 11, 0.15)'
-                                  : 'rgba(59, 130, 246, 0.15)',
-                                color: existing ? '#f59e0b' : '#3b82f6',
-                                borderRadius: '4px',
-                                textTransform: 'uppercase',
-                                fontWeight: 'bold',
-                              }}
-                            >
-                              {existing ? 'Firearm (Serial Match)' : 'New Firearm'}
-                            </span>
-                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                              {new Date(item.timestamp).toLocaleString()}
-                            </span>
-                          </div>
-
-                          <div>
-                            <h3
-                              style={{
-                                fontSize: '1.15rem',
-                                margin: '0 0 0.25rem 0',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                              }}
-                            >
-                              <Shield size={18} color="#3b82f6" />
-                              {make} {model} {caliber ? `• ${caliber}` : ''}
-                            </h3>
-                            <p
-                              style={{
-                                margin: 0,
-                                color: 'var(--text-secondary)',
-                                fontSize: '0.9rem',
-                              }}
-                            >
-                              {serial ? `S/N: ${serial} ` : ''}
-                              {data.action_type ? `• ${data.action_type} ` : ''}
-                              {data.condition ? `• Condition: ${data.condition} ` : ''}
-                              {data.purchase_price ? `• $${data.purchase_price} ` : ''}
-                            </p>
-                            {data.notes && (
-                              <p
-                                style={{
-                                  margin: '0.4rem 0 0 0',
-                                  color: 'var(--text-secondary)',
-                                  fontSize: '0.85rem',
-                                  fontStyle: 'italic',
-                                }}
-                              >
-                                "{data.notes}"
-                              </p>
-                            )}
-                          </div>
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                          <button
-                            className="btn-primary"
-                            onClick={() => handleApprove(item)}
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-                          >
-                            <CheckCircle size={16} />
-                            {existing ? 'Update' : 'Direct Add'}
-                          </button>
-                          <button
-                            className="btn-secondary"
-                            onClick={() =>
-                              navigate('/add', {
-                                state: {
-                                  parsedData: data,
-                                  syncItemId: item.id,
-                                },
-                              })
-                            }
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-                          >
-                            <Edit3 size={15} /> Review
-                          </button>
-                          <button
-                            className="btn-icon"
-                            onClick={() => handleDelete(item.id!)}
-                            style={{ color: 'var(--danger)' }}
-                            title="Dismiss"
-                          >
-                            <Trash2 size={20} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  if (item.type === 'firearm_update') {
-                    const data: any = item.data || item;
-                    const fId = Number(data.firearmId || (item as any).firearmId);
-                    const serial = data.serial_number || '';
-                    const firearm = firearms.find(
-                      (f) =>
-                        (fId && f.id === fId) ||
-                        (serial &&
-                          f.serial_number &&
-                          f.serial_number.trim().toLowerCase() === serial.trim().toLowerCase())
-                    );
-                    const make = data.make || firearm?.make || 'Firearm';
-                    const model = data.model || firearm?.model || '';
-                    const hasPhoto =
-                      data.photoBase64 || (data.photosBase64 && data.photosBase64.length > 0);
-                    const photoSrc =
-                      data.photoBase64 || (data.photosBase64 && data.photosBase64[0]);
-
-                    return (
-                      <div
-                        key={item.id}
-                        className="card"
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '1.5rem',
-                          gap: '1rem',
-                        }}
-                      >
-                        {hasPhoto && photoSrc && (
-                          <img
-                            src={photoSrc}
-                            alt={`${make} ${model}`}
-                            style={{
-                              width: '72px',
-                              height: '72px',
-                              borderRadius: '8px',
-                              objectFit: 'cover',
-                              border: '1px solid var(--border)',
-                              backgroundColor: 'rgba(0,0,0,0.2)',
-                            }}
-                          />
-                        )}
-
-                        <div style={{ flex: 1 }}>
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.5rem',
-                              marginBottom: '0.5rem',
-                            }}
-                          >
-                            <span
-                              style={{
-                                fontSize: '0.75rem',
-                                padding: '0.2rem 0.5rem',
-                                background: 'rgba(245, 158, 11, 0.15)',
-                                color: '#f59e0b',
-                                borderRadius: '4px',
-                                textTransform: 'uppercase',
-                                fontWeight: 'bold',
-                              }}
-                            >
-                              Firearm Spec Update
-                            </span>
-                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                              {new Date(item.timestamp).toLocaleString()}
-                            </span>
-                          </div>
-
-                          <div>
-                            <h3
-                              style={{
-                                fontSize: '1.15rem',
-                                margin: '0 0 0.25rem 0',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                              }}
-                            >
-                              <Shield size={18} color="#f59e0b" />
-                              {make} {model} {data.caliber ? `• ${data.caliber}` : ''}
-                            </h3>
-                            <p
-                              style={{
-                                margin: 0,
-                                color: 'var(--text-secondary)',
-                                fontSize: '0.9rem',
-                              }}
-                            >
-                              {serial ? `S/N: ${serial} ` : ''}
-                              {data.condition ? `• Condition: ${data.condition} ` : ''}
-                              {hasPhoto ? '• New Photo Attached ' : ''}
-                            </p>
-                            {data.notes && (
-                              <p
-                                style={{
-                                  margin: '0.4rem 0 0 0',
-                                  color: 'var(--text-secondary)',
-                                  fontSize: '0.85rem',
-                                  fontStyle: 'italic',
-                                }}
-                              >
-                                "{data.notes}"
-                              </p>
-                            )}
-                          </div>
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                          <button
-                            className="btn-primary"
-                            onClick={() => handleApprove(item)}
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-                          >
-                            <CheckCircle size={16} /> {firearm ? 'Apply Update' : 'Add to Vault'}
-                          </button>
-                          <button
-                            className="btn-secondary"
-                            onClick={() =>
-                              firearm
-                                ? navigate(`/edit/${firearm.id}`, {
-                                    state: {
-                                      parsedData: data,
-                                      syncItemId: item.id,
-                                    },
-                                  })
-                                : navigate('/add', {
-                                    state: {
-                                      parsedData: data,
-                                      syncItemId: item.id,
-                                    },
-                                  })
-                            }
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-                          >
-                            <Edit3 size={15} /> Review & Edit
-                          </button>
-                          <button
-                            className="btn-icon"
-                            onClick={() => handleDelete(item.id!)}
-                            style={{ color: 'var(--danger)' }}
-                            title="Dismiss"
-                          >
-                            <Trash2 size={20} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  if (item.type === 'firearm_log') {
-                    const fId = Number((item as any).firearmId);
-                    const firearm = firearms.find((f) => f.id === fId);
-
-                    return (
-                      <div
-                        key={item.id}
-                        className="card"
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '1.5rem',
-                        }}
-                      >
-                        <div style={{ flex: 1 }}>
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.5rem',
-                              marginBottom: '0.5rem',
-                            }}
-                          >
-                            <span
-                              style={{
-                                fontSize: '0.75rem',
-                                padding: '0.2rem 0.5rem',
-                                background: 'rgba(16, 185, 129, 0.1)',
-                                color: '#10b981',
-                                borderRadius: '4px',
-                                textTransform: 'uppercase',
-                                fontWeight: 'bold',
-                              }}
-                            >
-                              Firearm Log
-                            </span>
-                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                              {new Date(item.timestamp).toLocaleString()}
-                            </span>
-                          </div>
-
-                          {firearm ? (
-                            <div>
-                              <h3
-                                style={{
-                                  fontSize: '1.1rem',
-                                  margin: '0 0 0.25rem 0',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '0.5rem',
-                                }}
-                              >
-                                <CheckCircle size={18} color="var(--success)" />
-                                {firearm.make} {firearm.model}{' '}
-                                {firearm.caliber ? `(${firearm.caliber})` : ''}
-                              </h3>
-                              <p
-                                style={{
-                                  margin: 0,
-                                  color: 'var(--text-secondary)',
-                                  fontSize: '0.9rem',
-                                }}
-                              >
-                                <strong>
-                                  {(item as any).logType === 'range' ? 'Range Log' : 'Maintenance'}
-                                </strong>{' '}
-                                -{' '}
-                                {(item as any).roundCount > 0
-                                  ? `${(item as any).roundCount} Rounds Fired`
-                                  : 'No rounds recorded'}
-                              </p>
-                              {(item as any).notes && (
-                                <p
-                                  style={{
-                                    margin: '0.5rem 0 0 0',
-                                    color: 'var(--text-secondary)',
-                                    fontSize: '0.85rem',
-                                    fontStyle: 'italic',
-                                  }}
-                                >
-                                  "{(item as any).notes}"
-                                </p>
-                              )}
-                              {(item as any).photoBase64 && (
-                                <p
-                                  style={{
-                                    margin: '0.2rem 0 0 0',
-                                    color: 'var(--accent)',
-                                    fontSize: '0.8rem',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.3rem',
-                                  }}
-                                >
-                                  <Paperclip size={13} /> Photo Attached
-                                </p>
-                              )}
-                            </div>
-                          ) : (
-                            <div>
-                              <h3
-                                style={{
-                                  fontSize: '1.1rem',
-                                  margin: '0 0 0.25rem 0',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '0.5rem',
-                                  color: 'var(--warning)',
-                                }}
-                              >
-                                <AlertTriangle size={18} />
-                                Unknown Firearm ID: {fId}
-                              </h3>
-                              <p
-                                style={{
-                                  margin: 0,
-                                  color: 'var(--text-secondary)',
-                                  fontSize: '0.9rem',
-                                }}
-                              >
-                                Action: {(item as any).logType}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          {firearm && (
-                            <button className="btn-primary" onClick={() => handleApprove(item)}>
-                              Approve
-                            </button>
-                          )}
-                          <button
-                            className="btn-icon"
-                            onClick={() => handleDelete(item.id!)}
-                            style={{ color: 'var(--danger)' }}
-                            title="Delete"
-                          >
-                            <Trash2 size={20} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  if (item.type === 'universal_scan') {
-                    const upcOrId = String(item.upcOrId);
-                    return (
-                      <div
-                        key={item.id}
-                        className="card"
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '1.5rem',
-                        }}
-                      >
-                        <div style={{ flex: 1 }}>
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.5rem',
-                              marginBottom: '0.5rem',
-                            }}
-                          >
-                            <span
-                              style={{
-                                fontSize: '0.75rem',
-                                padding: '0.2rem 0.5rem',
-                                background: 'rgba(234, 179, 8, 0.1)',
-                                color: '#eab308',
-                                borderRadius: '4px',
-                                textTransform: 'uppercase',
-                                fontWeight: 'bold',
-                              }}
-                            >
-                              Universal Scan
-                            </span>
-                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                              {new Date(item.timestamp).toLocaleString()}
-                            </span>
-                          </div>
-                          <div>
-                            <h3
-                              style={{
-                                fontSize: '1.1rem',
-                                margin: '0 0 0.25rem 0',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                color: 'var(--accent)',
-                              }}
-                            >
-                              <AlertTriangle size={18} />
-                              Uncategorized Barcode: {upcOrId}
-                            </h3>
-                            <p
-                              style={{
-                                margin: 0,
-                                color: 'var(--text-secondary)',
-                                fontSize: '0.9rem',
-                              }}
-                            >
-                              Sent from mobile scanner. Click Resolve to look it up.
-                            </p>
-                          </div>
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button
-                            className="btn-primary"
-                            onClick={() => handleResolveUniversal(item)}
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                            disabled={isResolving === item.id}
-                          >
-                            {isResolving === item.id ? (
-                              <RefreshCw size={16} className="spin" />
-                            ) : (
-                              <PlusCircle size={16} />
-                            )}
-                            {isResolving === item.id ? 'Resolving...' : 'Resolve & Add'}
-                          </button>
-                          <button
-                            className="btn-icon"
-                            onClick={() => handleDelete(item.id!)}
-                            style={{ color: 'var(--danger)' }}
-                            title="Delete"
-                          >
-                            <Trash2 size={20} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  } else if (item.type === 'firearm_photo') {
-                    const fId = Number((item as any).firearmId);
-                    const firearm = firearms.find((f) => f.id === fId);
-
-                    return (
-                      <div
-                        key={item.id}
-                        className="card"
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '1.5rem',
-                        }}
-                      >
-                        <div style={{ flex: 1 }}>
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.5rem',
-                              marginBottom: '0.5rem',
-                            }}
-                          >
-                            <span
-                              style={{
-                                fontSize: '0.75rem',
-                                padding: '0.2rem 0.5rem',
-                                background: 'rgba(168, 85, 247, 0.1)',
-                                color: '#a855f7',
-                                borderRadius: '4px',
-                                textTransform: 'uppercase',
-                                fontWeight: 'bold',
-                              }}
-                            >
-                              Firearm Photo
-                            </span>
-                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                              {new Date(item.timestamp).toLocaleString()}
-                            </span>
-                          </div>
-
-                          {firearm ? (
-                            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                              {(item as any).photoBase64 && (
-                                <img
-                                  src={(item as any).photoBase64}
-                                  alt="Preview"
-                                  style={{
-                                    width: 60,
-                                    height: 60,
-                                    objectFit: 'cover',
-                                    borderRadius: 8,
-                                    border: '1px solid var(--border-light)',
-                                  }}
-                                />
-                              )}
-                              <div>
-                                <h3
-                                  style={{
-                                    fontSize: '1.1rem',
-                                    margin: '0 0 0.25rem 0',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem',
-                                  }}
-                                >
-                                  <CheckCircle size={18} color="var(--success)" />
-                                  {firearm.make} {firearm.model}{' '}
-                                  {firearm.caliber ? `(${firearm.caliber})` : ''}
-                                </h3>
-                                <p
-                                  style={{
-                                    margin: 0,
-                                    color: 'var(--text-secondary)',
-                                    fontSize: '0.9rem',
-                                  }}
-                                >
-                                  New photo for inspection gallery
-                                </p>
-                              </div>
-                            </div>
-                          ) : (
-                            <div>
-                              <h3
-                                style={{
-                                  fontSize: '1.1rem',
-                                  margin: '0 0 0.25rem 0',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '0.5rem',
-                                  color: 'var(--warning)',
-                                }}
-                              >
-                                <AlertTriangle size={18} />
-                                Unknown Firearm ID: {fId}
-                              </h3>
-                              <p
-                                style={{
-                                  margin: 0,
-                                  color: 'var(--text-secondary)',
-                                  fontSize: '0.9rem',
-                                }}
-                              >
-                                Action: Add Photo
-                              </p>
-                            </div>
-                          )}
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          {firearm && (
-                            <button className="btn-primary" onClick={() => handleApprove(item)}>
-                              Approve
-                            </button>
-                          )}
-                          <button
-                            className="btn-icon"
-                            onClick={() => handleDelete(item.id!)}
-                            style={{ color: 'var(--danger)' }}
-                            title="Delete"
-                          >
-                            <Trash2 size={20} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  } else if (item.type === 'range_session') {
-                    const fId = Number(item.firearm_id);
-                    const firearm = firearms.find((f) => f.id === fId);
-                    const ammo = item.ammo_id
-                      ? ammoList.find((a) => a.id === Number(item.ammo_id))
-                      : null;
-                    const rounds = item.rounds_fired || item.count || 0;
-
-                    return (
-                      <div
-                        key={item.id}
-                        className="card"
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '1.5rem',
-                          background: 'rgba(56, 189, 248, 0.03)',
-                          border: '1px solid rgba(56, 189, 248, 0.3)',
-                        }}
-                      >
-                        <div style={{ flex: 1 }}>
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.5rem',
-                              marginBottom: '0.5rem',
-                            }}
-                          >
-                            <span
-                              style={{
-                                fontSize: '0.75rem',
-                                padding: '0.2rem 0.5rem',
-                                background: 'rgba(56, 189, 248, 0.15)',
-                                color: '#38bdf8',
-                                borderRadius: '4px',
-                                textTransform: 'uppercase',
-                                fontWeight: 'bold',
-                              }}
-                            >
-                              Range Trip Session
-                            </span>
-                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                              {item.date || new Date(item.timestamp).toLocaleDateString()}
-                            </span>
-                          </div>
-
-                          <div>
-                            <h3
-                              style={{
-                                fontSize: '1.15rem',
-                                margin: '0 0 0.25rem 0',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                              }}
-                            >
-                              <CheckCircle size={18} color="var(--success)" />
-                              {firearm
-                                ? `${firearm.make} ${firearm.model} (${firearm.caliber})`
-                                : `Firearm #${fId}`}
-                            </h3>
-                            <div
-                              style={{
-                                fontSize: '0.9rem',
-                                color: 'var(--text-primary)',
-                                marginTop: '0.25rem',
-                              }}
-                            >
-                              Fired:{' '}
-                              <strong style={{ color: 'var(--accent)' }}>{rounds} rounds</strong>
-                              {ammo && (
-                                <span
-                                  style={{ color: 'var(--text-secondary)', marginLeft: '0.5rem' }}
-                                >
-                                  &bull; Ammo: {ammo.manufacturer || 'Custom'} {ammo.caliber}{' '}
-                                  {ammo.grain ? `${ammo.grain}gr` : ''} (Will deduct from stock:{' '}
-                                  {ammo.count} rds)
-                                </span>
-                              )}
-                            </div>
-                            {firearm &&
-                              rounds > 0 &&
-                              (() => {
-                                const warn = getFirearmMaintenanceWarning(firearm, rounds);
-                                if (!warn) return null;
-                                return (
-                                  <div
-                                    style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '6px',
-                                      marginTop: '0.4rem',
-                                      padding: '3px 8px',
-                                      background: 'rgba(245, 158, 11, 0.15)',
-                                      border: '1px solid rgba(245, 158, 11, 0.4)',
-                                      borderRadius: '6px',
-                                      color: '#fbbf24',
-                                      fontSize: '0.78rem',
-                                      fontWeight: 600,
-                                    }}
-                                  >
-                                    <AlertTriangle size={13} />
-                                    <span>
-                                      Service Due: {warn.taskName} ({warn.projectedRounds} rds
-                                      reaches {warn.interval} rd threshold)
-                                    </span>
-                                  </div>
-                                );
-                              })()}
-                            {item.group_metrics && (
-                              <div
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '0.75rem',
-                                  marginTop: '0.5rem',
-                                  padding: '0.4rem 0.75rem',
-                                  background: 'rgba(16, 185, 129, 0.12)',
-                                  border: '1px solid rgba(16, 185, 129, 0.4)',
-                                  borderRadius: '6px',
-                                }}
-                              >
-                                <span
-                                  style={{
-                                    color: '#34d399',
-                                    fontWeight: 'bold',
-                                    fontSize: '0.85rem',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '4px',
-                                  }}
-                                >
-                                  <Target size={13} color="#34d399" />
-                                  <span>
-                                    {item.group_metrics.moa} MOA Group (
-                                    {item.group_metrics.extremeSpreadInches ||
-                                      item.group_metrics.extreme_spread_in}
-                                    ")
-                                  </span>
-                                </span>
-                                <span
-                                  style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}
-                                >
-                                  {item.group_metrics.shotCount || item.group_metrics.shot_count}{' '}
-                                  Shots &bull; Mean Radius:{' '}
-                                  {item.group_metrics.meanRadiusInches ||
-                                    item.group_metrics.mean_radius_in}
-                                  "
-                                </span>
-                              </div>
-                            )}
-
-                            {item.group_metrics?.turretAdjustment && (
-                              <div
-                                style={{
-                                  color: '#38bdf8',
-                                  fontSize: '0.8rem',
-                                  marginTop: '0.35rem',
-                                  fontWeight: '600',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                }}
-                              >
-                                <ScopeIcon size={13} color="#38bdf8" />
-                                <span>
-                                  Scope Zero: Dial{' '}
-                                  {item.group_metrics.turretAdjustment.elevationDirection}{' '}
-                                  {item.group_metrics.turretAdjustment.elevationClicks} clicks,{' '}
-                                  {item.group_metrics.turretAdjustment.windageDirection}{' '}
-                                  {item.group_metrics.turretAdjustment.windageClicks} clicks (
-                                  {item.group_metrics.turretAdjustment.clickUnitLabel})
-                                </span>
-                              </div>
-                            )}
-
-                            {item.notes && (
-                              <div
-                                style={{
-                                  fontSize: '0.85rem',
-                                  color: 'var(--text-secondary)',
-                                  marginTop: '0.35rem',
-                                  fontStyle: 'italic',
-                                }}
-                              >
-                                Notes: {item.notes}
-                              </div>
-                            )}
-
-                            {item.photoBase64 && (
-                              <div style={{ marginTop: '0.75rem' }}>
-                                <img
-                                  src={item.photoBase64}
-                                  alt="Target Grouping"
-                                  style={{
-                                    height: '80px',
-                                    borderRadius: '6px',
-                                    border: '1px solid var(--border-color)',
-                                    cursor: 'pointer',
-                                    objectFit: 'cover',
-                                  }}
-                                  onClick={() => window.open(item.photoBase64)}
-                                  title="Click to view full target"
-                                />
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button
-                            className="btn-primary"
-                            onClick={() => handleApprove(item)}
-                            style={{ background: 'var(--success)' }}
-                          >
-                            Approve
-                          </button>
-                          <button
-                            className="btn-icon"
-                            onClick={() => handleDelete(item.id!)}
-                            style={{ color: 'var(--danger)' }}
-                            title="Decline / Delete"
-                          >
-                            <Trash2 size={20} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  } else if (item.type === 'firearm_maintenance') {
-                    const fId = Number(item.firearm_id);
-                    const firearm = firearms.find((f) => f.id === fId);
-
-                    return (
-                      <div
-                        key={item.id}
-                        className="card"
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '1.5rem',
-                          background: 'rgba(56, 189, 248, 0.03)',
-                          border: '1px solid rgba(56, 189, 248, 0.3)',
-                        }}
-                      >
-                        <div style={{ flex: 1 }}>
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.5rem',
-                              marginBottom: '0.5rem',
-                            }}
-                          >
-                            <span
-                              style={{
-                                fontSize: '0.75rem',
-                                padding: '0.2rem 0.5rem',
-                                background: 'rgba(56, 189, 248, 0.15)',
-                                color: '#38bdf8',
-                                borderRadius: '4px',
-                                textTransform: 'uppercase',
-                                fontWeight: 'bold',
-                              }}
-                            >
-                              Firearm Maintenance
-                            </span>
-                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                              {item.date || new Date(item.timestamp).toLocaleDateString()}
-                            </span>
-                          </div>
-
-                          <div>
-                            <h3
-                              style={{
-                                fontSize: '1.15rem',
-                                margin: '0 0 0.25rem 0',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                              }}
-                            >
-                              <CheckCircle size={18} color="#38bdf8" />
-                              {firearm ? `${firearm.make} ${firearm.model}` : `Firearm #${fId}`}
-                            </h3>
-                            <div
-                              style={{
-                                fontSize: '0.9rem',
-                                color: 'var(--text-primary)',
-                                marginTop: '0.25rem',
-                              }}
-                            >
-                              Service:{' '}
-                              <strong style={{ color: '#38bdf8' }}>
-                                {item.notes || (item as any).service_type || 'Service Performed'}
-                              </strong>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button
-                            className="btn-primary"
-                            onClick={() => handleApprove(item)}
-                            style={{ background: 'var(--success)' }}
-                          >
-                            Approve
-                          </button>
-                          <button
-                            className="btn-icon"
-                            onClick={() => handleDelete(item.id!)}
-                            style={{ color: 'var(--danger)' }}
-                            title="Decline / Delete"
-                          >
-                            <Trash2 size={20} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  } else if (item.type === 'bill_of_sale_transfer') {
-                    const fId = Number(item.firearm_id);
-                    const firearm = firearms.find((f) => f.id === fId);
-
-                    return (
-                      <div
-                        key={item.id}
-                        className="card"
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '1.5rem',
-                          background: 'rgba(16, 185, 129, 0.03)',
-                          border: '1px solid rgba(16, 185, 129, 0.4)',
-                        }}
-                      >
-                        <div style={{ flex: 1 }}>
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.5rem',
-                              marginBottom: '0.5rem',
-                            }}
-                          >
-                            <span
-                              style={{
-                                fontSize: '0.75rem',
-                                padding: '0.2rem 0.5rem',
-                                background: 'rgba(16, 185, 129, 0.15)',
-                                color: '#10b981',
-                                borderRadius: '4px',
-                                textTransform: 'uppercase',
-                                fontWeight: 'bold',
-                              }}
-                            >
-                              Private Bill of Sale
-                            </span>
-                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                              {item.date || new Date(item.timestamp).toLocaleDateString()}
-                            </span>
-                            {item.transfer_id && (
-                              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                                ID: {item.transfer_id}
-                              </span>
-                            )}
-                          </div>
-
-                          <div>
-                            <h3
-                              style={{
-                                fontSize: '1.15rem',
-                                margin: '0 0 0.25rem 0',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                              }}
-                            >
-                              <CheckCircle size={18} color="#10b981" />
-                              {firearm ? `${firearm.make} ${firearm.model}` : `Firearm #${fId}`}
-                              <span
-                                style={{
-                                  fontSize: '0.9rem',
-                                  color: '#10b981',
-                                  fontWeight: 'normal',
-                                }}
-                              >
-                                — Sold for ${item.sale_price || 0}
-                              </span>
-                            </h3>
-                            <div
-                              style={{
-                                fontSize: '0.9rem',
-                                color: 'var(--text-primary)',
-                                marginTop: '0.25rem',
-                              }}
-                            >
-                              Buyer: <strong>{item.buyer_name || 'Buyer'}</strong> (DL:{' '}
-                              {item.buyer_dl || 'Verified'})
-                            </div>
-                            {item.pdf_base64 && (
-                              <div style={{ marginTop: '0.5rem' }}>
-                                <a
-                                  href={item.pdf_base64}
-                                  download={`BillOfSale_${item.transfer_id || 'transfer'}.pdf`}
-                                  className="btn-secondary"
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '0.4rem',
-                                    padding: '0.3rem 0.7rem',
-                                    fontSize: '0.8rem',
-                                    textDecoration: 'none',
-                                  }}
-                                >
-                                  <FileText size={14} /> Download Signed PDF
-                                </a>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button
-                            className="btn-primary"
-                            onClick={() => handleApprove(item)}
-                            style={{ background: 'var(--success)' }}
-                          >
-                            Approve & Update Bound Book
-                          </button>
-                          <button
-                            className="btn-icon"
-                            onClick={() => handleDelete(item.id!)}
-                            style={{ color: 'var(--danger)' }}
-                            title="Decline / Delete"
-                          >
-                            <Trash2 size={20} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  } else if (item.type === 'chrono_string') {
-                    const chrono = (item as any).chrono_data || item;
-                    const fId = Number(chrono.firearmId || chrono.firearm_id);
-                    const firearm = firearms.find((f) => f.id === fId);
-                    const shots = chrono.shotVelocities || [];
-                    const avg = chrono.averageVelocity || 0;
-                    const sd = chrono.standardDeviation || 0;
-                    const es = chrono.extremeSpread || 0;
-
-                    return (
-                      <div
-                        key={item.id}
-                        className="card"
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '1.5rem',
-                          background: 'rgba(245, 158, 11, 0.03)',
-                          border: '1px solid rgba(245, 158, 11, 0.3)',
-                        }}
-                      >
-                        <div style={{ flex: 1 }}>
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.5rem',
-                              marginBottom: '0.5rem',
-                            }}
-                          >
-                            <span
-                              style={{
-                                fontSize: '0.75rem',
-                                padding: '0.2rem 0.5rem',
-                                background: 'rgba(245, 158, 11, 0.15)',
-                                color: '#f59e0b',
-                                borderRadius: '4px',
-                                textTransform: 'uppercase',
-                                fontWeight: 'bold',
-                              }}
-                            >
-                              Chronograph Velocity String
-                            </span>
-                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                              {chrono.date ||
-                                (item.timestamp
-                                  ? new Date(item.timestamp).toLocaleDateString()
-                                  : '')}
-                            </span>
-                          </div>
-
-                          <div>
-                            <h3
-                              style={{
-                                fontSize: '1.15rem',
-                                margin: '0 0 0.25rem 0',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                              }}
-                            >
-                              <CheckCircle size={18} color="#f59e0b" />
-                              {firearm
-                                ? `${firearm.make} ${firearm.model}`
-                                : `Firearm #${fId || '?'}`}
-                              {chrono.ammoLabel && (
-                                <span
-                                  style={{
-                                    fontSize: '0.9rem',
-                                    color: 'var(--text-secondary)',
-                                    fontWeight: 'normal',
-                                  }}
-                                >
-                                  — {chrono.ammoLabel}
-                                </span>
-                              )}
-                            </h3>
-
-                            <div
-                              style={{
-                                display: 'flex',
-                                gap: '1.5rem',
-                                marginTop: '0.5rem',
-                                fontSize: '0.85rem',
-                                color: 'var(--text-primary)',
-                                fontFamily: 'monospace',
-                              }}
-                            >
-                              <div>
-                                Shots: <strong style={{ color: '#f59e0b' }}>{shots.length}</strong>
-                              </div>
-                              <div>
-                                Avg: <strong style={{ color: '#34d399' }}>{avg} fps</strong>
-                              </div>
-                              <div>
-                                SD: <strong>{sd} fps</strong>
-                              </div>
-                              <div>
-                                ES: <strong>{es} fps</strong>
-                              </div>
-                              {chrono.temperature && (
-                                <div style={{ color: 'var(--text-secondary)' }}>
-                                  Temp: {chrono.temperature}°F
-                                </div>
-                              )}
-                            </div>
-
-                            {chrono.notes && (
-                              <div
-                                style={{
-                                  fontSize: '0.85rem',
-                                  color: 'var(--text-secondary)',
-                                  marginTop: '0.35rem',
-                                  fontStyle: 'italic',
-                                }}
-                              >
-                                Notes: {chrono.notes}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button
-                            className="btn-primary"
-                            onClick={() => handleApprove(item)}
-                            style={{ background: 'var(--success)' }}
-                          >
-                            Approve & Record
-                          </button>
-                          <button
-                            className="btn-icon"
-                            onClick={() => handleDelete(item.id!)}
-                            style={{ color: 'var(--danger)' }}
-                            title="Decline / Delete"
-                          >
-                            <Trash2 size={20} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  } else if (item.type === 'target_analysis') {
-                    const target = (item as any).target_data || item;
-                    const fId = Number(target.firearmId || target.firearm_id);
-                    const firearm = firearms.find((f) => f.id === fId);
-
-                    return (
-                      <div
-                        key={item.id}
-                        className="card"
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '1.5rem',
-                          background: 'rgba(52, 211, 153, 0.03)',
-                          border: '1px solid rgba(52, 211, 153, 0.3)',
-                        }}
-                      >
-                        <div style={{ flex: 1 }}>
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.5rem',
-                              marginBottom: '0.5rem',
-                            }}
-                          >
-                            <span
-                              style={{
-                                fontSize: '0.75rem',
-                                padding: '0.2rem 0.5rem',
-                                background: 'rgba(52, 211, 153, 0.15)',
-                                color: '#34d399',
-                                borderRadius: '4px',
-                                textTransform: 'uppercase',
-                                fontWeight: 'bold',
-                              }}
-                            >
-                              Target MOA Grouping Analysis
-                            </span>
-                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                              {target.date ||
-                                (item.timestamp
-                                  ? new Date(item.timestamp).toLocaleDateString()
-                                  : '')}
-                            </span>
-                          </div>
-
-                          <div>
-                            <h3
-                              style={{
-                                fontSize: '1.15rem',
-                                margin: '0 0 0.25rem 0',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                              }}
-                            >
-                              <Target size={18} color="#34d399" />
-                              {firearm
-                                ? `${firearm.make} ${firearm.model}`
-                                : `Firearm #${fId || '?'}`}
-                              <span
-                                style={{
-                                  fontSize: '0.9rem',
-                                  color: '#34d399',
-                                  fontWeight: 'bold',
-                                }}
-                              >
-                                —{' '}
-                                {target.groupMoa != null
-                                  ? `${target.groupMoa} MOA`
-                                  : target.moa != null
-                                    ? `${target.moa} MOA`
-                                    : `${target.extremeSpreadMoa || 0} MOA`}
-                              </span>
-                            </h3>
-
-                            <div
-                              style={{
-                                display: 'flex',
-                                gap: '1.5rem',
-                                marginTop: '0.5rem',
-                                fontSize: '0.85rem',
-                                color: 'var(--text-primary)',
-                                fontFamily: 'monospace',
-                              }}
-                            >
-                              <div>
-                                Distance:{' '}
-                                <strong>
-                                  {target.distanceYards || target.distance_yards || 100} yds
-                                </strong>
-                              </div>
-                              <div>
-                                ES:{' '}
-                                <strong>
-                                  {target.extremeSpreadInches ||
-                                    target.extreme_spread_inches ||
-                                    target.extremeSpread ||
-                                    0}
-                                  "
-                                </strong>
-                              </div>
-                              {(target.meanRadius || target.mean_radius_inches) && (
-                                <div>
-                                  Mean Radius:{' '}
-                                  <strong>{target.meanRadius || target.mean_radius_inches}"</strong>
-                                </div>
-                              )}
-                              {(target.shotCount || target.shot_count) && (
-                                <div>
-                                  Shots: <strong>{target.shotCount || target.shot_count}</strong>
-                                </div>
-                              )}
-                            </div>
-
-                            {target.turretAdjustment && (
-                              <div
-                                style={{
-                                  marginTop: '0.4rem',
-                                  fontSize: '0.85rem',
-                                  color: 'var(--accent)',
-                                }}
-                              >
-                                Scope Clicks:{' '}
-                                <strong>
-                                  {target.turretAdjustment.elevationClicks} clicks{' '}
-                                  {target.turretAdjustment.elevationDirection || 'UP'},{' '}
-                                  {target.turretAdjustment.windageClicks} clicks{' '}
-                                  {target.turretAdjustment.windageDirection || 'RIGHT'}
-                                </strong>
-                              </div>
-                            )}
-
-                            {target.photoBase64 && (
-                              <div style={{ marginTop: '0.75rem' }}>
-                                <img
-                                  src={target.photoBase64}
-                                  alt="Target Group"
-                                  style={{
-                                    height: '80px',
-                                    borderRadius: '6px',
-                                    border: '1px solid var(--border-color)',
-                                    cursor: 'pointer',
-                                    objectFit: 'cover',
-                                  }}
-                                  onClick={() => window.open(target.photoBase64)}
-                                  title="Click to view full target"
-                                />
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button
-                            className="btn-primary"
-                            onClick={() => handleApprove(item)}
-                            style={{ background: 'var(--success)' }}
-                          >
-                            Approve & Save
-                          </button>
-                          <button
-                            className="btn-icon"
-                            onClick={() => handleDelete(item.id!)}
-                            style={{ color: 'var(--danger)' }}
-                            title="Decline / Delete"
-                          >
-                            <Trash2 size={20} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div key={item.id} className="card" style={{ padding: '1.5rem' }}>
-                      <p>Unknown event type: {item.type}</p>
-                      <button className="btn-secondary" onClick={() => handleDelete(item.id!)}>
-                        Dismiss
-                      </button>
-                    </div>
-                  );
-                })}
+                {queue.map((item) => (
+                  <SyncInboxItemCard
+                    key={item.id}
+                    item={item}
+                    ammoList={ammoList}
+                    firearms={firearms}
+                    componentsList={componentsList}
+                    isReloadingInstalled={isInstalled('reloading')}
+                    isResolving={isResolving === item.id}
+                    onApprove={handleApprove}
+                    onDelete={handleDelete}
+                    onEditFirearm={handleEditFirearm}
+                    onResolveAmmo={handleResolveAmmo}
+                    onResolveComponent={handleResolveComponent}
+                    onResolveUniversal={handleResolveUniversal}
+                    onInstallReloadingModule={() => openModuleCenter('reloading')}
+                    getFirearmMaintenanceWarning={getFirearmMaintenanceWarning}
+                  />
+                ))}
               </div>
             </div>
           )}
         </div>
       )}
-      {pendingBoxSizePrompt &&
-        createPortal(
-          <div className="modal-overlay" onClick={() => setPendingBoxSizePrompt(null)}>
-            <div
-              className="modal"
-              onClick={(e) => e.stopPropagation()}
-              style={{ maxWidth: '400px' }}
-            >
-              <div className="modal-header">
-                <h2>Unknown Box Size</h2>
-                <button className="btn-icon" onClick={() => setPendingBoxSizePrompt(null)}>
-                  ✕
-                </button>
-              </div>
-              <div className="modal-content">
-                <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-                  We couldn't determine the standard box size for this item from the barcode. How
-                  many units (e.g. rounds, bullets) are in one box?
-                </p>
-                <div className="form-group">
-                  <label>Quantity per Box</label>
-                  <input
-                    type="number"
-                    value={customBoxSize}
-                    onChange={(e) => setCustomBoxSize(e.target.value)}
-                    autoFocus
-                  />
-                </div>
-                <p
-                  style={{
-                    color: 'var(--text-secondary)',
-                    fontSize: '0.85rem',
-                    marginTop: '1rem',
-                    fontStyle: 'italic',
-                  }}
-                >
-                  This box size will be saved to your Custom SKUs database for all future scans of
-                  this item.
-                </p>
-              </div>
-              <div
-                className="modal-actions"
-                style={{
-                  marginTop: '1.5rem',
-                  paddingTop: '1rem',
-                  borderTop: '1px solid var(--border-light)',
-                }}
-              >
-                <button className="btn-secondary" onClick={() => setPendingBoxSizePrompt(null)}>
-                  Cancel
-                </button>
-                <button className="btn-primary" onClick={saveCustomBoxSize}>
-                  Save & Approve
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
 
-      {unknownRouteItem &&
-        createPortal(
-          <div className="modal-overlay" onClick={() => setUnknownRouteItem(null)}>
-            <div
-              className="modal"
-              onClick={(e) => e.stopPropagation()}
-              style={{ maxWidth: '400px' }}
-            >
-              <div className="modal-header">
-                <h2>Item Not Found</h2>
-                <button className="btn-icon" onClick={() => setUnknownRouteItem(null)}>
-                  ✕
-                </button>
-              </div>
-              <div className="modal-content">
-                <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-                  Barcode <strong>{unknownRouteItem.upc}</strong> wasn't found in the global
-                  database. What kind of item is this?
-                </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <button
-                    className="btn-primary"
-                    onClick={async () => {
-                      await window.api.removeSyncItem(unknownRouteItem.item.id!);
-                      navigate('/ammo', {
-                        state: { openAddModal: true, upc: unknownRouteItem.upc },
-                      });
-                    }}
-                  >
-                    Add as Ammo
-                  </button>
-                  <button
-                    className="btn-primary"
-                    onClick={async () => {
-                      await window.api.removeSyncItem(unknownRouteItem.item.id!);
-                      navigate('/components', {
-                        state: { openAddModal: true, upc: unknownRouteItem.upc },
-                      });
-                    }}
-                  >
-                    Add as Component
-                  </button>
-                  <button
-                    className="btn-primary"
-                    onClick={async () => {
-                      await window.api.removeSyncItem(unknownRouteItem.item.id!);
-                      navigate('/accessories', {
-                        state: { openAddModal: true, upc: unknownRouteItem.upc },
-                      });
-                    }}
-                  >
-                    Add as Accessory
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
+      {/* Box Size Configuration Modal */}
+      <BoxSizePromptModal
+        pendingPrompt={pendingBoxSizePrompt}
+        customBoxSize={customBoxSize}
+        onCustomBoxSizeChange={setCustomBoxSize}
+        onClose={() => setPendingBoxSizePrompt(null)}
+        onSave={saveCustomBoxSize}
+      />
+
+      {/* Unknown Barcode Category Router Modal */}
+      <UnknownRouteModal
+        unknownRouteItem={unknownRouteItem}
+        onClose={() => setUnknownRouteItem(null)}
+        onRoute={async (destination, item, upc) => {
+          await window.api.removeSyncItem(item.id!);
+          navigate(`/${destination}`, {
+            state: { openAddModal: true, upc },
+          });
+        }}
+      />
     </div>
   );
 };

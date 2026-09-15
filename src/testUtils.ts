@@ -72,6 +72,11 @@ export const mockWindowApi = () => {
     onUpdateMessage: vi.fn().mockReturnValue(() => {}),
     getPlatform: vi.fn().mockReturnValue('browser'),
     selectAndSavePhoto: vi.fn().mockResolvedValue(null),
+    selectCSVFile: vi.fn().mockResolvedValue(null),
     exportData: vi.fn().mockResolvedValue('test.csv'),
+    importFirearmsBatch: vi.fn().mockResolvedValue({ insertedCount: 1, updatedCount: 0 }),
+    importAmmoBatch: vi.fn().mockResolvedValue({ insertedCount: 1, updatedCount: 0 }),
+    importAccessoriesBatch: vi.fn().mockResolvedValue({ insertedCount: 1 }),
+    importComponentsBatch: vi.fn().mockResolvedValue({ insertedCount: 1 }),
   } as any;
 };

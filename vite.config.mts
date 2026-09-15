@@ -14,6 +14,26 @@ export default defineConfig({
       '@': resolve(import.meta.dirname, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react-dom') || id.includes('react-router-dom') || id.includes('/react/')) {
+              return 'vendor-react';
+            }
+            if (id.includes('lucide-react')) {
+              return 'vendor-icons';
+            }
+            if (id.includes('qrcode') || id.includes('react-qr-code') || id.includes('html5-qrcode')) {
+              return 'vendor-qr';
+            }
+            return 'vendor-misc';
+          }
+        },
+      },
+    },
+  },
   test: {
     pool: 'threads',
     environment: 'jsdom',

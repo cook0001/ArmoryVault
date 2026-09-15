@@ -38,6 +38,7 @@ import {
 import { Lightbox } from '@/components/Lightbox';
 import { StorageBadge } from '@/components/StorageBadge';
 import { Accessory, Firearm, StorageLocation } from '@/types';
+import { formatCurrency, parseCurrency } from '@/utils/currency';
 import { getItemStorageLocation } from '@/utils/StorageSync';
 
 interface AccessoryDetailModalProps {
@@ -152,7 +153,7 @@ export const AccessoryDetailModal: React.FC<AccessoryDetailModalProps> = ({
   }
 
   const quantity = accessory.quantity && accessory.quantity > 0 ? accessory.quantity : 1;
-  const unitValue = accessory.value || 0;
+  const unitValue = parseCurrency(accessory.value);
   const totalValue = unitValue * quantity;
 
   // Calculate total mounted quantity
@@ -364,20 +365,11 @@ export const AccessoryDetailModal: React.FC<AccessoryDetailModalProps> = ({
 
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--success)' }}>
-                  $
-                  {totalValue.toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
+                  {formatCurrency(totalValue)}
                 </div>
                 {quantity > 1 && (
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                    $
-                    {unitValue.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}{' '}
-                    each ({quantity} in stock)
+                    {formatCurrency(unitValue)} each ({quantity} in stock)
                   </div>
                 )}
               </div>

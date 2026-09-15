@@ -45,44 +45,57 @@ import {
 } from '../components/CustomIcons';
 import { getAccessoryTypeColor } from '../components/modals/AccessoryDetailModal';
 import { renderStorageIcon, StorageBadge } from '../components/StorageBadge';
+import { useVaultData } from '../context/VaultDataContext';
 import { Accessory, Ammo, Firearm, ReloadingComponent, StorageLocation } from '../types';
+import { formatCurrency, parseCurrency } from '../utils/currency';
 import { getLocalImageUrl } from '../utils/imageUrl';
 import {
   getItemStorageLocation,
   getStorageCapacityUtilization,
   getStorageTypeTheme,
 } from '../utils/StorageSync';
+import { buildStorageIndex } from '../utils/storageIndex';
+import {
+  GridDensity,
+  getStoredTheme,
+  maskValue,
+  saveTheme,
+  ThemeConfig,
+  WidgetVisibilityConfig,
+} from '../utils/themeEngine';
 
 type SortKey = 'make' | 'model' | 'caliber' | 'serial_number' | 'rounds' | 'status';
 type SortDir = 'asc' | 'desc';
 type CategoryChip = 'all' | 'handgun' | 'rifle' | 'shotgun' | 'vintage' | 'service_due' | 'nfa';
 
-interface StatVisibility {
-  firearms: boolean;
-  ammo: boolean;
-  rounds: boolean;
-  valuation: boolean;
-  service: boolean;
-}
-
-const DEFAULT_STAT_VISIBILITY: StatVisibility = {
-  firearms: true,
-  ammo: true,
-  rounds: true,
-  valuation: true,
-  service: true,
-};
-
 export const Dashboard = () => {
-  const [firearms, setFirearms] = useState<Firearm[]>([]);
-  const [ammoList, setAmmoList] = useState<Ammo[]>([]);
-  const [accessories, setAccessories] = useState<Accessory[]>([]);
-  const [components, setComponents] = useState<ReloadingComponent[]>([]);
-  const [storageLocations, setStorageLocations] = useState<StorageLocation[]>([]);
-  const [showCollectionAnalytics, setShowCollectionAnalytics] = useState(false);
-  const [showStorageValuations, setShowStorageValuations] = useState<boolean>(() => {
-    return localStorage.getItem('armoryvault_storage_valuations') !== 'false';
-  });
+  const {
+    firearms: vaultFirearms,
+    ammoList: vaultAmmoList,
+    accessories: vaultAccessories,
+    components: vaultComponents,
+    storageLocations: vaultStorageLocations,
+  } = useVaultData();
+
+  const [firearms, setFirearms] = useState<Firearm[]>(() => vaultFirearms || []);
+  const [ammoList, setAmmoList] = useState<Ammo[]>(() => vaultAmmoList || []);
+  const [accessories, setAccessories] = useState<Accessory[]>(() => vaultAccessories || []);
+  const [components, setComponents] = useState<ReloadingComponent[]>(() => vaultComponents || []);
+  const [storageLocations, setStorageLocations] = useState<StorageLocation[]>(
+    () => vaultStorageLocations || []
+  );
+
+  useEffect(() => {
+    if (vaultFirearms && vaultFirearms.length > 0) setFirearms(vaultFirearms);
+    if (vaultAmmoList && vaultAmmoList.length > 0) setAmmoList(vaultAmmoList);
+    if (vaultAccessories && vaultAccessories.length > 0) setAccessories(vaultAccessories);
+    if (vaultComponents && vaultComponents.length > 0) setComponents(vaultComponents);
+    if (vaultStorageLocations && vaultStorageLocations.length > 0)
+      setStorageLocations(vaultStorageLocations);
+  }, [vaultFirearms, vaultAmmoList, vaultAccessories, vaultComponents, vaultStorageLocations]);
+
+  // Theme & Personalization Engine state
+  const [themeConfig, setThemeConfig] = useState<ThemeConfig>(() => getStoredTheme());
 
   const [search, setSearch] = useState('');
   const [filterSold, setFilterSold] = useState<'all' | 'available' | 'sold'>('all');
@@ -95,15 +108,6 @@ export const Dashboard = () => {
     return (localStorage.getItem('armoryvault_dashboard_view') as 'grid' | 'table') || 'grid';
   });
 
-  // Metric card visibility preferences
-  const [statVisibility, setStatVisibility] = useState<StatVisibility>(() => {
-    try {
-      const saved = localStorage.getItem('armoryvault_stat_visibility');
-      return saved ? { ...DEFAULT_STAT_VISIBILITY, ...JSON.parse(saved) } : DEFAULT_STAT_VISIBILITY;
-    } catch {
-      return DEFAULT_STAT_VISIBILITY;
-    }
-  });
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
   const [isExportingBinder, setIsExportingBinder] = useState(false);
 
@@ -217,8 +221,17 @@ export const Dashboard = () => {
   useEffect(() => {
     loadData();
     const handleReload = () => loadData();
+    const handleThemeChange = (e: any) => {
+      if (e?.detail) {
+        setThemeConfig(e.detail);
+      }
+    };
     window.addEventListener('armoryvault-reload', handleReload);
-    return () => window.removeEventListener('armoryvault-reload', handleReload);
+    window.addEventListener('armoryvault-theme-change', handleThemeChange);
+    return () => {
+      window.removeEventListener('armoryvault-reload', handleReload);
+      window.removeEventListener('armoryvault-theme-change', handleThemeChange);
+    };
   }, []);
 
   const loadData = async () => {
@@ -237,11 +250,13 @@ export const Dashboard = () => {
       setStorageLocations(locsData || []);
 
       if (window.api.getConfig) {
-        const showAnalytics = await window.api.getConfig('showCollectionAnalytics');
-        setShowCollectionAnalytics(!!showAnalytics);
-        const storedValPref = await window.api.getConfig('showStorageValuations');
-        if (storedValPref !== undefined && storedValPref !== null) {
-          setShowStorageValuations(!!storedValPref);
+        const cfg = await window.api.getConfig('theme_config');
+        if (cfg) {
+          setThemeConfig((prev) => ({
+            ...prev,
+            ...cfg,
+            widgets: { ...prev.widgets, ...(cfg.widgets || {}) },
+          }));
         }
       }
     }
@@ -252,10 +267,42 @@ export const Dashboard = () => {
     localStorage.setItem('armoryvault_dashboard_view', mode);
   };
 
-  const handleToggleStat = (key: keyof StatVisibility) => {
-    const updated = { ...statVisibility, [key]: !statVisibility[key] };
-    setStatVisibility(updated);
-    localStorage.setItem('armoryvault_stat_visibility', JSON.stringify(updated));
+  const handleToggleWidget = async (key: keyof WidgetVisibilityConfig) => {
+    const updated = {
+      ...themeConfig.widgets,
+      [key]: !themeConfig.widgets[key],
+    };
+    const next = await saveTheme({ widgets: updated });
+    setThemeConfig(next);
+  };
+
+  const handleSetGridDensity = async (gridDensity: GridDensity) => {
+    const next = await saveTheme({ gridDensity });
+    setThemeConfig(next);
+  };
+
+  const handleResetWidgets = async () => {
+    const next = await saveTheme({
+      widgets: {
+        ...themeConfig.widgets,
+        statFirearms: true,
+        statAmmo: true,
+        statRounds: true,
+        statValuation: true,
+        statService: true,
+        collectionAnalytics: true,
+        storageOverview: true,
+        storageValuations: true,
+        categoryChips: true,
+        exportBinder: true,
+        wearGauges: true,
+        mountedAccessories: true,
+        telemetryStrip: true,
+        storageBadges: true,
+        showThumbnails: true,
+      },
+    });
+    setThemeConfig(next);
   };
 
   // Image URI helper with thumbnail support
@@ -336,6 +383,40 @@ export const Dashboard = () => {
 
   const serviceDueCount = firearms.filter((f) => isMaintenanceDue(f)).length;
 
+  // Pre-index storage locations for O(1) instant badge lookups
+  const storageIndex = useMemo(() => buildStorageIndex(storageLocations), [storageLocations]);
+
+  // Pre-index mounted accessories to avoid O(N*M) scans in card render loops
+  const mountedAccessoriesMap = useMemo(() => {
+    const map = new Map<number, Accessory[]>();
+    for (const acc of accessories) {
+      if (acc.mounts) {
+        for (const m of acc.mounts) {
+          if (m.firearmId) {
+            const list = map.get(m.firearmId) || [];
+            list.push(acc);
+            map.set(m.firearmId, list);
+          }
+        }
+      }
+    }
+    return map;
+  }, [accessories]);
+
+  // Precompute telemetry rounds once per firearms list mutation to avoid O(N log N) log scans during sorting
+  const firearmRoundsMap = useMemo(() => {
+    const map = new Map<number, { lifetime: number; dirty: number }>();
+    for (const f of firearms) {
+      if (f.id !== undefined) {
+        map.set(f.id, {
+          lifetime: getLifetimeRounds(f),
+          dirty: getDirtyRounds(f),
+        });
+      }
+    }
+    return map;
+  }, [firearms]);
+
   // Category counts for chip badges
   const categoryCounts = useMemo(() => {
     return {
@@ -356,62 +437,69 @@ export const Dashboard = () => {
     };
   }, [firearms, serviceDueCount]);
 
-  // Filtered list
-  const filtered = firearms.filter((f) => {
-    // Text search
-    const query = search.toLowerCase();
-    const matchesSearch =
-      (f.make || '').toLowerCase().includes(query) ||
-      (f.model || '').toLowerCase().includes(query) ||
-      (f.caliber || '').toLowerCase().includes(query) ||
-      (f.serial_number || '').toLowerCase().includes(query) ||
-      (f.notes || '').toLowerCase().includes(query);
+  // Filtered and Sorted list (strictly memoized to prevent re-filtering on unrelated state changes)
+  const sorted = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    const filtered = firearms.filter((f) => {
+      // Text search
+      if (query) {
+        const matches =
+          (f.make || '').toLowerCase().includes(query) ||
+          (f.model || '').toLowerCase().includes(query) ||
+          (f.caliber || '').toLowerCase().includes(query) ||
+          (f.serial_number || '').toLowerCase().includes(query) ||
+          (f.notes || '').toLowerCase().includes(query);
+        if (!matches) return false;
+      }
 
-    // Sold status filter
-    const matchesSold =
-      filterSold === 'all' ||
-      (filterSold === 'sold' && f.is_sold) ||
-      (filterSold === 'available' && !f.is_sold);
+      // Sold status filter
+      if (filterSold === 'sold' && !f.is_sold) return false;
+      if (filterSold === 'available' && f.is_sold) return false;
 
-    // Category chip filter
-    let matchesCategory = true;
-    const typeStr = (f.firearm_type || '').toLowerCase();
+      // Category chip filter
+      if (categoryChip !== 'all') {
+        const typeStr = (f.firearm_type || '').toLowerCase();
+        if (categoryChip === 'handgun') {
+          if (
+            !typeStr.includes('pistol') &&
+            !typeStr.includes('revolver') &&
+            !typeStr.includes('handgun')
+          )
+            return false;
+        } else if (categoryChip === 'rifle') {
+          if (!typeStr.includes('rifle') && !typeStr.includes('carbine')) return false;
+        } else if (categoryChip === 'shotgun') {
+          if (!typeStr.includes('shotgun')) return false;
+        } else if (categoryChip === 'vintage') {
+          if (!isVintageFirearm(f)) return false;
+        } else if (categoryChip === 'service_due') {
+          if (!isMaintenanceDue(f)) return false;
+        } else if (categoryChip === 'nfa') {
+          if (!f.is_nfa) return false;
+        }
+      }
 
-    if (categoryChip === 'handgun') {
-      matchesCategory =
-        typeStr.includes('pistol') || typeStr.includes('revolver') || typeStr.includes('handgun');
-    } else if (categoryChip === 'rifle') {
-      matchesCategory = typeStr.includes('rifle') || typeStr.includes('carbine');
-    } else if (categoryChip === 'shotgun') {
-      matchesCategory = typeStr.includes('shotgun');
-    } else if (categoryChip === 'vintage') {
-      matchesCategory = isVintageFirearm(f);
-    } else if (categoryChip === 'service_due') {
-      matchesCategory = isMaintenanceDue(f);
-    } else if (categoryChip === 'nfa') {
-      matchesCategory = !!f.is_nfa;
-    }
+      return true;
+    });
 
-    return matchesSearch && matchesSold && matchesCategory;
-  });
-
-  // Sorted list
-  const sorted = [...filtered].sort((a, b) => {
-    let valA: any, valB: any;
-    if (sortKey === 'status') {
-      valA = a.is_sold ? 'Sold' : 'Available';
-      valB = b.is_sold ? 'Sold' : 'Available';
-    } else if (sortKey === 'rounds') {
-      valA = getLifetimeRounds(a);
-      valB = getLifetimeRounds(b);
-      return sortDir === 'asc' ? valA - valB : valB - valA;
-    } else {
-      valA = (a[sortKey] || '').toString().toLowerCase();
-      valB = (b[sortKey] || '').toString().toLowerCase();
-    }
-    const cmp = String(valA).localeCompare(String(valB));
-    return sortDir === 'asc' ? cmp : -cmp;
-  });
+    return [...filtered].sort((a, b) => {
+      if (sortKey === 'status') {
+        const valA = a.is_sold ? 'Sold' : 'Available';
+        const valB = b.is_sold ? 'Sold' : 'Available';
+        const cmp = valA.localeCompare(valB);
+        return sortDir === 'asc' ? cmp : -cmp;
+      }
+      if (sortKey === 'rounds') {
+        const valA = (a.id !== undefined ? firearmRoundsMap.get(a.id)?.lifetime : 0) || 0;
+        const valB = (b.id !== undefined ? firearmRoundsMap.get(b.id)?.lifetime : 0) || 0;
+        return sortDir === 'asc' ? valA - valB : valB - valA;
+      }
+      const valA = (a[sortKey] || '').toString().toLowerCase();
+      const valB = (b[sortKey] || '').toString().toLowerCase();
+      const cmp = String(valA).localeCompare(String(valB));
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [firearms, search, filterSold, categoryChip, sortKey, sortDir, firearmRoundsMap]);
 
   // Progressive DOM windowing for large collections (renders initial 36, expands on scroll)
   const [visibleCount, setVisibleCount] = useState(36);
@@ -458,37 +546,42 @@ export const Dashboard = () => {
     );
   };
 
-  // Helper for mounted accessories on card
-  const getMountedAccessories = (firearmId?: number) => {
-    if (!firearmId) return [];
-    return accessories.filter((a) => {
-      if (a.mounts && a.mounts.length > 0) {
-        return a.mounts.some((m) => m.firearmId === firearmId);
-      }
-      return false;
-    });
-  };
+  // Memoized Valuation breakdown — prevents expensive O(N) recalculations on keystroke input
+  const firearmsVal = useMemo(
+    () =>
+      firearms
+        .filter((f) => !f.is_sold)
+        .reduce(
+          (sum, f) =>
+            sum +
+            parseCurrency(f.purchase_price) +
+            (f.logs?.reduce((lsum, l) => lsum + parseCurrency(l.cost), 0) || 0),
+          0
+        ),
+    [firearms]
+  );
 
-  // Valuation breakdown
-  const firearmsVal = firearms
-    .filter((f) => !f.is_sold)
-    .reduce(
-      (sum, f) =>
-        sum +
-        (Number(f.purchase_price) || 0) +
-        (f.logs?.reduce((lsum, l) => lsum + (Number(l.cost) || 0), 0) || 0),
-      0
-    );
-  const accessoriesVal = accessories.reduce(
-    (sum, a) => sum + (Number(a.value) || 0) * (a.quantity || 1),
-    0
+  const accessoriesVal = useMemo(
+    () =>
+      accessories.reduce((sum, a) => sum + parseCurrency(a.value) * (Number(a.quantity) || 1), 0),
+    [accessories]
   );
-  const ammoVal = ammoList.reduce(
-    (sum, a) => sum + (Number(a.count) || 0) * (Number(a.costPerRound) || 0),
-    0
+
+  const ammoVal = useMemo(
+    () =>
+      ammoList.reduce((sum, a) => sum + (Number(a.count) || 0) * parseCurrency(a.costPerRound), 0),
+    [ammoList]
   );
-  const componentsVal = components.reduce((sum, c) => sum + (Number(c.cost) || 0), 0);
-  const grandTotalVal = firearmsVal + accessoriesVal + ammoVal + componentsVal;
+
+  const componentsVal = useMemo(
+    () => components.reduce((sum, c) => sum + parseCurrency(c.cost), 0),
+    [components]
+  );
+
+  const grandTotalVal = useMemo(
+    () => firearmsVal + accessoriesVal + ammoVal + componentsVal,
+    [firearmsVal, accessoriesVal, ammoVal, componentsVal]
+  );
 
   return (
     <div className="dashboard">
@@ -502,107 +595,328 @@ export const Dashboard = () => {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={handleExportInsuranceBinder}
-            disabled={isExportingBinder}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              padding: '0.45rem 0.85rem',
-              fontSize: '0.85rem',
-              background: 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)',
-              border: '1px solid rgba(59, 130, 246, 0.4)',
-            }}
-            title="Export Full Armory Insurance & Appraisal Binder (Typst PDF)"
-          >
-            <FileText size={15} color="#60a5fa" />
-            <span>{isExportingBinder ? 'Compiling...' : 'Export Insurance Binder (PDF)'}</span>
-          </button>
+          {themeConfig.widgets.exportBinder && (
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={handleExportInsuranceBinder}
+              disabled={isExportingBinder}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                padding: '0.45rem 0.85rem',
+                fontSize: '0.85rem',
+                background: 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)',
+                border: '1px solid rgba(59, 130, 246, 0.4)',
+              }}
+              title="Export Full Armory Insurance & Appraisal Binder (Typst PDF)"
+            >
+              <FileText size={15} color="#60a5fa" />
+              <span>{isExportingBinder ? 'Compiling...' : 'Export Insurance Binder (PDF)'}</span>
+            </button>
+          )}
 
-          {/* Customize Cards Dropdown */}
+          {/* Customize Dashboard Widgets Dropdown */}
           <div className="customize-metrics-wrap">
             <button
               className="btn-secondary"
               onClick={() => setIsCustomizeOpen(!isCustomizeOpen)}
-              title="Customize Metric Cards"
-              style={{ padding: '0.45rem 0.85rem', fontSize: '0.85rem' }}
+              title="Customize Dashboard Layout & Widgets"
+              style={{
+                padding: '0.45rem 0.85rem',
+                fontSize: '0.85rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+              }}
             >
               <SlidersHorizontal size={15} />
-              <span>Customize Cards</span>
+              <span>Customize Widgets</span>
             </button>
 
             {isCustomizeOpen && (
               <div className="customize-metrics-popover">
                 <div
                   style={{
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    color: 'var(--text-muted)',
-                    marginBottom: '0.4rem',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    borderBottom: '1px solid var(--border-light)',
+                    paddingBottom: '0.5rem',
                   }}
                 >
-                  Metric Cards Display
+                  <div
+                    style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}
+                  >
+                    Customize Dashboard
+                  </div>
+                  <button
+                    className="btn-secondary"
+                    onClick={handleResetWidgets}
+                    title="Restore default widget layout"
+                    style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem' }}
+                  >
+                    Reset
+                  </button>
                 </div>
-                <label className="metric-toggle-row">
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    <Shield size={14} style={{ color: 'var(--accent)' }} />
-                    <span>Total Firearms</span>
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={statVisibility.firearms}
-                    onChange={() => handleToggleStat('firearms')}
-                  />
-                </label>
-                <label className="metric-toggle-row">
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    <CartridgesIcon size={14} color="#f59e0b" />
-                    <span>Ammunition Stock</span>
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={statVisibility.ammo}
-                    onChange={() => handleToggleStat('ammo')}
-                  />
-                </label>
-                <label className="metric-toggle-row">
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    <Flame size={14} color="#f97316" />
-                    <span>Lifetime Rounds</span>
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={statVisibility.rounds}
-                    onChange={() => handleToggleStat('rounds')}
-                  />
-                </label>
-                <label className="metric-toggle-row">
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    <DollarSign size={14} color="#10b981" />
-                    <span>Vault Valuation</span>
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={statVisibility.valuation}
-                    onChange={() => handleToggleStat('valuation')}
-                  />
-                </label>
-                <label className="metric-toggle-row">
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    <AlertTriangle size={14} color="#f59e0b" />
-                    <span>Service Status</span>
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={statVisibility.service}
-                    onChange={() => handleToggleStat('service')}
-                  />
-                </label>
+
+                {/* Grid Density Selector */}
+                <div>
+                  <div
+                    style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                      color: 'var(--text-muted)',
+                      marginBottom: '0.4rem',
+                    }}
+                  >
+                    Card Grid Density
+                  </div>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(3, 1fr)',
+                      gap: '0.35rem',
+                    }}
+                  >
+                    {(['compact', 'standard', 'showcase'] as GridDensity[]).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        className={`btn-secondary ${themeConfig.gridDensity === mode ? 'btn-primary' : ''}`}
+                        onClick={() => handleSetGridDensity(mode)}
+                        style={{
+                          fontSize: '0.72rem',
+                          padding: '0.3rem 0.4rem',
+                          textTransform: 'capitalize',
+                          fontWeight: themeConfig.gridDensity === mode ? 700 : 500,
+                        }}
+                      >
+                        {mode}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Section 1: Command Metric Cards */}
+                <div>
+                  <div
+                    style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                      color: 'var(--text-muted)',
+                      marginBottom: '0.35rem',
+                    }}
+                  >
+                    Metric Stat Cards
+                  </div>
+                  <label className="metric-toggle-row">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <Shield size={14} style={{ color: 'var(--accent)' }} />
+                      <span>Total Firearms</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={themeConfig.widgets.statFirearms}
+                      onChange={() => handleToggleWidget('statFirearms')}
+                    />
+                  </label>
+                  <label className="metric-toggle-row">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <CartridgesIcon size={14} color="#f59e0b" />
+                      <span>Ammunition Stock</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={themeConfig.widgets.statAmmo}
+                      onChange={() => handleToggleWidget('statAmmo')}
+                    />
+                  </label>
+                  <label className="metric-toggle-row">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <Flame size={14} color="#f97316" />
+                      <span>Lifetime Rounds</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={themeConfig.widgets.statRounds}
+                      onChange={() => handleToggleWidget('statRounds')}
+                    />
+                  </label>
+                  <label className="metric-toggle-row">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <DollarSign size={14} color="#10b981" />
+                      <span>Vault Valuation</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={themeConfig.widgets.statValuation}
+                      onChange={() => handleToggleWidget('statValuation')}
+                    />
+                  </label>
+                  <label className="metric-toggle-row">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <AlertTriangle size={14} color="#f59e0b" />
+                      <span>Service Status</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={themeConfig.widgets.statService}
+                      onChange={() => handleToggleWidget('statService')}
+                    />
+                  </label>
+                </div>
+
+                {/* Section 2: Major Sectional Widgets */}
+                <div
+                  style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.5rem' }}
+                >
+                  <div
+                    style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                      color: 'var(--text-muted)',
+                      marginBottom: '0.35rem',
+                    }}
+                  >
+                    Sectional Widgets
+                  </div>
+                  <label className="metric-toggle-row">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <PieChart size={14} color="#60a5fa" />
+                      <span>Collection Net Worth</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={themeConfig.widgets.collectionAnalytics}
+                      onChange={() => handleToggleWidget('collectionAnalytics')}
+                    />
+                  </label>
+                  <label className="metric-toggle-row">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <Shield size={14} color="#34d399" />
+                      <span>Storage Security Overview</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={themeConfig.widgets.storageOverview}
+                      onChange={() => handleToggleWidget('storageOverview')}
+                    />
+                  </label>
+                  <label className="metric-toggle-row">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <DollarSign size={14} color="#34d399" />
+                      <span>Storage Container Valuations</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={themeConfig.widgets.storageValuations}
+                      onChange={() => handleToggleWidget('storageValuations')}
+                    />
+                  </label>
+                  <label className="metric-toggle-row">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <Target size={14} color="#a78bfa" />
+                      <span>Category Filter Chips</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={themeConfig.widgets.categoryChips}
+                      onChange={() => handleToggleWidget('categoryChips')}
+                    />
+                  </label>
+                  <label className="metric-toggle-row">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <FileText size={14} color="#60a5fa" />
+                      <span>Export Insurance PDF</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={themeConfig.widgets.exportBinder}
+                      onChange={() => handleToggleWidget('exportBinder')}
+                    />
+                  </label>
+                </div>
+
+                {/* Section 3: Card Micro-Widgets */}
+                <div
+                  style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.5rem' }}
+                >
+                  <div
+                    style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                      color: 'var(--text-muted)',
+                      marginBottom: '0.35rem',
+                    }}
+                  >
+                    Card Details
+                  </div>
+                  <label className="metric-toggle-row">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <Camera size={14} color="#60a5fa" />
+                      <span>Photo Thumbnails</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={themeConfig.widgets.showThumbnails}
+                      onChange={() => handleToggleWidget('showThumbnails')}
+                    />
+                  </label>
+                  <label className="metric-toggle-row">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <AlertTriangle size={14} color="#f59e0b" />
+                      <span>Wear &amp; Maintenance Gauge</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={themeConfig.widgets.wearGauges}
+                      onChange={() => handleToggleWidget('wearGauges')}
+                    />
+                  </label>
+                  <label className="metric-toggle-row">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <ScopeIcon size={14} color="#34d399" />
+                      <span>Mounted Accessories Cloud</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={themeConfig.widgets.mountedAccessories}
+                      onChange={() => handleToggleWidget('mountedAccessories')}
+                    />
+                  </label>
+                  <label className="metric-toggle-row">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <Shield size={14} color="#60a5fa" />
+                      <span>Storage Location Badges</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={themeConfig.widgets.storageBadges}
+                      onChange={() => handleToggleWidget('storageBadges')}
+                    />
+                  </label>
+                  <label className="metric-toggle-row">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <Flame size={14} color="#f87171" />
+                      <span>Lifetime Telemetry Strip</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={themeConfig.widgets.telemetryStrip}
+                      onChange={() => handleToggleWidget('telemetryStrip')}
+                    />
+                  </label>
+                </div>
               </div>
             )}
           </div>
@@ -619,7 +933,7 @@ export const Dashboard = () => {
         }}
       >
         {/* Metric 1: Total Firearms */}
-        {statVisibility.firearms && (
+        {themeConfig.widgets.statFirearms && (
           <div className="stat-card">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem' }}>
               <div
@@ -645,7 +959,7 @@ export const Dashboard = () => {
         )}
 
         {/* Metric 2: Live Ammo Stock */}
-        {statVisibility.ammo && (
+        {themeConfig.widgets.statAmmo && (
           <div
             className="stat-card"
             onClick={() => navigate('/ammo')}
@@ -681,7 +995,7 @@ export const Dashboard = () => {
         )}
 
         {/* Metric 3: Lifetime Rounds Fired */}
-        {statVisibility.rounds && (
+        {themeConfig.widgets.statRounds && (
           <div className="stat-card">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem' }}>
               <div
@@ -707,7 +1021,7 @@ export const Dashboard = () => {
         )}
 
         {/* Metric 4: Valuation */}
-        {statVisibility.valuation && (
+        {themeConfig.widgets.statValuation && (
           <div className="stat-card">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem' }}>
               <div
@@ -724,16 +1038,13 @@ export const Dashboard = () => {
               <div>
                 <div className="stat-label">Total Invested</div>
                 <div className="stat-val" style={{ fontSize: '1.4rem' }}>
-                  $
-                  {totalInvested.toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
+                  {maskValue(formatCurrency(totalInvested), 'currency', themeConfig.privacyMode)}
                 </div>
                 {totalSoldValue > 0 ? (
                   <div className="stat-sub" style={{ color: 'var(--text-muted)' }}>
-                    +${totalSoldValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}{' '}
-                    Disposed
+                    {themeConfig.privacyMode
+                      ? '••••••'
+                      : `+$${totalSoldValue.toLocaleString(undefined, { maximumFractionDigits: 0 })} Disposed`}
                   </div>
                 ) : (
                   <div className="stat-sub">Insurance Baseline</div>
@@ -744,7 +1055,7 @@ export const Dashboard = () => {
         )}
 
         {/* Metric 5: Service Status Alert Card */}
-        {statVisibility.service && (
+        {themeConfig.widgets.statService && (
           <div
             className="stat-card"
             onClick={() => setCategoryChip(categoryChip === 'service_due' ? 'all' : 'service_due')}
@@ -789,7 +1100,7 @@ export const Dashboard = () => {
       </div>
 
       {/* Optional Collection Value Analytics Breakdown Card */}
-      {showCollectionAnalytics && grandTotalVal > 0 && (
+      {themeConfig.widgets.collectionAnalytics && grandTotalVal > 0 && (
         <div
           className="card"
           style={{
@@ -815,11 +1126,8 @@ export const Dashboard = () => {
               <h3 style={{ margin: 0, fontSize: '1rem' }}>Collection Value & Asset Breakdown</h3>
             </div>
             <div style={{ fontSize: '1rem', fontWeight: 'bold', color: 'var(--success)' }}>
-              Total Vault Net Worth: $
-              {grandTotalVal.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
+              Total Vault Net Worth:{' '}
+              {maskValue(formatCurrency(grandTotalVal), 'currency', themeConfig.privacyMode)}
             </div>
           </div>
 
@@ -860,11 +1168,7 @@ export const Dashboard = () => {
                   color: '#fff',
                 }}
               >
-                $
-                {firearmsVal.toLocaleString(undefined, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
+                {maskValue(formatCurrency(firearmsVal), 'currency', themeConfig.privacyMode)}
               </div>
               <div
                 style={{
@@ -914,11 +1218,7 @@ export const Dashboard = () => {
                   color: '#fff',
                 }}
               >
-                $
-                {accessoriesVal.toLocaleString(undefined, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
+                {maskValue(formatCurrency(accessoriesVal), 'currency', themeConfig.privacyMode)}
               </div>
               <div
                 style={{
@@ -968,11 +1268,7 @@ export const Dashboard = () => {
                   color: '#fff',
                 }}
               >
-                $
-                {ammoVal.toLocaleString(undefined, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
+                {maskValue(formatCurrency(ammoVal), 'currency', themeConfig.privacyMode)}
               </div>
               <div
                 style={{
@@ -1022,11 +1318,7 @@ export const Dashboard = () => {
                   color: '#fff',
                 }}
               >
-                $
-                {componentsVal.toLocaleString(undefined, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
+                {maskValue(formatCurrency(componentsVal), 'currency', themeConfig.privacyMode)}
               </div>
               <div
                 style={{
@@ -1050,7 +1342,7 @@ export const Dashboard = () => {
       )}
 
       {/* Storage & Security Overview Card */}
-      {storageLocations.length > 0 && (
+      {themeConfig.widgets.storageOverview && storageLocations.length > 0 && (
         <div
           className="card"
           style={{
@@ -1085,12 +1377,7 @@ export const Dashboard = () => {
               <button
                 type="button"
                 className="btn-secondary"
-                onClick={() => {
-                  const newVal = !showStorageValuations;
-                  setShowStorageValuations(newVal);
-                  localStorage.setItem('armoryvault_storage_valuations', String(newVal));
-                  if (window.api?.setConfig) window.api.setConfig('showStorageValuations', newVal);
-                }}
+                onClick={() => handleToggleWidget('storageValuations')}
                 style={{
                   fontSize: '0.75rem',
                   padding: '0.25rem 0.6rem',
@@ -1099,13 +1386,17 @@ export const Dashboard = () => {
                   gap: '0.35rem',
                 }}
                 title={
-                  showStorageValuations
+                  themeConfig.widgets.storageValuations
                     ? 'Hide financial dollar values'
                     : 'Show financial dollar values'
                 }
               >
-                {showStorageValuations ? <Eye size={13} /> : <EyeOff size={13} />}
-                <span>{showStorageValuations ? 'Valuations Visible' : 'Valuations Hidden'}</span>
+                {themeConfig.widgets.storageValuations ? <Eye size={13} /> : <EyeOff size={13} />}
+                <span>
+                  {themeConfig.widgets.storageValuations
+                    ? 'Valuations Visible'
+                    : 'Valuations Hidden'}
+                </span>
               </button>
 
               <button
@@ -1150,16 +1441,19 @@ export const Dashboard = () => {
               // Calculate valuation for this storage container
               const locFirearmsVal = firearms
                 .filter((f) => loc.firearmIds?.includes(f.id!))
-                .reduce((sum, f) => sum + (f.purchase_price || 0), 0);
+                .reduce((sum, f) => sum + parseCurrency(f.purchase_price), 0);
               const locAccsVal = accessories
                 .filter((a) => loc.accessoryIds?.includes(a.id!))
-                .reduce((sum, a) => sum + (a.value || 0) * (a.quantity || 1), 0);
+                .reduce((sum, a) => sum + parseCurrency(a.value) * (Number(a.quantity) || 1), 0);
               const locAmmoVal = ammoList
                 .filter((am) => loc.ammoIds?.includes(am.id!))
-                .reduce((sum, am) => sum + (am.count || 0) * (am.costPerRound || 0), 0);
+                .reduce(
+                  (sum, am) => sum + (Number(am.count) || 0) * parseCurrency(am.costPerRound),
+                  0
+                );
               const locCompsVal = components
                 .filter((c) => loc.componentIds?.includes(c.id!))
-                .reduce((sum, c) => sum + (c.cost || 0), 0);
+                .reduce((sum, c) => sum + parseCurrency(c.cost), 0);
               const locTotalVal = locFirearmsVal + locAccsVal + locAmmoVal + locCompsVal;
 
               return (
@@ -1186,7 +1480,9 @@ export const Dashboard = () => {
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
                       {renderStorageIcon(loc.type, 16)}
-                      <strong style={{ fontSize: '0.95rem', color: theme.text }}>{loc.name}</strong>
+                      <strong style={{ fontSize: '0.95rem', color: theme.text }}>
+                        {maskValue(loc.name, 'location', themeConfig.privacyMode)}
+                      </strong>
                     </div>
                     <span
                       style={{
@@ -1274,9 +1570,11 @@ export const Dashboard = () => {
                       Stored Value:
                     </span>
                     <strong style={{ color: 'var(--success)' }}>
-                      {showStorageValuations
-                        ? `$${locTotalVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                        : '•••••'}
+                      {themeConfig.privacyMode
+                        ? '$••••••'
+                        : themeConfig.widgets.storageValuations
+                          ? formatCurrency(locTotalVal)
+                          : '•••••'}
                     </strong>
                   </div>
                 </div>
@@ -1289,82 +1587,84 @@ export const Dashboard = () => {
       {/* Unified Dashboard Control Deck */}
       <div className="dashboard-control-deck">
         {/* Left: Category Filter Chips */}
-        <div className="filter-chips-bar">
-          <button
-            className={`filter-chip ${categoryChip === 'all' ? 'active' : ''}`}
-            onClick={() => setCategoryChip('all')}
-          >
-            <span>All</span>
-            <span className="filter-chip-count">{categoryCounts.all}</span>
-          </button>
-
-          <button
-            className={`filter-chip ${categoryChip === 'handgun' ? 'active' : ''}`}
-            onClick={() => setCategoryChip('handgun')}
-          >
-            <HandgunIcon size={14} />
-            <span>Handguns</span>
-            <span className="filter-chip-count">{categoryCounts.handgun}</span>
-          </button>
-
-          <button
-            className={`filter-chip ${categoryChip === 'rifle' ? 'active' : ''}`}
-            onClick={() => setCategoryChip('rifle')}
-          >
-            <RifleIcon size={14} />
-            <span>Rifles</span>
-            <span className="filter-chip-count">{categoryCounts.rifle}</span>
-          </button>
-
-          <button
-            className={`filter-chip ${categoryChip === 'shotgun' ? 'active' : ''}`}
-            onClick={() => setCategoryChip('shotgun')}
-          >
-            <ShotgunIcon size={14} />
-            <span>Shotguns</span>
-            <span className="filter-chip-count">{categoryCounts.shotgun}</span>
-          </button>
-
-          <button
-            className={`filter-chip ${categoryChip === 'vintage' ? 'active' : ''}`}
-            onClick={() => setCategoryChip('vintage')}
-          >
-            <Award size={14} style={{ color: '#c084fc' }} />
-            <span>C&amp;R</span>
-            <span className="filter-chip-count">{categoryCounts.vintage}</span>
-          </button>
-
-          {categoryCounts.nfa > 0 && (
+        {themeConfig.widgets.categoryChips && (
+          <div className="filter-chips-bar">
             <button
-              className={`filter-chip ${categoryChip === 'nfa' ? 'active' : ''}`}
-              onClick={() => setCategoryChip('nfa')}
+              className={`filter-chip ${categoryChip === 'all' ? 'active' : ''}`}
+              onClick={() => setCategoryChip('all')}
             >
-              <NfaTrackerNavIcon size={14} color="#a78bfa" />
-              <span>NFA</span>
-              <span className="filter-chip-count">{categoryCounts.nfa}</span>
+              <span>All</span>
+              <span className="filter-chip-count">{categoryCounts.all}</span>
             </button>
-          )}
 
-          <button
-            className={`filter-chip ${categoryChip === 'service_due' ? 'active' : ''}`}
-            onClick={() => setCategoryChip('service_due')}
-            style={{
-              borderColor: categoryCounts.service_due > 0 ? 'rgba(239, 68, 68, 0.5)' : undefined,
-              color: categoryCounts.service_due > 0 ? '#f87171' : undefined,
-            }}
-          >
-            <AlertTriangle size={14} style={{ color: '#f87171' }} />
-            <span>Service Due</span>
-            <span
-              className="filter-chip-count"
+            <button
+              className={`filter-chip ${categoryChip === 'handgun' ? 'active' : ''}`}
+              onClick={() => setCategoryChip('handgun')}
+            >
+              <HandgunIcon size={14} />
+              <span>Handguns</span>
+              <span className="filter-chip-count">{categoryCounts.handgun}</span>
+            </button>
+
+            <button
+              className={`filter-chip ${categoryChip === 'rifle' ? 'active' : ''}`}
+              onClick={() => setCategoryChip('rifle')}
+            >
+              <RifleIcon size={14} />
+              <span>Rifles</span>
+              <span className="filter-chip-count">{categoryCounts.rifle}</span>
+            </button>
+
+            <button
+              className={`filter-chip ${categoryChip === 'shotgun' ? 'active' : ''}`}
+              onClick={() => setCategoryChip('shotgun')}
+            >
+              <ShotgunIcon size={14} />
+              <span>Shotguns</span>
+              <span className="filter-chip-count">{categoryCounts.shotgun}</span>
+            </button>
+
+            <button
+              className={`filter-chip ${categoryChip === 'vintage' ? 'active' : ''}`}
+              onClick={() => setCategoryChip('vintage')}
+            >
+              <Award size={14} style={{ color: '#c084fc' }} />
+              <span>C&amp;R</span>
+              <span className="filter-chip-count">{categoryCounts.vintage}</span>
+            </button>
+
+            {categoryCounts.nfa > 0 && (
+              <button
+                className={`filter-chip ${categoryChip === 'nfa' ? 'active' : ''}`}
+                onClick={() => setCategoryChip('nfa')}
+              >
+                <NfaTrackerNavIcon size={14} color="#a78bfa" />
+                <span>NFA</span>
+                <span className="filter-chip-count">{categoryCounts.nfa}</span>
+              </button>
+            )}
+
+            <button
+              className={`filter-chip ${categoryChip === 'service_due' ? 'active' : ''}`}
+              onClick={() => setCategoryChip('service_due')}
               style={{
-                background: categoryCounts.service_due > 0 ? 'rgba(239,68,68,0.3)' : undefined,
+                borderColor: categoryCounts.service_due > 0 ? 'rgba(239, 68, 68, 0.5)' : undefined,
+                color: categoryCounts.service_due > 0 ? '#f87171' : undefined,
               }}
             >
-              {categoryCounts.service_due}
-            </span>
-          </button>
-        </div>
+              <AlertTriangle size={14} style={{ color: '#f87171' }} />
+              <span>Service Due</span>
+              <span
+                className="filter-chip-count"
+                style={{
+                  background: categoryCounts.service_due > 0 ? 'rgba(239,68,68,0.3)' : undefined,
+                }}
+              >
+                {categoryCounts.service_due}
+              </span>
+            </button>
+          </div>
+        )}
 
         {/* Right: Search + Status Dropdown + View Mode Switcher */}
         <div className="dashboard-control-right">
@@ -1430,12 +1730,17 @@ export const Dashboard = () => {
         <>
           <div className="tactical-grid">
             {visibleFirearms.map((f) => {
-              const lifetimeRounds = getLifetimeRounds(f);
-              const dirtyRounds = getDirtyRounds(f);
+              const roundsInfo = (f.id !== undefined ? firearmRoundsMap.get(f.id) : null) || {
+                lifetime: 0,
+                dirty: 0,
+              };
+              const lifetimeRounds = roundsInfo.lifetime;
+              const dirtyRounds = roundsInfo.dirty;
               const threshold = f.maintenance_round_threshold || 500;
               const wearPct = Math.min(100, Math.round((dirtyRounds / threshold) * 100));
               const isDue = isMaintenanceDue(f);
-              const mountedAccs = getMountedAccessories(f.id);
+              const mountedAccs =
+                (f.id !== undefined ? mountedAccessoriesMap.get(f.id) : null) || [];
               const imageSrc = getFirearmImageSrc(f, true);
               const isVintage = isVintageFirearm(f);
 
@@ -1446,64 +1751,68 @@ export const Dashboard = () => {
                   onClick={() => navigate(`/details/${f.id}`)}
                 >
                   {/* Card Banner / Photo */}
-                  <div className="tactical-card-image-wrap">
-                    {imageSrc ? (
-                      <img
-                        src={imageSrc}
-                        alt={f.model}
-                        className="tactical-card-image"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    ) : (
-                      <div className="tactical-card-placeholder">
-                        <Camera size={32} opacity={0.3} />
-                        <span style={{ fontSize: '0.75rem' }}>No Photo Attached</span>
-                      </div>
-                    )}
-
-                    {/* Badges Overlay */}
-                    <div className="tactical-card-badges-overlay">
-                      {f.is_sold ? (
-                        <span className="status-badge sold">Sold</span>
-                      ) : (
-                        <StorageBadge
-                          location={getItemStorageLocation('firearm', f.id, storageLocations)}
-                          onClick={(e) => {
-                            e?.stopPropagation();
-                            navigate('/storage');
-                          }}
-                          size="sm"
+                  {themeConfig.widgets.showThumbnails && (
+                    <div className="tactical-card-image-wrap">
+                      {imageSrc ? (
+                        <img
+                          src={imageSrc}
+                          alt={f.model}
+                          className="tactical-card-image"
+                          loading="lazy"
+                          decoding="async"
                         />
+                      ) : (
+                        <div className="tactical-card-placeholder">
+                          <Camera size={32} opacity={0.3} />
+                          <span style={{ fontSize: '0.75rem' }}>No Photo Attached</span>
+                        </div>
                       )}
-                      <div style={{ display: 'flex', gap: '0.35rem' }}>
-                        {f.is_nfa && (
-                          <span
-                            className="status-badge"
-                            style={{
-                              background: 'rgba(234, 179, 8, 0.25)',
-                              color: '#eab308',
-                              border: '1px solid rgba(234, 179, 8, 0.5)',
-                            }}
-                          >
-                            NFA
-                          </span>
+
+                      {/* Badges Overlay */}
+                      <div className="tactical-card-badges-overlay">
+                        {f.is_sold ? (
+                          <span className="status-badge sold">Sold</span>
+                        ) : (
+                          themeConfig.widgets.storageBadges && (
+                            <StorageBadge
+                              location={storageIndex.getLocation('firearm', f.id)}
+                              onClick={(e) => {
+                                e?.stopPropagation();
+                                navigate('/storage');
+                              }}
+                              size="sm"
+                            />
+                          )
                         )}
-                        {isVintage && (
-                          <span
-                            className="status-badge"
-                            style={{
-                              background: 'rgba(168, 85, 247, 0.25)',
-                              color: '#c084fc',
-                              border: '1px solid rgba(168, 85, 247, 0.5)',
-                            }}
-                          >
-                            C&R
-                          </span>
-                        )}
+                        <div style={{ display: 'flex', gap: '0.35rem' }}>
+                          {f.is_nfa && (
+                            <span
+                              className="status-badge"
+                              style={{
+                                background: 'rgba(234, 179, 8, 0.25)',
+                                color: '#eab308',
+                                border: '1px solid rgba(234, 179, 8, 0.5)',
+                              }}
+                            >
+                              NFA
+                            </span>
+                          )}
+                          {isVintage && (
+                            <span
+                              className="status-badge"
+                              style={{
+                                background: 'rgba(168, 85, 247, 0.25)',
+                                color: '#c084fc',
+                                border: '1px solid rgba(168, 85, 247, 0.5)',
+                              }}
+                            >
+                              C&R
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Card Body */}
                   <div className="tactical-card-body">
@@ -1531,14 +1840,14 @@ export const Dashboard = () => {
                       <span>
                         SN:{' '}
                         <strong className="mono" style={{ color: 'var(--text-primary)' }}>
-                          {f.serial_number}
+                          {maskValue(f.serial_number, 'serial', themeConfig.privacyMode)}
                         </strong>
                       </span>
                       {f.condition && <span>{f.condition}</span>}
                     </div>
 
                     {/* Mounted Accessories Tag Cloud */}
-                    {mountedAccs.length > 0 && (
+                    {themeConfig.widgets.mountedAccessories && mountedAccs.length > 0 && (
                       <div className="tactical-accessories-cloud">
                         {mountedAccs.slice(0, 3).map((a) => {
                           const tc = getAccessoryTypeColor(a.type);
@@ -1580,7 +1889,7 @@ export const Dashboard = () => {
                     )}
 
                     {/* Wear & Telemetry Bar */}
-                    {!f.is_sold && (
+                    {themeConfig.widgets.wearGauges && !f.is_sold && (
                       <div className="wear-gauge-block">
                         <div className="wear-gauge-header">
                           <span>
@@ -1617,35 +1926,38 @@ export const Dashboard = () => {
                       </div>
                     )}
 
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginTop: '0.2rem',
-                        paddingTop: '0.4rem',
-                        borderTop: '1px solid var(--border-subtle)',
-                        fontSize: '0.775rem',
-                        color: 'var(--text-muted)',
-                      }}
-                    >
-                      <span>
-                        Lifetime:{' '}
-                        <strong style={{ color: 'var(--text-primary)' }}>
-                          {lifetimeRounds.toLocaleString()} rds
-                        </strong>
-                      </span>
-                      <span
+                    {/* Lifetime Telemetry Strip */}
+                    {themeConfig.widgets.telemetryStrip && (
+                      <div
                         style={{
                           display: 'flex',
+                          justifyContent: 'space-between',
                           alignItems: 'center',
-                          gap: '0.2rem',
-                          color: 'var(--accent)',
+                          marginTop: '0.2rem',
+                          paddingTop: '0.4rem',
+                          borderTop: '1px solid var(--border-subtle)',
+                          fontSize: '0.775rem',
+                          color: 'var(--text-muted)',
                         }}
                       >
-                        Details <ChevronRight size={14} />
-                      </span>
-                    </div>
+                        <span>
+                          Lifetime:{' '}
+                          <strong style={{ color: 'var(--text-primary)' }}>
+                            {lifetimeRounds.toLocaleString()} rds
+                          </strong>
+                        </span>
+                        <span
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.2rem',
+                            color: 'var(--accent)',
+                          }}
+                        >
+                          Details <ChevronRight size={14} />
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -1744,8 +2056,12 @@ export const Dashboard = () => {
             </thead>
             <tbody>
               {visibleFirearms.map((f) => {
-                const lifetimeRounds = getLifetimeRounds(f);
-                const dirtyRounds = getDirtyRounds(f);
+                const roundsInfo = (f.id !== undefined ? firearmRoundsMap.get(f.id) : null) || {
+                  lifetime: 0,
+                  dirty: 0,
+                };
+                const lifetimeRounds = roundsInfo.lifetime;
+                const dirtyRounds = roundsInfo.dirty;
                 const isDue = isMaintenanceDue(f);
                 const imageSrc = getFirearmImageSrc(f, true);
 
@@ -1790,7 +2106,7 @@ export const Dashboard = () => {
                         letterSpacing: '0.05em',
                       }}
                     >
-                      {f.serial_number}
+                      {maskValue(f.serial_number, 'serial', themeConfig.privacyMode)}
                     </td>
                     <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
                       {lifetimeRounds.toLocaleString()} rds

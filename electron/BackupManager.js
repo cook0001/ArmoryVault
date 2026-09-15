@@ -6,9 +6,13 @@ const path = require('path');
  * including date-stamped incremental backups and full zip archive backup/restore.
  */
 class BackupManager {
-  constructor(vault, configFn) {
+  constructor(vault, configFn, skuDb = null, activityLogDb = null, moduleDataMgr = null) {
     this.vault = vault; // VaultEncryption instance
     this._getConfig = configFn;
+    this.skuDb = skuDb; // SkuDatabase instance
+    this.activityLogDb = activityLogDb; // ActivityLogDatabase instance
+    this.moduleDataMgr = moduleDataMgr; // ModuleDataManager instance
+    this._backupTimer = null;
   }
 
   getBackupPath() {
@@ -16,6 +20,16 @@ class BackupManager {
   }
 
   triggerBackup() {
+    if (this._backupTimer) {
+      clearTimeout(this._backupTimer);
+    }
+    // Debounce backup operation to prevent synchronous disk I/O thrashing during rapid edits
+    this._backupTimer = setTimeout(() => {
+      this._performBackup().catch((e) => console.error('Backup error:', e));
+    }, 5000);
+  }
+
+  async _performBackup() {
     const backupPath = this.getBackupPath();
     if (!backupPath) return;
     if (fs.existsSync(this.vault.encPath)) {
@@ -23,24 +37,36 @@ class BackupManager {
         // Date-stamped backup: ArmoryVault_Backup_2026-08-16.enc
         const dateStr = new Date().toISOString().split('T')[0];
         const dest = path.join(backupPath, `ArmoryVault_Backup_${dateStr}.enc`);
-        fs.copyFileSync(this.vault.encPath, dest);
+        await fs.promises.copyFile(this.vault.encPath, dest);
+
+        // Date-stamped backup for dedicated SKU database
+        if (this.skuDb && fs.existsSync(this.skuDb.encPath)) {
+          const skuDest = path.join(backupPath, `ArmoryVault_Skus_Backup_${dateStr}.enc`);
+          await fs.promises.copyFile(this.skuDb.encPath, skuDest);
+        }
+
+        // Date-stamped backup for dedicated Activity Log database
+        if (this.activityLogDb && fs.existsSync(this.activityLogDb.encPath)) {
+          const logDest = path.join(backupPath, `ArmoryVault_ActivityLog_Backup_${dateStr}.enc`);
+          await fs.promises.copyFile(this.activityLogDb.encPath, logDest);
+        }
 
         // Rotate: keep only the 5 most recent backups
         const MAX_BACKUPS = 5;
-        const backupFiles = fs
-          .readdirSync(backupPath)
+        const entries = await fs.promises.readdir(backupPath);
+        const backupFiles = entries
           .filter((f) => f.startsWith('ArmoryVault_Backup_') && f.endsWith('.enc'))
           .sort()
           .reverse();
 
         if (backupFiles.length > MAX_BACKUPS) {
-          backupFiles.slice(MAX_BACKUPS).forEach((oldFile) => {
+          for (const oldFile of backupFiles.slice(MAX_BACKUPS)) {
             try {
-              fs.unlinkSync(path.join(backupPath, oldFile));
+              await fs.promises.unlink(path.join(backupPath, oldFile));
             } catch (e) {
               console.error('Failed to remove old backup:', oldFile, e);
             }
-          });
+          }
         }
       } catch (e) {
         console.error('Backup failed:', e);
@@ -68,6 +94,18 @@ class BackupManager {
     if (fs.existsSync(this.vault.dbPath)) {
       zip.addLocalFile(this.vault.dbPath);
       hasDb = true;
+    }
+    if (this.skuDb) {
+      this.skuDb.flushSync();
+      if (fs.existsSync(this.skuDb.encPath)) {
+        zip.addLocalFile(this.skuDb.encPath);
+      }
+    }
+    if (this.activityLogDb) {
+      this.activityLogDb.flushSync();
+      if (fs.existsSync(this.activityLogDb.encPath)) {
+        zip.addLocalFile(this.activityLogDb.encPath);
+      }
     }
 
     if (!hasDb) {
@@ -126,7 +164,21 @@ class BackupManager {
       console.warn('Could not archive module archives to zip:', e);
     }
 
-    // 5. Write zip file synchronously and safely
+    // 5. Add module data files if they exist
+    if (this.moduleDataMgr) {
+      const moduleFiles = this.moduleDataMgr.getAllFiles();
+      for (const item of moduleFiles) {
+        try {
+          if (fs.existsSync(item.filePath) && fs.statSync(item.filePath).isFile()) {
+            zip.addLocalFile(item.filePath, 'module_data');
+          }
+        } catch (e) {
+          console.warn('Could not add module data file to zip:', item.filePath, e);
+        }
+      }
+    }
+
+    // 6. Write zip file synchronously and safely
     zip.writeZip(targetPath);
     return true;
   }
@@ -149,6 +201,24 @@ class BackupManager {
         fs.copyFileSync(this.vault.encPath, safetyBackupPath);
       } catch (e) {
         console.error('Failed to create pre-restore safety backup:', e);
+      }
+    }
+    if (this.skuDb && fs.existsSync(this.skuDb.encPath)) {
+      const safetySkuName = `skus_database_pre_restore_${Date.now()}.enc.bak`;
+      const safetySkuPath = path.join(app.getPath('userData'), safetySkuName);
+      try {
+        fs.copyFileSync(this.skuDb.encPath, safetySkuPath);
+      } catch (e) {
+        console.error('Failed to create pre-restore SKU safety backup:', e);
+      }
+    }
+    if (this.activityLogDb && fs.existsSync(this.activityLogDb.encPath)) {
+      const safetyLogName = `activity_log_pre_restore_${Date.now()}.enc.bak`;
+      const safetyLogPath = path.join(app.getPath('userData'), safetyLogName);
+      try {
+        fs.copyFileSync(this.activityLogDb.encPath, safetyLogPath);
+      } catch (e) {
+        console.error('Failed to create pre-restore Activity Log safety backup:', e);
       }
     }
 
@@ -201,7 +271,27 @@ class BackupManager {
         fs.writeFileSync(this.vault.dbPath, jsonEntry.getData());
       }
 
-      // Extract photos & documents
+      // Extract skus_database.enc if present in zip
+      if (this.skuDb) {
+        const skuEntry = zipEntries.find(
+          (e) => e.entryName === 'skus_database.enc' || e.entryName.endsWith('/skus_database.enc')
+        );
+        if (skuEntry) {
+          fs.writeFileSync(this.skuDb.encPath, skuEntry.getData());
+        }
+      }
+
+      // Extract activity_log.enc if present in zip
+      if (this.activityLogDb) {
+        const logEntry = zipEntries.find(
+          (e) => e.entryName === 'activity_log.enc' || e.entryName.endsWith('/activity_log.enc')
+        );
+        if (logEntry) {
+          fs.writeFileSync(this.activityLogDb.encPath, logEntry.getData());
+        }
+      }
+
+      // Extract photos, documents, module archives & module data
       zipEntries.forEach((entry) => {
         if (entry.entryName.startsWith('photos/') && !entry.isDirectory) {
           const filename = path.basename(entry.entryName);
@@ -221,6 +311,14 @@ class BackupManager {
               fs.mkdirSync(moduleArchivesDir, { recursive: true });
             }
             fs.writeFileSync(path.join(moduleArchivesDir, filename), entry.getData());
+          }
+        } else if (entry.entryName.startsWith('module_data/') && !entry.isDirectory) {
+          const filename = path.basename(entry.entryName);
+          if (filename && this.moduleDataMgr) {
+            if (!fs.existsSync(this.moduleDataMgr.dataDir)) {
+              fs.mkdirSync(this.moduleDataMgr.dataDir, { recursive: true });
+            }
+            fs.writeFileSync(path.join(this.moduleDataMgr.dataDir, filename), entry.getData());
           }
         }
       });

@@ -6,6 +6,7 @@ import { AutocompleteInput } from '@/components/AutocompleteInput';
 import { StorageLocationSelect } from '@/components/StorageBadge';
 import { Accessory, Firearm, StorageLocation } from '@/types';
 import { parseBarcodeData } from '@/utils/BarcodeEngine';
+import { parseCurrencyOrNull } from '@/utils/currency';
 import {
   assignItemToStorage,
   getItemStorageLocation,
@@ -242,7 +243,10 @@ export const AccessoryModal: React.FC<AccessoryModalProps> = ({
     e.preventDefault();
     if (!window.api || !window.api.addAccessory || !window.api.updateAccessory) return;
 
-    const newAcc = { ...formData } as Accessory;
+    const newAcc = {
+      ...formData,
+      value: parseCurrencyOrNull(formData.value),
+    } as Accessory;
     if (upcInput && !newAcc.upc_code) {
       newAcc.upc_code = upcInput.trim().toUpperCase();
     }

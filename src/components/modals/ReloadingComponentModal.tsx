@@ -7,6 +7,7 @@ import { StorageLocationSelect } from '@/components/StorageBadge';
 import { ReloadingComponent, StorageLocation } from '@/types';
 import { parseBarcodeData } from '@/utils/BarcodeEngine';
 import { COMPREHENSIVE_BULLET_TYPES } from '@/utils/caliberHelpers';
+import { parseCurrencyOrNull } from '@/utils/currency';
 import { CALIBER_OPTIONS } from '@/utils/formOptions';
 import { calcCostPerGrain, formatPowderMultiUnit } from '@/utils/powderUnits';
 import {
@@ -159,7 +160,10 @@ export const ReloadingComponentModal: React.FC<ReloadingComponentModalProps> = (
     e.preventDefault();
     if (!window.api || !window.api.addComponent || !window.api.updateComponent) return;
 
-    const newComp = { ...formData } as ReloadingComponent;
+    const newComp = {
+      ...formData,
+      cost: parseCurrencyOrNull(formData.cost) ?? undefined,
+    } as ReloadingComponent;
     let savedId = editingId;
 
     if (editingId) {

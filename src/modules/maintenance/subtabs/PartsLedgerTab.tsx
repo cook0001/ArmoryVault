@@ -1,6 +1,7 @@
 import { Calendar, ExternalLink, FileText, History, Search } from 'lucide-react';
 import React, { memo, useMemo } from 'react';
 import type { Firearm, MaintenanceLog } from '@/types';
+import { formatCurrency, parseCurrency } from '@/utils/currency';
 
 interface PartsLedgerTabProps {
   masterServiceHistory: { firearm: Firearm; log: MaintenanceLog }[];
@@ -44,9 +45,7 @@ export const PartsLedgerTab: React.FC<PartsLedgerTabProps> = memo(
     }, [masterServiceHistory, searchQuery, historyTypeFilter]);
 
     const totalFilteredSpend = useMemo(() => {
-      return filteredServiceHistory
-        .reduce((sum, item) => sum + (Number(item.log.cost) || 0), 0)
-        .toFixed(2);
+      return filteredServiceHistory.reduce((sum, item) => sum + parseCurrency(item.log.cost), 0);
     }, [filteredServiceHistory]);
 
     return (
@@ -107,7 +106,7 @@ export const PartsLedgerTab: React.FC<PartsLedgerTabProps> = memo(
             >
               Filtered Log Spend:{' '}
               <strong style={{ color: '#34d399', fontSize: '1.05rem' }}>
-                ${totalFilteredSpend}
+                {formatCurrency(totalFilteredSpend)}
               </strong>
             </div>
           )}
@@ -232,7 +231,7 @@ export const PartsLedgerTab: React.FC<PartsLedgerTabProps> = memo(
                             color: log.cost ? '#34d399' : 'var(--text-secondary)',
                           }}
                         >
-                          {log.cost ? `$${Number(log.cost).toFixed(2)}` : '—'}
+                          {log.cost ? formatCurrency(log.cost) : '—'}
                         </td>
                       )}
 

@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initNavbar();
   initOsDetection();
   initShowcaseTabs();
+  initScreenshotLightbox();
   initDonationDeck();
   initFaqAccordion();
   initCopyButtons();
@@ -135,6 +136,52 @@ function initShowcaseTabs() {
       }
     });
   });
+}
+
+/* ==========================================================================
+   3b. Screenshot Lightbox Modal Controller
+   ========================================================================== */
+function initScreenshotLightbox() {
+  const trigger = document.getElementById('open-screenshot-lightbox');
+  const dialog = document.getElementById('screenshot-lightbox');
+  if (!trigger || !dialog) return;
+
+  const openModal = () => {
+    if (typeof dialog.showModal === 'function') {
+      dialog.showModal();
+    }
+  };
+
+  trigger.addEventListener('click', openModal);
+  trigger.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openModal();
+    }
+  });
+
+  const downloadLink = document.getElementById('lightbox-download-link');
+  if (downloadLink) {
+    downloadLink.addEventListener('click', () => {
+      dialog.close();
+    });
+  }
+
+  // Modern Web Guidance: Fallback for browsers without native closedBy support (e.g. Safari)
+  if (!('closedBy' in HTMLDialogElement.prototype)) {
+    dialog.addEventListener('click', (event) => {
+      if (event.target !== dialog) return;
+      const rect = dialog.getBoundingClientRect();
+      const isContent =
+        rect.top <= event.clientY &&
+        event.clientY <= rect.top + rect.height &&
+        rect.left <= event.clientX &&
+        event.clientX <= rect.left + rect.width;
+      if (!isContent) {
+        dialog.close();
+      }
+    });
+  }
 }
 
 /* ==========================================================================

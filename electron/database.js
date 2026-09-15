@@ -3,25 +3,106 @@ const path = require('path');
 const crypto = require('crypto');
 const { app } = require('electron');
 const VaultEncryption = require('./VaultEncryption');
+const SkuDatabase = require('./SkuDatabase');
+const ActivityLogDatabase = require('./ActivityLogDatabase');
+const ModuleDataManager = require('./ModuleDataManager');
 const BackupManager = require('./BackupManager');
 const MediaManager = require('./MediaManager');
 
+function sanitizeCurrency(val, fallback = null) {
+  if (val === undefined || val === null || val === '') return fallback;
+  if (typeof val === 'number') return Number.isNaN(val) ? fallback : val;
+  if (typeof val === 'string') {
+    const cleaned = val.replace(/[^0-9.-]+/g, '');
+    const num = parseFloat(cleaned);
+    return Number.isNaN(num) ? fallback : num;
+  }
+  return fallback;
+}
+
+function sanitizeFirearm(firearm) {
+  if (!firearm || typeof firearm !== 'object') return firearm;
+  const clone = { ...firearm };
+  if (clone.purchase_price !== undefined) {
+    clone.purchase_price = sanitizeCurrency(clone.purchase_price, null);
+  }
+  if (clone.sold_price !== undefined) {
+    clone.sold_price = sanitizeCurrency(clone.sold_price, null);
+  }
+  if (Array.isArray(clone.logs)) {
+    clone.logs = clone.logs.map((log) => {
+      if (!log || typeof log !== 'object') return log;
+      const l = { ...log };
+      if (l.cost !== undefined) {
+        l.cost = sanitizeCurrency(l.cost, 0);
+      }
+      return l;
+    });
+  }
+  return clone;
+}
+
+function sanitizeAccessory(acc) {
+  if (!acc || typeof acc !== 'object') return acc;
+  const clone = { ...acc };
+  if (clone.value !== undefined) {
+    clone.value = sanitizeCurrency(clone.value, null);
+  }
+  return clone;
+}
+
+function sanitizeComponent(comp) {
+  if (!comp || typeof comp !== 'object') return comp;
+  const clone = { ...comp };
+  if (clone.cost !== undefined) {
+    clone.cost = sanitizeCurrency(clone.cost, undefined);
+  }
+  return clone;
+}
+
+function sanitizeAmmo(ammo) {
+  if (!ammo || typeof ammo !== 'object') return ammo;
+  const clone = { ...ammo };
+  if (clone.costPerRound !== undefined) {
+    clone.costPerRound = sanitizeCurrency(clone.costPerRound, undefined);
+  }
+  if (clone.boxPrice !== undefined) {
+    clone.boxPrice = sanitizeCurrency(clone.boxPrice, undefined);
+  }
+  return clone;
+}
+
 /**
  * Database is the unified facade that composes VaultEncryption, BackupManager,
- * and MediaManager. It maintains the same public API surface as the original
+ * MediaManager, and SkuDatabase. It maintains the same public API surface as the original
  * monolithic class so that main.js and preload.js require no changes.
  */
 class Database {
   constructor() {
     this.dbPath = path.join(app.getPath('userData'), 'firearms_inventory.json'); // Legacy
     this.encPath = path.join(app.getPath('userData'), 'firearms_inventory.enc');
+    this.skuDbPath = path.join(app.getPath('userData'), 'skus_database.enc');
+    this.activityLogPath = path.join(app.getPath('userData'), 'activity_log.enc');
+    this.moduleDataDir = path.join(app.getPath('userData'), 'module_data');
     this.photoDir = path.join(app.getPath('userData'), 'photos');
     this.docDir = path.join(app.getPath('userData'), 'documents');
 
     // Compose modules
     this.vault = new VaultEncryption(this.encPath, this.dbPath);
-    this.backup = new BackupManager(this.vault, () => this.getConfig());
+    this.skuDatabase = new SkuDatabase(this.skuDbPath);
+    this.activityLogDatabase = new ActivityLogDatabase(this.activityLogPath);
+    this.moduleDataManager = new ModuleDataManager(this.moduleDataDir);
+    this.backup = new BackupManager(
+      this.vault,
+      () => this.getConfig(),
+      this.skuDatabase,
+      this.activityLogDatabase,
+      this.moduleDataManager
+    );
     this.media = new MediaManager(this.photoDir, this.docDir);
+
+    // Auto-migrate module data from config.json to dedicated files on startup
+    this._migrateModuleDataFromConfig();
   }
 
   // ─── Vault Delegation ──────────────────────────────────────────────
@@ -32,16 +113,42 @@ class Database {
     return this.vault.isLocked();
   }
   setupVault(password) {
-    return this.vault.setupVault(password);
+    const code = this.vault.setupVault(password);
+    if (this.vault.masterKey) {
+      this.skuDatabase.unlock(this.vault.masterKey, this.vault.vaultMeta);
+      this.activityLogDatabase.unlock(this.vault.masterKey, this.vault.vaultMeta);
+      this._migrateLegacySkusIfAny();
+      this._migrateLegacyActivityLogIfAny();
+    }
+    return code;
   }
   unlockVault(password) {
-    return this.vault.unlockVault(password);
+    const ok = this.vault.unlockVault(password);
+    if (ok && this.vault.masterKey) {
+      this.skuDatabase.unlock(this.vault.masterKey, this.vault.vaultMeta);
+      this.activityLogDatabase.unlock(this.vault.masterKey, this.vault.vaultMeta);
+      this._migrateLegacySkusIfAny();
+      this._migrateLegacyActivityLogIfAny();
+    }
+    return ok;
   }
   unlockWithRecoveryCode(code) {
-    return this.vault.unlockWithRecoveryCode(code);
+    const ok = this.vault.unlockWithRecoveryCode(code);
+    if (ok && this.vault.masterKey) {
+      this.skuDatabase.unlock(this.vault.masterKey, this.vault.vaultMeta);
+      this.activityLogDatabase.unlock(this.vault.masterKey, this.vault.vaultMeta);
+      this._migrateLegacySkusIfAny();
+      this._migrateLegacyActivityLogIfAny();
+    }
+    return ok;
   }
   changePassword(currentPassword, newPassword, regenerateRecoveryKey) {
-    return this.vault.changePassword(currentPassword, newPassword, regenerateRecoveryKey);
+    const res = this.vault.changePassword(currentPassword, newPassword, regenerateRecoveryKey);
+    if (res && res.success && this.vault.masterKey) {
+      this.skuDatabase.updateVaultMeta(this.vault.vaultMeta, this.vault.masterKey);
+      this.activityLogDatabase.updateVaultMeta(this.vault.vaultMeta, this.vault.masterKey);
+    }
+    return res;
   }
   regenerateRecoveryKey(currentPassword) {
     return this.vault.regenerateRecoveryKey(currentPassword);
@@ -50,7 +157,70 @@ class Database {
     return this.vault.getRecoveryCode();
   }
   lockVault() {
+    this.skuDatabase.lock();
+    this.activityLogDatabase.lock();
     return this.vault.lockVault();
+  }
+
+  _migrateLegacySkusIfAny() {
+    try {
+      if (!this.skuDatabase.hasData()) {
+        const vaultData = this.vault.getData();
+        if (vaultData && vaultData.skus && Object.keys(vaultData.skus).length > 0) {
+          console.log(
+            `[SkuDatabase] Migrating ${Object.keys(vaultData.skus).length} legacy SKUs into skus_database.enc`
+          );
+          this.skuDatabase.saveSkus(vaultData.skus);
+          this.skuDatabase.flushSync();
+          delete vaultData.skus;
+          this.vault.saveData(vaultData);
+          this.vault.flushSync();
+        }
+      }
+    } catch (e) {
+      console.error('[SkuDatabase] Migration error:', e);
+    }
+  }
+
+  _migrateLegacyActivityLogIfAny() {
+    try {
+      if (!this.activityLogDatabase.hasData()) {
+        const vaultData = this.vault.getData();
+        if (
+          vaultData &&
+          Array.isArray(vaultData.activity_log) &&
+          vaultData.activity_log.length > 0
+        ) {
+          console.log(
+            `[ActivityLogDatabase] Migrating ${vaultData.activity_log.length} legacy activity log entries into activity_log.enc`
+          );
+          this.activityLogDatabase.saveEntries(vaultData.activity_log);
+          this.activityLogDatabase.flushSync();
+          delete vaultData.activity_log;
+          this.vault.saveData(vaultData);
+          this.vault.flushSync();
+        }
+      }
+    } catch (e) {
+      console.error('[ActivityLogDatabase] Migration error:', e);
+    }
+  }
+
+  _migrateModuleDataFromConfig() {
+    try {
+      const configPath = path.join(app.getPath('userData'), 'config.json');
+      if (!fs.existsSync(configPath)) return;
+      const raw = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      const { migratedKeys, cleanedConfig } = this.moduleDataManager.migrateFromConfig(raw);
+      if (migratedKeys && migratedKeys.length > 0) {
+        console.log(
+          `[ModuleDataManager] Migrated keys to dedicated files in module_data/: ${migratedKeys.join(', ')}`
+        );
+        fs.writeFileSync(configPath, JSON.stringify(cleanedConfig, null, 2), 'utf8');
+      }
+    } catch (e) {
+      console.warn('[ModuleDataManager] Migration error:', e);
+    }
   }
   getData() {
     return this.vault.getData();
@@ -67,20 +237,35 @@ class Database {
     return this.vault.getLastModified();
   }
 
-  // ─── Config ────────────────────────────────────────────────────────
-  getConfig() {
+  // ─── Config & Module Data ─────────────────────────────────────────
+  getConfig(key) {
+    if (key && this.moduleDataManager && this.moduleDataManager.isModuleDataKey(key)) {
+      return this.moduleDataManager.getData(key);
+    }
     const configPath = path.join(app.getPath('userData'), 'config.json');
     if (fs.existsSync(configPath)) {
-      return JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      const parsed = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      return key ? parsed[key] : parsed;
     }
-    return {};
+    return key ? undefined : {};
   }
 
   setConfig(key, value) {
+    if (this.moduleDataManager && this.moduleDataManager.isModuleDataKey(key)) {
+      return this.moduleDataManager.setData(key, value);
+    }
     const configPath = path.join(app.getPath('userData'), 'config.json');
     const config = this.getConfig();
     config[key] = value;
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+  }
+
+  getModuleData(key, fallback = []) {
+    return this.moduleDataManager ? this.moduleDataManager.getData(key, fallback) : fallback;
+  }
+
+  setModuleData(key, data) {
+    return this.moduleDataManager ? this.moduleDataManager.setData(key, data) : false;
   }
 
   // ─── Companion API Pairing Token ─────────────────────────────────────
@@ -138,41 +323,42 @@ class Database {
 
   // ─── Activity Logging ──────────────────────────────────────────────
   addActivityLog(entry) {
-    const data = this.getData();
-    if (!Array.isArray(data.activity_log)) {
-      data.activity_log = [];
+    if (this.activityLogDatabase) {
+      return this.activityLogDatabase.addEntry(entry);
     }
-    data.activity_log.push({
-      ...entry,
-      timestamp: entry.timestamp || new Date().toISOString(),
-    });
-    // Cap at 1000 most recent entries
-    if (data.activity_log.length > 1000) {
-      data.activity_log = data.activity_log.slice(-1000);
-    }
-    this.saveData(data);
   }
 
   getActivityLog() {
-    const data = this.getData();
-    return data.activity_log || [];
+    if (this.activityLogDatabase) {
+      return this.activityLogDatabase.getEntries();
+    }
+    return [];
+  }
+
+  clearActivityLog() {
+    if (this.activityLogDatabase) {
+      return this.activityLogDatabase.clearLog();
+    }
+    return false;
   }
 
   // ─── Firearms CRUD ─────────────────────────────────────────────────
   getFirearms() {
-    return this.getData().firearms;
+    const list = this.getData().firearms || [];
+    return list.map(sanitizeFirearm);
   }
 
   saveFirearms(firearms) {
     const data = this.getData();
-    data.firearms = firearms;
+    data.firearms = (firearms || []).map(sanitizeFirearm);
     this.saveData(data);
   }
 
   addFirearm(firearm) {
     const data = this.getData();
     const newId = this.vault.getNextId('firearms');
-    data.firearms.push({ ...firearm, id: newId });
+    const sanitized = sanitizeFirearm({ ...firearm, id: newId });
+    data.firearms.push(sanitized);
     this.saveData(data);
     this.addActivityLog({
       action: 'add',
@@ -184,11 +370,53 @@ class Database {
     return newId;
   }
 
+  importFirearmsBatch(firearmsList, updatesList = []) {
+    const data = this.getData();
+    if (!data.firearms) data.firearms = [];
+
+    if (Array.isArray(updatesList)) {
+      for (const update of updatesList) {
+        const idx = data.firearms.findIndex((f) => f.id === update.existingId);
+        if (idx !== -1) {
+          data.firearms[idx] = sanitizeFirearm({
+            ...data.firearms[idx],
+            ...update.updatedItem,
+            id: update.existingId,
+          });
+        }
+      }
+    }
+
+    const insertedIds = [];
+    if (Array.isArray(firearmsList)) {
+      for (const f of firearmsList) {
+        const newId = this.vault.getNextId('firearms');
+        const sanitized = sanitizeFirearm({ ...f, id: newId });
+        data.firearms.push(sanitized);
+        insertedIds.push(newId);
+      }
+    }
+
+    this.saveData(data);
+    this.addActivityLog({
+      action: 'import',
+      entityType: 'firearm',
+      entityId: insertedIds.length + (updatesList ? updatesList.length : 0),
+      detail: `Imported ${insertedIds.length} firearms (${updatesList ? updatesList.length : 0} updated) from CSV`,
+      source: 'desktop',
+    });
+
+    return {
+      insertedCount: insertedIds.length,
+      updatedCount: updatesList ? updatesList.length : 0,
+    };
+  }
+
   updateFirearm(id, firearm) {
     const firearms = this.getFirearms();
     const index = firearms.findIndex((f) => f.id === id);
     if (index !== -1) {
-      firearms[index] = { ...firearm, id };
+      firearms[index] = sanitizeFirearm({ ...firearm, id });
       this.saveFirearms(firearms);
     }
     return id;
@@ -330,19 +558,21 @@ class Database {
 
   // ─── Ammo CRUD ─────────────────────────────────────────────────────
   getAmmo() {
-    return this.getData().ammo;
+    const list = this.getData().ammo || [];
+    return list.map(sanitizeAmmo);
   }
 
   saveAmmoList(ammoList) {
     const data = this.getData();
-    data.ammo = ammoList;
+    data.ammo = (ammoList || []).map(sanitizeAmmo);
     this.saveData(data);
   }
 
   addAmmo(ammo) {
     const data = this.getData();
     const newId = this.vault.getNextId('ammo');
-    data.ammo.push({ ...ammo, id: newId });
+    const sanitized = sanitizeAmmo({ ...ammo, id: newId });
+    data.ammo.push(sanitized);
     this.saveData(data);
     this.addActivityLog({
       action: 'add',
@@ -354,11 +584,53 @@ class Database {
     return newId;
   }
 
+  importAmmoBatch(ammoList, updatesList = []) {
+    const data = this.getData();
+    if (!data.ammo) data.ammo = [];
+
+    if (Array.isArray(updatesList)) {
+      for (const update of updatesList) {
+        const idx = data.ammo.findIndex((a) => a.id === update.existingId);
+        if (idx !== -1) {
+          data.ammo[idx] = sanitizeAmmo({
+            ...data.ammo[idx],
+            ...update.updatedItem,
+            id: update.existingId,
+          });
+        }
+      }
+    }
+
+    const insertedIds = [];
+    if (Array.isArray(ammoList)) {
+      for (const a of ammoList) {
+        const newId = this.vault.getNextId('ammo');
+        const sanitized = sanitizeAmmo({ ...a, id: newId });
+        data.ammo.push(sanitized);
+        insertedIds.push(newId);
+      }
+    }
+
+    this.saveData(data);
+    this.addActivityLog({
+      action: 'import',
+      entityType: 'ammo',
+      entityId: insertedIds.length + (updatesList ? updatesList.length : 0),
+      detail: `Imported ${insertedIds.length} ammo boxes (${updatesList ? updatesList.length : 0} updated) from CSV`,
+      source: 'desktop',
+    });
+
+    return {
+      insertedCount: insertedIds.length,
+      updatedCount: updatesList ? updatesList.length : 0,
+    };
+  }
+
   updateAmmo(id, ammo) {
     const ammoList = this.getAmmo();
     const index = ammoList.findIndex((a) => a.id === id);
     if (index !== -1) {
-      ammoList[index] = { ...ammo, id };
+      ammoList[index] = sanitizeAmmo({ ...ammo, id });
       this.saveAmmoList(ammoList);
     }
     return id;
@@ -383,19 +655,21 @@ class Database {
 
   // ─── Accessories CRUD ──────────────────────────────────────────────
   getAccessories() {
-    return this.getData().accessories || [];
+    const list = this.getData().accessories || [];
+    return list.map(sanitizeAccessory);
   }
 
   saveAccessoriesList(accessoriesList) {
     const data = this.getData();
-    data.accessories = accessoriesList;
+    data.accessories = (accessoriesList || []).map(sanitizeAccessory);
     this.saveData(data);
   }
 
   addAccessory(accessory) {
     const data = this.getData();
     const newId = this.vault.getNextId('accessories');
-    data.accessories.push({ ...accessory, id: newId });
+    const sanitized = sanitizeAccessory({ ...accessory, id: newId });
+    data.accessories.push(sanitized);
     this.saveData(data);
     this.addActivityLog({
       action: 'add',
@@ -407,11 +681,37 @@ class Database {
     return newId;
   }
 
+  importAccessoriesBatch(accessoriesList) {
+    const data = this.getData();
+    if (!data.accessories) data.accessories = [];
+
+    const insertedIds = [];
+    if (Array.isArray(accessoriesList)) {
+      for (const acc of accessoriesList) {
+        const newId = this.vault.getNextId('accessories');
+        const sanitized = sanitizeAccessory({ ...acc, id: newId });
+        data.accessories.push(sanitized);
+        insertedIds.push(newId);
+      }
+    }
+
+    this.saveData(data);
+    this.addActivityLog({
+      action: 'import',
+      entityType: 'accessory',
+      entityId: insertedIds.length,
+      detail: `Imported ${insertedIds.length} accessories from CSV`,
+      source: 'desktop',
+    });
+
+    return { insertedCount: insertedIds.length };
+  }
+
   updateAccessory(id, accessory) {
     const list = this.getAccessories();
     const index = list.findIndex((a) => a.id === id);
     if (index !== -1) {
-      list[index] = { ...accessory, id };
+      list[index] = sanitizeAccessory({ ...accessory, id });
       this.saveAccessoriesList(list);
     }
     return id;
@@ -436,28 +736,56 @@ class Database {
 
   // ─── Components CRUD ───────────────────────────────────────────────
   getComponents() {
-    return this.getData().components || [];
+    const list = this.getData().components || [];
+    return list.map(sanitizeComponent);
   }
 
   saveComponentsList(componentsList) {
     const data = this.getData();
-    data.components = componentsList;
+    data.components = (componentsList || []).map(sanitizeComponent);
     this.saveData(data);
   }
 
   addComponent(component) {
     const data = this.getData();
     const newId = this.vault.getNextId('components');
-    data.components.push({ ...component, id: newId });
+    const sanitized = sanitizeComponent({ ...component, id: newId });
+    data.components.push(sanitized);
     this.saveData(data);
     return newId;
+  }
+
+  importComponentsBatch(componentsList) {
+    const data = this.getData();
+    if (!data.components) data.components = [];
+
+    const insertedIds = [];
+    if (Array.isArray(componentsList)) {
+      for (const c of componentsList) {
+        const newId = this.vault.getNextId('components');
+        const sanitized = sanitizeComponent({ ...c, id: newId });
+        data.components.push(sanitized);
+        insertedIds.push(newId);
+      }
+    }
+
+    this.saveData(data);
+    this.addActivityLog({
+      action: 'import',
+      entityType: 'component',
+      entityId: insertedIds.length,
+      detail: `Imported ${insertedIds.length} reloading components from CSV`,
+      source: 'desktop',
+    });
+
+    return { insertedCount: insertedIds.length };
   }
 
   updateComponent(id, component) {
     const list = this.getComponents();
     const index = list.findIndex((c) => c.id === id);
     if (index !== -1) {
-      list[index] = { ...component, id };
+      list[index] = sanitizeComponent({ ...component, id });
       this.saveComponentsList(list);
     }
     return id;
@@ -472,23 +800,36 @@ class Database {
 
   // ─── SKUs ──────────────────────────────────────────────────────────
   getSkus() {
-    const data = this.getData();
-    return data?.skus ? data.skus : {};
+    if (this.isLocked()) {
+      return {};
+    }
+    return this.skuDatabase.getSkus();
   }
 
   saveSkus(skus) {
-    const data = this.getData();
-    data.skus = { ...(data.skus || {}), ...(skus || {}) };
-    this.saveData(data);
+    if (this.isLocked()) throw new Error('Vault is locked');
+    const res = this.skuDatabase.saveSkus(skus);
+    this.backup.triggerBackup();
+    return res;
   }
 
   deleteSku(skuId) {
-    const data = this.getData();
-    if (data?.skus?.[skuId]) {
-      delete data.skus[skuId];
-      this.saveData(data);
-    }
-    return skuId;
+    if (this.isLocked()) throw new Error('Vault is locked');
+    const res = this.skuDatabase.deleteSku(skuId);
+    this.backup.triggerBackup();
+    return res;
+  }
+
+  exportSkusCatalog() {
+    if (this.isLocked()) throw new Error('Vault is locked');
+    return this.skuDatabase.exportCatalogJson();
+  }
+
+  importSkusCatalog(catalogData, mode = 'merge') {
+    if (this.isLocked()) throw new Error('Vault is locked');
+    const res = this.skuDatabase.importCatalogJson(catalogData, mode);
+    this.backup.triggerBackup();
+    return res;
   }
 
   // ─── Custom Schedule Presets ────────────────────────────────────────

@@ -4,6 +4,7 @@ export * from './ActivityLogModal';
 export * from './AmmoCanLabelModal';
 export * from './BatchManufactureModal';
 export * from './ChangePasswordModal';
+export * from './CsvImportModal';
 export * from './FflPickerModal';
 export * from './ModuleCenterModal';
 export * from './MountAccessoryModal';

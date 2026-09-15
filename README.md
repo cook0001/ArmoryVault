@@ -15,6 +15,10 @@ A secure, premium, cross-platform desktop application designed for serious firea
 
 ## Key Features
 
+- **Tactical UI Customization & Personalization Suite**: 7 military/tactical theme presets (Tactical Blue, OD Green, Flat Dark Earth, Night Vision Crimson, Stealth Gunmetal, Desert Sand, Cyber Violet) + custom hex/RGB picker, 4 OLED pure black and ambient canvas styles, UI density & corner geometry modes, font scaling, and a 1-click Discretion Privacy Shield masking serial numbers and valuations.
+- **Universal CSV Import & Migration Engine**: RFC 4180 compliant CSV/TSV streaming parser with intelligent synonym detection migrating seamlessly from GunSafe, GunLog / GunLogPro, MyGunDB, Gun Tracker, ATF Bound Book exports, and spreadsheets with live column mapping and validation.
+- **Dedicated Encrypted Databases & Zero-Bloat Storage**: Decoupled high-churn audit history (`activity_log.enc`) and custom barcode dictionaries (`skus_database.enc`) into dedicated AES-256-GCM encrypted stores with atomic flushing, shrinking primary vault size and preventing database bloat.
+- **High-Performance Client Caching & Anti-Monolith Architecture**: Centralized reactive state hydration via `VaultDataContext` delivering instant 0ms route transitions across all views, $O(1)$ precomputed storage indexing, and modular sub-component partitioning.
 - **Lean Core & Pluggable Modular Architecture**: Core essentials (Dashboard, Firearms, Ammunition Depot, Storage Organizer, Accessories, Vault Security) remain lean, fast, and 100% air-gapped. Specialized features are installed on-demand via the in-app **Module Center** (`Reloading Workbench`, `Armorer & Maintenance`, `Ballistics Calculator`, `NFA Tracker`, `Bound Book`, `Optics Vault`, `Range Finder`, and `Batch Label Studio`).
 - **Typst Vector PDF Documentation Suite**: Generates publication-grade multi-page Insurance Appraisal Binders and Official Armorer Work Order & Inspection Certificates in 0.14s using native Typst with 3-tier cloud & offline Chromium fallbacks.
 - **Dedicated Modules Repository & Dynamic Discovery**: Pluggable modules are maintained independently in [cook0001/ArmoryVault-Modules](https://github.com/cook0001/ArmoryVault-Modules). The core application queries the remote catalog and registers newly published extensions without requiring a core application re-compile.
@@ -29,10 +33,10 @@ A secure, premium, cross-platform desktop application designed for serious firea
 ## Tech Stack
 
 - **Frontend**: React 19, TypeScript, Vite, Biome
-- **Styling**: Vanilla CSS (Modern Dark Glassmorphism) with Lucide Vector Icons
+- **Styling**: Vanilla CSS (Tactical Glassmorphism) with Lucide Vector Icons & Custom Military SVGs
 - **Desktop Engine**: Electron with secure context-isolated IPC bridge
 - **Document Engine**: Typst 0.15 native vector compiler with 3-tier resilient fallback
-- **Testing**: Vitest CI Suite (154 automated tests across 29 suites)
+- **Testing**: Vitest CI Suite (219 automated tests across 37 suites)
 - **Storage**: Native File-System & Encrypted AES-256-GCM persistence
 - **CI/CD**: `electron-builder`, `electron-updater`, and GitHub Pages
 

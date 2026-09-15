@@ -14,7 +14,7 @@ import {
   Target,
   Trash2,
 } from 'lucide-react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   ChassisIcon,
@@ -34,19 +34,37 @@ import {
 import { AccessoryModal } from '../components/modals/AccessoryModal';
 import { StorageBadge } from '../components/StorageBadge';
 import { useUndoToast } from '../components/UndoToast';
+import { useVaultData } from '../context/VaultDataContext';
 import { Accessory, Firearm, StorageLocation } from '../types';
+import { formatCurrency, parseCurrency } from '../utils/currency';
 import { getLocalImageUrl } from '../utils/imageUrl';
 import {
   getItemStorageLocation,
   removeItemFromAllStorage,
   saveStorageLocations,
 } from '../utils/StorageSync';
+import { buildStorageIndex } from '../utils/storageIndex';
+import { getStoredTheme, maskValue, ThemeConfig } from '../utils/themeEngine';
 
 export const Accessories = () => {
   const { showUndo } = useUndoToast();
-  const [accessories, setAccessories] = useState<Accessory[]>([]);
-  const [firearms, setFirearms] = useState<Firearm[]>([]);
-  const [locations, setLocations] = useState<StorageLocation[]>([]);
+  const [themeConfig, setThemeConfig] = useState<ThemeConfig>(() => getStoredTheme());
+  const {
+    accessories: vaultAccessories,
+    firearms: vaultFirearms,
+    storageLocations: vaultLocations,
+  } = useVaultData();
+
+  const [accessories, setAccessories] = useState<Accessory[]>(() => vaultAccessories || []);
+  const [firearms, setFirearms] = useState<Firearm[]>(() => vaultFirearms || []);
+  const [locations, setLocations] = useState<StorageLocation[]>(() => vaultLocations || []);
+
+  useEffect(() => {
+    if (vaultAccessories && vaultAccessories.length > 0) setAccessories(vaultAccessories);
+    if (vaultFirearms && vaultFirearms.length > 0) setFirearms(vaultFirearms);
+    if (vaultLocations && vaultLocations.length > 0) setLocations(vaultLocations);
+  }, [vaultAccessories, vaultFirearms, vaultLocations]);
+
   const [selectedLocationId, setSelectedLocationId] = useState<string>('ALL');
   const [search, setSearch] = useState('');
 
@@ -55,6 +73,17 @@ export const Accessories = () => {
   const [selectedAccessoryForDetail, setSelectedAccessoryForDetail] = useState<Accessory | null>(
     null
   );
+
+  useEffect(() => {
+    const handleThemeChange = (e: Event) => {
+      const custom = e as CustomEvent<ThemeConfig>;
+      if (custom.detail) {
+        setThemeConfig(custom.detail);
+      }
+    };
+    window.addEventListener('armoryvault-theme-change', handleThemeChange);
+    return () => window.removeEventListener('armoryvault-theme-change', handleThemeChange);
+  }, []);
 
   const [activeTab, setActiveTab] = useState<
     'all' | 'unmounted' | 'mounted' | 'nfa' | 'optics' | 'stocks' | 'belts' | 'magazines'
@@ -102,52 +131,57 @@ export const Accessories = () => {
     }
   }, [location.state]);
 
+  const storageIndex = useMemo(() => buildStorageIndex(locations), [locations]);
+  const firearmsMap = useMemo(() => new Map(firearms.map((f) => [f.id!, f])), [firearms]);
+
   const loadData = async () => {
     if (window.api && window.api.getAccessories && window.api.getFirearms) {
-      const fetchedAcc = await window.api.getAccessories();
-      const fetchedFirearms = await window.api.getFirearms();
-      setAccessories(fetchedAcc);
-      setFirearms(fetchedFirearms);
-
-      if (window.api.getStorageLocations) {
-        const locs = await window.api.getStorageLocations();
-        setLocations(locs || []);
-      }
+      const [fetchedAcc, fetchedFirearms, locs] = await Promise.all([
+        window.api.getAccessories(),
+        window.api.getFirearms(),
+        window.api.getStorageLocations ? window.api.getStorageLocations() : Promise.resolve([]),
+      ]);
+      setAccessories(fetchedAcc || []);
+      setFirearms(fetchedFirearms || []);
+      setLocations(locs || []);
 
       // Keep detail modal synchronized if an item was updated
-      if (selectedAccessoryForDetail) {
+      if (selectedAccessoryForDetail && fetchedAcc) {
         const refreshed = fetchedAcc.find((a) => a.id === selectedAccessoryForDetail.id);
         setSelectedAccessoryForDetail(refreshed || null);
       }
     }
   };
 
-  const filteredAccessories = accessories.filter((a) => {
+  const filteredAccessories = useMemo(() => {
     const term = search.toLowerCase();
-    const matchesSearch =
-      a.manufacturer.toLowerCase().includes(term) ||
-      a.model.toLowerCase().includes(term) ||
-      a.type.toLowerCase().includes(term) ||
-      (a.stockType && a.stockType.toLowerCase().includes(term)) ||
-      (a.actionInlet && a.actionInlet.toLowerCase().includes(term)) ||
-      (a.bufferTubeType && a.bufferTubeType.toLowerCase().includes(term)) ||
-      (a.beltType && a.beltType.toLowerCase().includes(term)) ||
-      (a.dropLoopType && a.dropLoopType.toLowerCase().includes(term)) ||
-      (a.cartridgeLoopCaliber && a.cartridgeLoopCaliber.toLowerCase().includes(term)) ||
-      (a.upc_code && a.upc_code.toLowerCase().includes(term)) ||
-      (a.serialNumber && a.serialNumber.toLowerCase().includes(term)) ||
-      (a.supportedModels && a.supportedModels.toLowerCase().includes(term));
+    return accessories.filter((a) => {
+      if (term) {
+        const matchesSearch =
+          a.manufacturer.toLowerCase().includes(term) ||
+          a.model.toLowerCase().includes(term) ||
+          a.type.toLowerCase().includes(term) ||
+          (a.stockType && a.stockType.toLowerCase().includes(term)) ||
+          (a.actionInlet && a.actionInlet.toLowerCase().includes(term)) ||
+          (a.bufferTubeType && a.bufferTubeType.toLowerCase().includes(term)) ||
+          (a.beltType && a.beltType.toLowerCase().includes(term)) ||
+          (a.dropLoopType && a.dropLoopType.toLowerCase().includes(term)) ||
+          (a.cartridgeLoopCaliber && a.cartridgeLoopCaliber.toLowerCase().includes(term)) ||
+          (a.upc_code && a.upc_code.toLowerCase().includes(term)) ||
+          (a.serialNumber && a.serialNumber.toLowerCase().includes(term)) ||
+          (a.supportedModels && a.supportedModels.toLowerCase().includes(term));
 
-    if (!matchesSearch) return false;
+        if (!matchesSearch) return false;
+      }
 
-    if (selectedLocationId === 'ALL') return true;
-    if (selectedLocationId === 'UNASSIGNED') {
-      const loc = getItemStorageLocation('accessory', a.id, locations);
-      return !loc;
-    }
-    const loc = getItemStorageLocation('accessory', a.id, locations);
-    return loc?.id === Number(selectedLocationId);
-  });
+      if (selectedLocationId === 'ALL') return true;
+      const loc = storageIndex.getLocation('accessory', a.id);
+      if (selectedLocationId === 'UNASSIGNED') {
+        return !loc;
+      }
+      return loc?.id === Number(selectedLocationId);
+    });
+  }, [accessories, search, selectedLocationId, storageIndex]);
 
   useEffect(() => {
     if (typeof IntersectionObserver === 'undefined') {
@@ -208,16 +242,23 @@ export const Accessories = () => {
 
   const getMountedFirearmName = (id: number | null) => {
     if (!id) return null;
-    const f = firearms.find((x) => x.id === id);
+    const f = firearmsMap.get(id);
     if (f) return `${f.make} ${f.model}`;
     return 'Unknown Firearm';
   };
 
-  const totalValue = accessories.reduce(
-    (sum, acc) => sum + (acc.value || 0) * (acc.quantity || 1),
-    0
+  const totalValue = useMemo(
+    () =>
+      accessories.reduce(
+        (sum, acc) => sum + parseCurrency(acc.value) * (Number(acc.quantity) || 1),
+        0
+      ),
+    [accessories]
   );
-  const totalItemsCount = accessories.reduce((sum, acc) => sum + (acc.quantity || 1), 0);
+  const totalItemsCount = useMemo(
+    () => accessories.reduce((sum, acc) => sum + (acc.quantity || 1), 0),
+    [accessories]
+  );
 
   return (
     <div className="page-container fade-in">
@@ -282,17 +323,24 @@ export const Accessories = () => {
             gap: '1rem',
           }}
         >
-          <div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Total Value</div>
-            <div style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--accent)' }}>
-              $
-              {totalValue.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </div>
-          </div>
-          <div style={{ width: '1px', height: '30px', background: 'var(--border-light)' }}></div>
+          {themeConfig.widgets.accessoryValuation && (
+            <>
+              <div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  Total Value
+                </div>
+                <div
+                  className="privacy-mask-val"
+                  style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--accent)' }}
+                >
+                  {maskValue(formatCurrency(totalValue), 'currency', themeConfig.privacyMode)}
+                </div>
+              </div>
+              <div
+                style={{ width: '1px', height: '30px', background: 'var(--border-light)' }}
+              ></div>
+            </>
+          )}
           <div>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Item Count</div>
             <div style={{ fontSize: '1.2rem', fontWeight: 600 }}>{totalItemsCount}</div>
@@ -492,12 +540,15 @@ export const Accessories = () => {
                       {acc.manufacturer} {acc.model}
                     </h3>
 
-                    <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--success)' }}>
-                      $
-                      {((acc.value || 0) * quantity).toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
+                    <div
+                      className="privacy-mask-val"
+                      style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--success)' }}
+                    >
+                      {maskValue(
+                        formatCurrency(parseCurrency(acc.value) * quantity),
+                        'currency',
+                        themeConfig.privacyMode
+                      )}
                       {quantity > 1 && (
                         <span
                           style={{
@@ -507,7 +558,13 @@ export const Accessories = () => {
                           }}
                         >
                           {' '}
-                          (${(acc.value || 0).toLocaleString()} ea)
+                          (
+                          {maskValue(
+                            formatCurrency(acc.value),
+                            'currency',
+                            themeConfig.privacyMode
+                          )}{' '}
+                          ea)
                         </span>
                       )}
                     </div>
@@ -769,6 +826,7 @@ export const Accessories = () => {
                   )}
                   {acc.serialNumber && (
                     <span
+                      className="privacy-mask-serial"
                       style={{
                         background: 'rgba(255, 255, 255, 0.03)',
                         color: 'var(--text-secondary)',
@@ -779,7 +837,7 @@ export const Accessories = () => {
                         fontFamily: 'monospace',
                       }}
                     >
-                      SN: {acc.serialNumber}
+                      SN: {maskValue(acc.serialNumber, 'serial', themeConfig.privacyMode)}
                     </span>
                   )}
                 </div>

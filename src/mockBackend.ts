@@ -106,6 +106,27 @@ export function setupMockBackend() {
         saveFirearms(firearms);
         return newId;
       },
+      importFirearmsBatch: async (firearmsList: Firearm[], updatesList?: any[]) => {
+        if (mockLocked) return { insertedCount: 0, updatedCount: 0 };
+        const firearms = getStoredFirearms();
+        if (updatesList && Array.isArray(updatesList)) {
+          for (const u of updatesList) {
+            const idx = firearms.findIndex((f) => f.id === u.existingId);
+            if (idx !== -1)
+              firearms[idx] = { ...firearms[idx], ...u.updatedItem, id: u.existingId };
+          }
+        }
+        let inserted = 0;
+        if (firearmsList && Array.isArray(firearmsList)) {
+          for (const f of firearmsList) {
+            const newId = firearms.length > 0 ? Math.max(...firearms.map((x) => x.id || 0)) + 1 : 1;
+            firearms.push({ ...f, id: newId });
+            inserted++;
+          }
+        }
+        saveFirearms(firearms);
+        return { insertedCount: inserted, updatedCount: updatesList?.length || 0 };
+      },
       updateFirearm: async (id: number, firearm: Firearm) => {
         if (mockLocked) return -1;
         const firearms = getStoredFirearms();
@@ -140,6 +161,26 @@ export function setupMockBackend() {
         saveAmmo(ammoList);
         return newId;
       },
+      importAmmoBatch: async (ammoList: Ammo[], updatesList?: any[]) => {
+        if (mockLocked) return { insertedCount: 0, updatedCount: 0 };
+        const list = getStoredAmmo();
+        if (updatesList && Array.isArray(updatesList)) {
+          for (const u of updatesList) {
+            const idx = list.findIndex((a) => a.id === u.existingId);
+            if (idx !== -1) list[idx] = { ...list[idx], ...u.updatedItem, id: u.existingId };
+          }
+        }
+        let inserted = 0;
+        if (ammoList && Array.isArray(ammoList)) {
+          for (const a of ammoList) {
+            const newId = list.length > 0 ? Math.max(...list.map((x) => x.id || 0)) + 1 : 1;
+            list.push({ ...a, id: newId });
+            inserted++;
+          }
+        }
+        saveAmmo(list);
+        return { insertedCount: inserted, updatedCount: updatesList?.length || 0 };
+      },
       updateAmmo: async (id: number, ammo: Ammo) => {
         if (mockLocked) return -1;
         const ammoList = getStoredAmmo();
@@ -170,6 +211,20 @@ export function setupMockBackend() {
         saveAccessories(list);
         return newId;
       },
+      importAccessoriesBatch: async (accessoriesList: any[]) => {
+        if (mockLocked) return { insertedCount: 0 };
+        const list = getStoredAccessories();
+        let inserted = 0;
+        if (accessoriesList && Array.isArray(accessoriesList)) {
+          for (const a of accessoriesList) {
+            const newId = list.length > 0 ? Math.max(...list.map((x) => x.id || 0)) + 1 : 1;
+            list.push({ ...a, id: newId });
+            inserted++;
+          }
+        }
+        saveAccessories(list);
+        return { insertedCount: inserted };
+      },
       updateAccessory: async (id: number, acc: any) => {
         if (mockLocked) return -1;
         const list = getStoredAccessories();
@@ -199,6 +254,20 @@ export function setupMockBackend() {
         list.push(newComp);
         saveComponents(list);
         return newId;
+      },
+      importComponentsBatch: async (componentsList: any[]) => {
+        if (mockLocked) return { insertedCount: 0 };
+        const list = getStoredComponents();
+        let inserted = 0;
+        if (componentsList && Array.isArray(componentsList)) {
+          for (const c of componentsList) {
+            const newId = list.length > 0 ? Math.max(...list.map((x) => x.id || 0)) + 1 : 1;
+            list.push({ ...c, id: newId });
+            inserted++;
+          }
+        }
+        saveComponents(list);
+        return { insertedCount: inserted };
       },
       updateComponent: async (id: number, comp: any) => {
         if (mockLocked) return -1;
@@ -233,6 +302,25 @@ export function setupMockBackend() {
           localStorage.setItem('mock_skus', JSON.stringify(skus));
         }
         return skuId;
+      },
+      exportSkusCatalog: async () => {
+        const data = localStorage.getItem('mock_skus');
+        const skus = data ? JSON.parse(data) : {};
+        return {
+          format: 'armoryvault_sku_catalog',
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          itemCount: Object.keys(skus).length,
+          skus,
+        };
+      },
+      importSkusCatalog: async (importedData: any, mode: 'merge' | 'overwrite' = 'merge') => {
+        const incoming = importedData?.skus || importedData || {};
+        const currentData = localStorage.getItem('mock_skus');
+        const current = currentData ? JSON.parse(currentData) : {};
+        const merged = mode === 'overwrite' ? incoming : { ...current, ...incoming };
+        localStorage.setItem('mock_skus', JSON.stringify(merged));
+        return { success: true, count: Object.keys(merged).length };
       },
       getCustomSchedulePresets: async () => {
         const data = localStorage.getItem('mock_custom_presets');
@@ -390,6 +478,9 @@ export function setupMockBackend() {
       lookupUPC: async (upc: string) => {
         return { items: [] };
       },
+      selectCSVFile: async () => {
+        return null;
+      },
       exportData: async (dataString: string, filename: string) => {
         const blob = new Blob([dataString], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
@@ -412,6 +503,19 @@ export function setupMockBackend() {
       getPlatform: () => 'browser',
       saveBase64Photo: async (base64Data: string, filename: string) => null,
       getLocalIp: async () => '192.168.1.100',
+      getAllLocalIps: async () => [
+        { name: 'en0', address: '192.168.1.100', score: 150, isVirtual: false },
+      ],
+      getPairingInfo: async () => ({
+        primaryIp: '192.168.1.100',
+        fallbackIps: [],
+        hostname: 'mock-desktop',
+        port: 3456,
+        token: 'mock-pairing-token-1234567890abcdef',
+        qrData:
+          'armoryvault://sync?ip=192.168.1.100&port=3456&token=mock-pairing-token-1234567890abcdef&host=mock-desktop',
+        interfaces: [{ name: 'en0', address: '192.168.1.100', score: 150, isVirtual: false }],
+      }),
       getPairingToken: async () => 'mock-pairing-token-1234567890abcdef',
       revokePairingToken: async () => true,
       onSyncReceived: (callback: () => void) => () => {},

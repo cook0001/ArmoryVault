@@ -64,8 +64,16 @@ function createWindow() {
     mainWindow.loadURL('app://-/index.html');
   }
 
-  mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
-    console.log(`[Renderer] ${message} (${sourceId}:${line})`);
+  mainWindow.webContents.on('console-message', (event, ...args) => {
+    const msg =
+      typeof event === 'object' && event?.message !== undefined ? event.message : args[1] || event;
+    const src =
+      typeof event === 'object' && event?.sourceId !== undefined ? event.sourceId : args[3] || '';
+    const ln =
+      typeof event === 'object' && event?.lineNumber !== undefined
+        ? event.lineNumber
+        : args[2] || '';
+    console.log(`[Renderer] ${msg}${src ? ` (${src}:${ln})` : ''}`);
   });
 }
 
@@ -162,21 +170,33 @@ app.whenReady().then(() => {
 
   ipcMain.handle('get-firearms', () => db.getFirearms());
   ipcMain.handle('add-firearm', (_, firearm) => db.addFirearm(firearm));
+  ipcMain.handle('import-firearms-batch', (_, firearmsList, updatesList) =>
+    db.importFirearmsBatch(firearmsList, updatesList)
+  );
   ipcMain.handle('update-firearm', (_, id, firearm) => db.updateFirearm(id, firearm));
   ipcMain.handle('delete-firearm', (_, id) => db.deleteFirearm(id));
 
   ipcMain.handle('get-ammo', () => db.getAmmo());
   ipcMain.handle('add-ammo', (_, ammo) => db.addAmmo(ammo));
+  ipcMain.handle('import-ammo-batch', (_, ammoList, updatesList) =>
+    db.importAmmoBatch(ammoList, updatesList)
+  );
   ipcMain.handle('update-ammo', (_, id, ammo) => db.updateAmmo(id, ammo));
   ipcMain.handle('delete-ammo', (_, id) => db.deleteAmmo(id));
 
   ipcMain.handle('get-accessories', () => db.getAccessories());
   ipcMain.handle('add-accessory', (_, acc) => db.addAccessory(acc));
+  ipcMain.handle('import-accessories-batch', (_, accessoriesList) =>
+    db.importAccessoriesBatch(accessoriesList)
+  );
   ipcMain.handle('update-accessory', (_, id, acc) => db.updateAccessory(id, acc));
   ipcMain.handle('delete-accessory', (_, id) => db.deleteAccessory(id));
 
   ipcMain.handle('get-components', () => db.getComponents());
   ipcMain.handle('add-component', (_, comp) => db.addComponent(comp));
+  ipcMain.handle('import-components-batch', (_, componentsList) =>
+    db.importComponentsBatch(componentsList)
+  );
   ipcMain.handle('update-component', (_, id, comp) => db.updateComponent(id, comp));
   ipcMain.handle('delete-component', (_, id) => db.deleteComponent(id));
 
@@ -186,6 +206,8 @@ app.whenReady().then(() => {
     return true;
   });
   ipcMain.handle('delete-sku', (_, skuId) => db.deleteSku(skuId));
+  ipcMain.handle('export-skus-catalog', () => db.exportSkusCatalog());
+  ipcMain.handle('import-skus-catalog', (_, data, mode) => db.importSkusCatalog(data, mode));
 
   ipcMain.handle('get-sync-queue', () => db.getSyncQueue());
   ipcMain.handle('remove-sync-item', (_, id) => {
@@ -339,8 +361,7 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('get-config', (_, key) => {
-    const config = db.getConfig();
-    return config[key];
+    return db.getConfig(key);
   });
 
   ipcMain.handle('set-config', (_, key, value) => {
@@ -377,6 +398,29 @@ app.whenReady().then(() => {
 
   ipcMain.handle('get-module-bundle', async (_, moduleId) => {
     return moduleManager.getModuleBundle(moduleId);
+  });
+
+  ipcMain.handle('select-csv-file', async () => {
+    try {
+      const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+        title: 'Select CSV / TSV File to Import',
+        properties: ['openFile'],
+        filters: [
+          { name: 'CSV & Spreadsheets (*.csv, *.tsv, *.txt)', extensions: ['csv', 'tsv', 'txt'] },
+          { name: 'CSV Spreadsheets (*.csv)', extensions: ['csv'] },
+          { name: 'All Files (*.*)', extensions: ['*'] },
+        ],
+      });
+      if (!canceled && filePaths.length > 0) {
+        const filePath = filePaths[0];
+        const content = require('fs').readFileSync(filePath, 'utf-8');
+        return { name: path.basename(filePath), path: filePath, content };
+      }
+      return null;
+    } catch (e) {
+      console.error('select-csv-file error:', e);
+      return null;
+    }
   });
 
   ipcMain.handle('select-and-save-document', async () => {
@@ -1418,16 +1462,89 @@ app.whenReady().then(() => {
     autoUpdater.quitAndInstall();
   });
 
-  ipcMain.handle('get-local-ip', () => {
+  function getInstalledModulesList() {
+    const config = db.getConfig ? db.getConfig() : {};
+    if (Array.isArray(config.installed_modules)) {
+      return config.installed_modules;
+    }
+    if (moduleManager && typeof moduleManager.getInstalledDiskModules === 'function') {
+      const disk = moduleManager.getInstalledDiskModules();
+      if (Array.isArray(disk) && disk.length > 0) {
+        return disk;
+      }
+    }
+    return [];
+  }
+
+  function getNetworkInterfacesInfo() {
     const interfaces = os.networkInterfaces();
-    for (const name of Object.keys(interfaces)) {
-      for (const iface of interfaces[name]) {
-        if (iface.family === 'IPv4' && !iface.internal) {
-          return iface.address;
+    const candidates = [];
+
+    for (const [name, ifaces] of Object.entries(interfaces)) {
+      if (!ifaces) continue;
+      const lowerName = name.toLowerCase();
+
+      // Blacklist virtual, tunnel, and internal bridge adapters
+      const isVirtual =
+        lowerName.startsWith('utun') ||
+        lowerName.startsWith('tun') ||
+        lowerName.startsWith('tap') ||
+        lowerName.startsWith('awdl') ||
+        lowerName.startsWith('llw') ||
+        lowerName.startsWith('bridge') ||
+        lowerName.startsWith('docker') ||
+        lowerName.startsWith('veth') ||
+        lowerName.startsWith('tailscale') ||
+        lowerName.startsWith('virbr') ||
+        lowerName.startsWith('vmnet') ||
+        lowerName.startsWith('vboxnet');
+
+      for (const iface of ifaces) {
+        if (iface.family === 'IPv4' && !iface.internal && iface.address) {
+          const addr = iface.address;
+          let score = 0;
+
+          // Standard private subnets
+          if (addr.startsWith('192.168.')) score += 100;
+          else if (addr.startsWith('10.')) score += 80;
+          else if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(addr)) score += 70;
+          else score += 10;
+
+          // Physical NIC name bonus
+          if (/^(en\d+|eth\d+|wlan\d+|wl\w+|wi-fi|ethernet)/i.test(name)) {
+            score += 50;
+          }
+
+          // Penalize virtual adapters
+          if (isVirtual) {
+            score -= 200;
+          }
+
+          candidates.push({
+            name,
+            address: addr,
+            score,
+            isVirtual,
+          });
         }
       }
     }
-    return '127.0.0.1';
+
+    candidates.sort((a, b) => b.score - a.score);
+    return candidates;
+  }
+
+  function getPrioritizedLocalIp() {
+    const candidates = getNetworkInterfacesInfo();
+    return candidates.length > 0 ? candidates[0].address : '127.0.0.1';
+  }
+
+  ipcMain.handle('get-local-ip', () => {
+    return getPrioritizedLocalIp();
+  });
+
+  ipcMain.handle('get-all-local-ips', () => {
+    return getNetworkInterfacesInfo();
   });
 
   ipcMain.handle('get-pairing-token', () => {
@@ -1441,6 +1558,35 @@ app.whenReady().then(() => {
   ipcMain.handle('revoke-pairing-token', () => {
     db.revokePairingToken();
     return true;
+  });
+
+  ipcMain.handle('get-pairing-info', () => {
+    const primaryIp = getPrioritizedLocalIp();
+    const candidates = getNetworkInterfacesInfo();
+    const fallbackIps = candidates
+      .filter((c) => c.address !== primaryIp && !c.isVirtual)
+      .map((c) => c.address);
+    let token = db.getPairingToken();
+    if (!token) {
+      token = db.generatePairingToken();
+    }
+    const hostname = os.hostname();
+    const port = 3456;
+    const tokenParam = token ? `&token=${encodeURIComponent(token)}` : '';
+    const fallbacksParam =
+      fallbackIps.length > 0 ? `&fallbacks=${encodeURIComponent(fallbackIps.join(','))}` : '';
+    const hostParam = `&host=${encodeURIComponent(hostname)}`;
+    const qrData = `armoryvault://sync?ip=${primaryIp}&port=${port}${tokenParam}${fallbacksParam}${hostParam}`;
+
+    return {
+      primaryIp,
+      fallbackIps,
+      hostname,
+      port,
+      token,
+      qrData,
+      interfaces: candidates,
+    };
   });
 
   function startLocalServer() {
@@ -1511,6 +1657,7 @@ app.whenReady().then(() => {
         device: os.hostname(),
         isLocked: db.isLocked(),
         requiresAuth: !!db.getPairingToken(),
+        installedModules: getInstalledModulesList(),
       });
     });
 
@@ -1533,6 +1680,7 @@ app.whenReady().then(() => {
         host: os.hostname(),
         isLocked: db.isLocked(),
         pairingToken: token,
+        installedModules: getInstalledModulesList(),
       });
     });
 
@@ -1548,6 +1696,14 @@ app.whenReady().then(() => {
         host: os.hostname(),
         isLocked: db.isLocked(),
         requiresAuth: !!db.getPairingToken(),
+        installedModules: getInstalledModulesList(),
+      });
+    });
+
+    expressApp.get('/api/modules', readLimiter, (req, res) => {
+      res.json({
+        success: true,
+        installedModules: getInstalledModulesList(),
       });
     });
 
@@ -1612,6 +1768,7 @@ app.whenReady().then(() => {
           firearms: firearms.length,
           ammo: ammo.reduce((acc, a) => acc + (Number(a.count) || 0), 0),
           components: components.length,
+          installedModules: getInstalledModulesList(),
         });
       } catch (e) {
         console.error('Summary error:', e);
@@ -1651,7 +1808,9 @@ app.whenReady().then(() => {
         const storageLocations = db.getStorageLocations ? db.getStorageLocations() || [] : [];
         const skus = db.getSkus() || {};
         const config = db.getConfig ? db.getConfig() : {};
-        const optics = config.optics_vault_inventory || [];
+        const optics = db.getModuleData
+          ? db.getModuleData('optics_vault_inventory', [])
+          : config.optics_vault_inventory || [];
         res.json({
           success: true,
           isLocked: false,
@@ -1661,6 +1820,40 @@ app.whenReady().then(() => {
             model: f.model,
             caliber: f.caliber,
             serial_number: f.serial_number,
+            type: f.type,
+            barrel_length: f.barrel_length,
+            action: f.action,
+            finish: f.finish,
+            condition: f.condition,
+            purchase_price: f.purchase_price,
+            purchase_date: f.purchase_date,
+            purchase_location: f.purchase_location,
+            storageLocationId: f.storageLocationId,
+            notes: f.notes,
+            image_path: f.image_path,
+            photos: f.photos,
+            // ATF Bound Book acquisition & disposition fields
+            acquire_date: f.acquire_date,
+            acquired_from_name: f.acquired_from_name,
+            acquired_from_address: f.acquired_from_address,
+            acquired_from_ffl: f.acquired_from_ffl,
+            acquire_license_type: f.acquire_license_type,
+            sold_date: f.sold_date,
+            sold_to_name: f.sold_to_name,
+            sold_to_address: f.sold_to_address,
+            sold_to_ffl: f.sold_to_ffl,
+            sold_price: f.sold_price,
+            is_sold: Boolean(f.is_sold),
+            // NFA compliance fields
+            is_nfa: Boolean(f.is_nfa),
+            nfa_type: f.nfa_type,
+            nfa_tax_stamp_number: f.nfa_tax_stamp_number,
+            nfa_trust_name: f.nfa_trust_name,
+            nfa_form_type: f.nfa_form_type,
+            nfa_approval_date: f.nfa_approval_date,
+            // Telemetry & Logs
+            logs: f.logs || [],
+            maintenance_schedules: f.maintenance_schedules || [],
             total_rounds: (f.logs || [])
               .filter((l) => l.type === 'Range')
               .reduce((sum, l) => sum + (l.rounds_fired || 0), 0),
@@ -1702,12 +1895,28 @@ app.whenReady().then(() => {
             name: acc.name,
             type: acc.type,
             manufacturer: acc.manufacturer,
+            model: acc.model,
+            serialNumber: acc.serialNumber,
+            value: acc.value,
             firearm_id: acc.firearm_id,
             quantity: acc.quantity,
+            is_nfa: Boolean(acc.is_nfa),
+            notes: acc.notes,
+            storageLocationId: acc.storageLocationId,
           })),
           storageLocations,
           skus,
           optics,
+          installedModules: getInstalledModulesList(),
+          reloadingRecipes: db.getModuleData
+            ? db.getModuleData('handload_recipes', [])
+            : config.handload_recipes || config.reloading_recipes || [],
+          savedRanges: db.getModuleData
+            ? db.getModuleData('saved_ranges', [])
+            : config.saved_ranges || [],
+          maintenanceSchedules: db.getModuleData
+            ? db.getModuleData('custom_schedule_presets', [])
+            : config.custom_schedule_presets || [],
         });
       } catch (e) {
         console.error('Inventory cache error:', e);

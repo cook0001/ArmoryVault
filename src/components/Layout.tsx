@@ -1,8 +1,11 @@
 import {
+  Barcode,
   Blocks,
   ChevronLeft,
   ChevronRight,
   DownloadCloud,
+  Eye,
+  EyeOff,
   LayoutDashboard,
   Lock,
   PlusCircle,
@@ -18,6 +21,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import packageJson from '../../package.json';
 import { useModules } from '../modules/registry/ModuleContext';
 import { useScrollRestoration } from '../utils/scrollRestoration';
+import { applyTheme, getStoredTheme, saveTheme } from '../utils/themeEngine';
 import {
   AccessoriesNavIcon,
   BallisticsNavIcon,
@@ -29,13 +33,29 @@ import {
   SafeIcon,
   ScopeIcon,
 } from './CustomIcons';
-import { ActivityLogModal } from './modals/ActivityLogModal';
-import { ChangePasswordModal } from './modals/ChangePasswordModal';
-import { ModuleCenterModal } from './modals/ModuleCenterModal';
-import { RangeSessionModal } from './modals/RangeSessionModal';
-import { RecoveryKeyModal } from './modals/RecoveryKeyModal';
-import { SettingsModal } from './modals/SettingsModal';
-import { SkuManagerModal } from './modals/SkuManagerModal';
+
+// Lazy-load heavy modals to optimize initial bundle size & dashboard load time
+const SettingsModal = React.lazy(() =>
+  import('./modals/SettingsModal').then((m) => ({ default: m.SettingsModal }))
+);
+const SkuManagerModal = React.lazy(() =>
+  import('./modals/SkuManagerModal').then((m) => ({ default: m.SkuManagerModal }))
+);
+const ActivityLogModal = React.lazy(() =>
+  import('./modals/ActivityLogModal').then((m) => ({ default: m.ActivityLogModal }))
+);
+const RangeSessionModal = React.lazy(() =>
+  import('./modals/RangeSessionModal').then((m) => ({ default: m.RangeSessionModal }))
+);
+const ChangePasswordModal = React.lazy(() =>
+  import('./modals/ChangePasswordModal').then((m) => ({ default: m.ChangePasswordModal }))
+);
+const RecoveryKeyModal = React.lazy(() =>
+  import('./modals/RecoveryKeyModal').then((m) => ({ default: m.RecoveryKeyModal }))
+);
+const ModuleCenterModal = React.lazy(() =>
+  import('./modals/ModuleCenterModal').then((m) => ({ default: m.ModuleCenterModal }))
+);
 
 export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
   const navigate = useNavigate();
@@ -95,12 +115,43 @@ export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
     const handleOpenActivityLog = () => setIsActivityLogOpen(true);
     window.addEventListener('armoryvault-open-activity-log', handleOpenActivityLog);
 
+    // Theme Engine initialization and dynamic event listener
+    const initialTheme = getStoredTheme();
+    applyTheme(initialTheme);
+    setPrivacyMode(initialTheme.privacyMode);
+
+    if (
+      location.pathname === '/' &&
+      initialTheme.startupRoute &&
+      initialTheme.startupRoute !== '/'
+    ) {
+      navigate(initialTheme.startupRoute, { replace: true });
+    }
+
+    const handleThemeEvent = (e: any) => {
+      if (e?.detail) {
+        setPrivacyMode(!!e.detail.privacyMode);
+      }
+    };
+    window.addEventListener('armoryvault-theme-change', handleThemeEvent);
+
     return () => {
       if (unsubSync) unsubSync();
       if (unsubUpdate) unsubUpdate();
       window.removeEventListener('armoryvault-open-activity-log', handleOpenActivityLog);
+      window.removeEventListener('armoryvault-theme-change', handleThemeEvent);
     };
   }, []);
+
+  const [privacyMode, setPrivacyMode] = useState<boolean>(() => {
+    return getStoredTheme().privacyMode;
+  });
+
+  const handleTogglePrivacy = async () => {
+    const next = !privacyMode;
+    setPrivacyMode(next);
+    await saveTheme({ privacyMode: next });
+  };
 
   const loadSyncQueue = async () => {
     if (window.api && window.api.getSyncQueue) {
@@ -338,6 +389,14 @@ export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
           </button>
           <button
             className="sidebar-nav-link"
+            onClick={() => setIsSkuManagerOpen(true)}
+            title={sidebarCollapsed ? 'SKU & Barcodes' : undefined}
+          >
+            <Barcode size={18} />
+            {!sidebarCollapsed && <span>SKUs & Barcodes</span>}
+          </button>
+          <button
+            className="sidebar-nav-link"
             onClick={() => setIsSettingsOpen(true)}
             title={sidebarCollapsed ? 'Settings' : undefined}
           >
@@ -359,6 +418,31 @@ export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
         <header className="app-topbar">
           {/* Slim topbar — just actions */}
           <div className="topbar-actions" style={{ marginLeft: 'auto' }}>
+            {/* Privacy / Discretion Shield Mode Button */}
+            <button
+              className={`btn-secondary ${privacyMode ? 'privacy-active-badge' : ''}`}
+              onClick={handleTogglePrivacy}
+              title={
+                privacyMode
+                  ? 'Privacy Shield Active: Serials, valuations, and safe locations masked. Click to unmask.'
+                  : 'Public / Privacy Shield: Click to mask sensitive serials, safe names, and valuations.'
+              }
+              style={{
+                padding: '0.45rem 0.85rem',
+                fontSize: '0.85rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+              }}
+            >
+              {privacyMode ? (
+                <EyeOff size={16} style={{ color: '#ef4444' }} />
+              ) : (
+                <Eye size={16} style={{ color: 'var(--text-muted)' }} />
+              )}
+              <span>{privacyMode ? 'Privacy ON' : 'Privacy'}</span>
+            </button>
+
             <button
               className="btn-secondary"
               onClick={() => setIsRangeModalOpen(true)}
@@ -484,51 +568,67 @@ export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
         </main>
       </div>
 
-      {/* ─── Modals (Isolated & Memoized) ─── */}
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        onLockVault={onLockVault}
-        onOpenSkuManager={() => setIsSkuManagerOpen(true)}
-        onOpenChangePassword={() => setIsChangePasswordOpen(true)}
-        onOpenRecoveryKey={() => setIsRecoveryKeyModalOpen(true)}
-        onOpenActivityLog={() => setIsActivityLogOpen(true)}
-        onSettingsSaved={() => {
-          loadSyncQueue();
-          window.dispatchEvent(new Event('armoryvault-reload'));
-        }}
-      />
+      {/* ─── Modals (Lazy Loaded & Isolated) ─── */}
+      <React.Suspense fallback={null}>
+        {isSettingsOpen && (
+          <SettingsModal
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
+            onLockVault={onLockVault}
+            onOpenChangePassword={() => setIsChangePasswordOpen(true)}
+            onOpenRecoveryKey={() => setIsRecoveryKeyModalOpen(true)}
+            onOpenActivityLog={() => setIsActivityLogOpen(true)}
+            onSettingsSaved={() => {
+              loadSyncQueue();
+              window.dispatchEvent(new Event('armoryvault-reload'));
+            }}
+          />
+        )}
 
-      <SkuManagerModal isOpen={isSkuManagerOpen} onClose={() => setIsSkuManagerOpen(false)} />
+        {isSkuManagerOpen && (
+          <SkuManagerModal isOpen={isSkuManagerOpen} onClose={() => setIsSkuManagerOpen(false)} />
+        )}
 
-      <ActivityLogModal isOpen={isActivityLogOpen} onClose={() => setIsActivityLogOpen(false)} />
+        {isActivityLogOpen && (
+          <ActivityLogModal
+            isOpen={isActivityLogOpen}
+            onClose={() => setIsActivityLogOpen(false)}
+          />
+        )}
 
-      {isRangeModalOpen && (
-        <RangeSessionModal
-          isOpen={isRangeModalOpen}
-          onClose={() => setIsRangeModalOpen(false)}
-          onSaved={() => {
-            loadSyncQueue();
-            window.dispatchEvent(new Event('armoryvault-reload'));
-          }}
-        />
-      )}
+        {isRangeModalOpen && (
+          <RangeSessionModal
+            isOpen={isRangeModalOpen}
+            onClose={() => setIsRangeModalOpen(false)}
+            onSaved={() => {
+              loadSyncQueue();
+              window.dispatchEvent(new Event('armoryvault-reload'));
+            }}
+          />
+        )}
 
-      <ChangePasswordModal
-        isOpen={isChangePasswordOpen}
-        onClose={() => setIsChangePasswordOpen(false)}
-      />
+        {isChangePasswordOpen && (
+          <ChangePasswordModal
+            isOpen={isChangePasswordOpen}
+            onClose={() => setIsChangePasswordOpen(false)}
+          />
+        )}
 
-      <RecoveryKeyModal
-        isOpen={isRecoveryKeyModalOpen}
-        onClose={() => setIsRecoveryKeyModalOpen(false)}
-      />
+        {isRecoveryKeyModalOpen && (
+          <RecoveryKeyModal
+            isOpen={isRecoveryKeyModalOpen}
+            onClose={() => setIsRecoveryKeyModalOpen(false)}
+          />
+        )}
 
-      <ModuleCenterModal
-        isOpen={isModuleCenterOpen}
-        onClose={closeModuleCenter}
-        targetModuleId={targetModuleId}
-      />
+        {isModuleCenterOpen && (
+          <ModuleCenterModal
+            isOpen={isModuleCenterOpen}
+            onClose={closeModuleCenter}
+            targetModuleId={targetModuleId}
+          />
+        )}
+      </React.Suspense>
     </div>
   );
 };

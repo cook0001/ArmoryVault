@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   AccessoriesNavIcon,
   CartridgesIcon,
@@ -145,8 +146,21 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({ isOpen, onCl
 
   if (!isOpen) return null;
 
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
+  return createPortal(
+    <div
+      className="modal-backdrop"
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 100500,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'rgba(0, 0, 0, 0.75)',
+        backdropFilter: 'blur(8px)',
+      }}
+    >
       <div
         className="modal-content activity-log-modal"
         style={{
@@ -435,6 +449,7 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({ isOpen, onCl
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

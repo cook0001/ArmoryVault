@@ -3,7 +3,41 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';" />
+    <script type="module">
+      window.__vite_plugin_react_preamble_installed__ = true;
+    </script>
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" />
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem('armoryvault_theme_config');
+          if (t) {
+            var c = JSON.parse(t);
+            var r = document.documentElement;
+            if (c.accent) r.setAttribute('data-accent', c.accent);
+            if (c.canvas) r.setAttribute('data-canvas', c.canvas);
+            if (c.density) r.setAttribute('data-density', c.density);
+            if (c.radius) r.setAttribute('data-radius', c.radius);
+            if (c.font) r.setAttribute('data-font', c.font);
+            if (c.fontScale) r.setAttribute('data-font-scale', c.fontScale);
+            if (c.gridDensity) r.setAttribute('data-grid', c.gridDensity);
+            if (c.privacyMode) r.setAttribute('data-privacy', 'true');
+            var presets = {
+              blue: '#3b82f6', green: '#22c55e', fde: '#f59e0b',
+              crimson: '#ef4444', gray: '#94a3b8', sand: '#eab308', violet: '#8b5cf6'
+            };
+            var color = c.accent === 'custom' && c.customAccentColor ? c.customAccentColor : presets[c.accent];
+            if (color) {
+              r.style.setProperty('--accent', color);
+              r.style.setProperty('--accent-primary', color);
+            }
+          }
+        } catch(e) {}
+      })();
+    </script>
     <title>ArmoryVault</title>
   </head>
   <body>

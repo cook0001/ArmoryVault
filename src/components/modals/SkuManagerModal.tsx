@@ -1,9 +1,10 @@
-import { Edit, Sliders, Trash2 } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import { Download, Edit, Sliders, Trash2, Upload } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AutocompleteInput } from '@/components/AutocompleteInput';
 import { AccessoriesNavIcon, CartridgesIcon, GunpowderIcon } from '@/components/CustomIcons';
 import { CustomSkuDatabase, CustomSkuItem } from '@/types';
+import { formatCurrency, parseCurrency } from '@/utils/currency';
 
 interface SkuManagerModalProps {
   isOpen: boolean;
@@ -17,12 +18,57 @@ export const SkuManagerModal: React.FC<SkuManagerModalProps> = React.memo(({ isO
   const [newSku, setNewSku] = useState('');
   const [newSkuData, setNewSkuData] = useState<CustomSkuItem>({ category: 'ammo' });
   const [newSkuBoxPrice, setNewSkuBoxPrice] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen && window.api && window.api.getSkus) {
       window.api.getSkus().then((skus) => setSkuDatabase(skus || {}));
     }
   }, [isOpen]);
+
+  const handleExportCatalog = async () => {
+    try {
+      const catalog =
+        window.api && window.api.exportSkusCatalog
+          ? await window.api.exportSkusCatalog()
+          : {
+              format: 'armoryvault_sku_catalog',
+              version: 1,
+              exportedAt: new Date().toISOString(),
+              itemCount: Object.keys(skuDatabase).length,
+              skus: skuDatabase,
+            };
+
+      const blob = new Blob([JSON.stringify(catalog, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ArmoryVault_SKU_Catalog_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      alert('Failed to export SKU catalog: ' + e?.message);
+    }
+  };
+
+  const handleImportCatalog = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      if (window.api && window.api.importSkusCatalog) {
+        await window.api.importSkusCatalog(parsed, 'merge');
+      }
+      const updated = window.api && window.api.getSkus ? await window.api.getSkus() : skuDatabase;
+      setSkuDatabase(updated);
+      alert(`Successfully imported SKU catalog!`);
+    } catch (err: any) {
+      alert('Failed to import SKU catalog: ' + err?.message);
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -33,21 +79,21 @@ export const SkuManagerModal: React.FC<SkuManagerModalProps> = React.memo(({ isO
     const finalData: CustomSkuItem = { ...newSkuData, category: skuCategory };
     if (skuCategory === 'ammo') {
       if (newSkuBoxPrice && finalData.count) {
-        const price = parseFloat(newSkuBoxPrice);
-        if (!isNaN(price) && price > 0) {
+        const price = parseCurrency(newSkuBoxPrice);
+        if (price > 0) {
           finalData.costPerRound = Number((price / finalData.count).toFixed(3));
           finalData.boxPrice = price;
         }
       }
     } else if (skuCategory === 'accessory') {
       if (newSkuBoxPrice) {
-        const val = parseFloat(newSkuBoxPrice);
-        if (!isNaN(val)) finalData.value = val;
+        const val = parseCurrency(newSkuBoxPrice);
+        if (val > 0) finalData.value = val;
       }
     } else if (skuCategory === 'component') {
       if (newSkuBoxPrice) {
-        const cost = parseFloat(newSkuBoxPrice);
-        if (!isNaN(cost)) finalData.cost = cost;
+        const cost = parseCurrency(newSkuBoxPrice);
+        if (cost > 0) finalData.cost = cost;
       }
     }
 
@@ -79,7 +125,7 @@ export const SkuManagerModal: React.FC<SkuManagerModalProps> = React.memo(({ isO
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 100100,
+        zIndex: 100500,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -115,7 +161,22 @@ export const SkuManagerModal: React.FC<SkuManagerModalProps> = React.memo(({ isO
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Sliders size={22} style={{ color: 'var(--accent)' }} />
             <div>
-              <h2 style={{ margin: 0, fontSize: '1.3rem' }}>Custom SKU & Barcode Dictionary</h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <h2 style={{ margin: 0, fontSize: '1.3rem' }}>Custom SKU & Barcode Dictionary</h2>
+                <span
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '0.15rem 0.45rem',
+                    borderRadius: '6px',
+                    background: 'rgba(59,130,246,0.15)',
+                    color: '#60a5fa',
+                    border: '1px solid rgba(59,130,246,0.3)',
+                    fontWeight: 600,
+                  }}
+                >
+                  {Object.keys(skuDatabase).length} Cached
+                </span>
+              </div>
               <p
                 style={{
                   margin: '0.15rem 0 0',
@@ -123,14 +184,53 @@ export const SkuManagerModal: React.FC<SkuManagerModalProps> = React.memo(({ isO
                   fontSize: '0.85rem',
                 }}
               >
-                Map manufacturer part numbers & custom SKUs for Ammunition, Parts/Accessories, and
-                Reloading Supplies for instant scanning.
+                Encrypted standalone catalog (`skus_database.enc`) for instant barcode scanning &
+                auto-fill.
               </p>
             </div>
           </div>
-          <button type="button" className="btn-icon" onClick={onClose}>
-            ×
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept=".json"
+              style={{ display: 'none' }}
+              onChange={handleImportCatalog}
+            />
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                fontSize: '0.8rem',
+                padding: '0.35rem 0.7rem',
+              }}
+              title="Import JSON catalog into encrypted SKU database"
+            >
+              <Upload size={14} /> Import
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={handleExportCatalog}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                fontSize: '0.8rem',
+                padding: '0.35rem 0.7rem',
+              }}
+              title="Export SKU catalog without sensitive firearm records"
+            >
+              <Download size={14} /> Export
+            </button>
+            <button type="button" className="btn-icon" onClick={onClose}>
+              ×
+            </button>
+          </div>
         </div>
 
         <div style={{ overflowY: 'auto', paddingRight: '0.5rem', flex: 1 }}>
@@ -763,7 +863,7 @@ export const SkuManagerModal: React.FC<SkuManagerModalProps> = React.memo(({ isO
                               ` • Fits: ${data.caliber || data.supportedModels}`}
                             {data.value !== undefined &&
                               data.value !== null &&
-                              ` • $${Number(data.value).toFixed(2)}`}
+                              ` • ${formatCurrency(data.value)}`}
                             {data.notes && ` (${data.notes})`}
                           </>
                         ) : cat === 'component' ? (
@@ -777,7 +877,7 @@ export const SkuManagerModal: React.FC<SkuManagerModalProps> = React.memo(({ isO
                               ` • ${data.quantity} ${data.weightUnit || 'units'}`}
                             {data.cost !== undefined &&
                               data.cost !== null &&
-                              ` • $${Number(data.cost).toFixed(2)}`}
+                              ` • ${formatCurrency(data.cost)}`}
                           </>
                         ) : (
                           <>
@@ -804,9 +904,9 @@ export const SkuManagerModal: React.FC<SkuManagerModalProps> = React.memo(({ isO
                             {data.projectile || ''}
                             {data.count ? ` • ${data.count} rds/box` : ''}
                             {data.boxPrice
-                              ? ` • $${Number(data.boxPrice).toFixed(2)}/box`
+                              ? ` • ${formatCurrency(data.boxPrice)}/box`
                               : data.costPerRound
-                                ? ` • $${data.costPerRound}/rd`
+                                ? ` • $${parseCurrency(data.costPerRound).toFixed(3)}/rd`
                                 : ''}
                           </>
                         )}

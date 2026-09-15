@@ -16,6 +16,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Firearm } from '../types';
 import { exportToCSV } from '../utils/csvExport';
+import { formatCurrency } from '../utils/currency';
 
 type BoundBookFilter = 'all' | 'open' | 'disposed' | 'vintage';
 
@@ -669,7 +670,7 @@ export const BoundBook = () => {
                           color: 'var(--text-primary)',
                         }}
                       >
-                        {f.purchase_price ? `$${Number(f.purchase_price).toFixed(2)}` : '—'}
+                        {f.purchase_price != null ? formatCurrency(f.purchase_price) : '—'}
                       </td>
                       <td>
                         {f.is_sold ? (

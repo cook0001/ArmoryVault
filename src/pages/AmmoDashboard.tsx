@@ -44,6 +44,7 @@ import { BatchManufactureModal } from '../components/modals/BatchManufactureModa
 import { ReloadingComponentModal } from '../components/modals/ReloadingComponentModal';
 import { StorageBadge, StorageLocationSelect } from '../components/StorageBadge';
 import { useUndoToast } from '../components/UndoToast';
+import { useVaultData } from '../context/VaultDataContext';
 import { useModules } from '../modules/registry/ModuleContext';
 import { Ammo, ReloadingComponent, StorageLocation } from '../types';
 import { parseBarcodeData } from '../utils/BarcodeEngine';
@@ -59,6 +60,7 @@ import {
   getStandardPelletCount,
   isShotgunAmmo,
 } from '../utils/caliberHelpers';
+import { formatCurrency, parseCurrency } from '../utils/currency';
 import {
   AMMO_MANUFACTURERS,
   BRASS_MAKES,
@@ -78,6 +80,8 @@ import {
   removeItemFromAllStorage,
   saveStorageLocations,
 } from '../utils/StorageSync';
+import { buildStorageIndex } from '../utils/storageIndex';
+import { getStoredTheme, maskValue, ThemeConfig } from '../utils/themeEngine';
 
 export { formatCaliber } from '../utils/caliberHelpers';
 
@@ -112,9 +116,25 @@ export const AmmoDashboard = () => {
   const { isInstalled, openModuleCenter } = useModules();
 
   // Primary State
-  const [ammoList, setAmmoList] = useState<Ammo[]>([]);
-  const [components, setComponents] = useState<ReloadingComponent[]>([]);
-  const [storageLocations, setStorageLocations] = useState<StorageLocation[]>([]);
+  const {
+    ammoList: vaultAmmoList,
+    components: vaultComponents,
+    storageLocations: vaultStorageLocations,
+  } = useVaultData();
+
+  const [ammoList, setAmmoList] = useState<Ammo[]>(() => vaultAmmoList || []);
+  const [components, setComponents] = useState<ReloadingComponent[]>(() => vaultComponents || []);
+  const [storageLocations, setStorageLocations] = useState<StorageLocation[]>(
+    () => vaultStorageLocations || []
+  );
+
+  useEffect(() => {
+    if (vaultAmmoList && vaultAmmoList.length > 0) setAmmoList(vaultAmmoList);
+    if (vaultComponents && vaultComponents.length > 0) setComponents(vaultComponents);
+    if (vaultStorageLocations && vaultStorageLocations.length > 0)
+      setStorageLocations(vaultStorageLocations);
+  }, [vaultAmmoList, vaultComponents, vaultStorageLocations]);
+  const storageIndex = useMemo(() => buildStorageIndex(storageLocations), [storageLocations]);
   const [selectedStorageLocationId, setSelectedStorageLocationId] = useState<string>('ALL');
   const [ammoStorageLocationId, setAmmoStorageLocationId] = useState<number | null>(null);
   const [activeDepotView, setActiveDepotView] = useState<DepotView>('ammo');
@@ -124,16 +144,39 @@ export const AmmoDashboard = () => {
 
   // Customization
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
+  const [themeConfig, setThemeConfig] = useState<ThemeConfig>(() => getStoredTheme());
   const [metricVisibility, setMetricVisibility] = useState<MetricVisibility>(() => {
+    const stored = getStoredTheme();
     try {
       const saved = localStorage.getItem('armoryvault_ammo_metrics');
-      return saved
+      const base = saved
         ? { ...DEFAULT_METRIC_VISIBILITY, ...JSON.parse(saved) }
         : DEFAULT_METRIC_VISIBILITY;
+      return {
+        ...base,
+        ammoValue: stored.widgets.ammoValuation ?? base.ammoValue,
+        lowStockHealth: stored.widgets.ammoLowStockAlert ?? base.lowStockHealth,
+      };
     } catch {
       return DEFAULT_METRIC_VISIBILITY;
     }
   });
+
+  useEffect(() => {
+    const handleThemeChange = (e: Event) => {
+      const custom = e as CustomEvent<ThemeConfig>;
+      if (custom.detail) {
+        setThemeConfig(custom.detail);
+        setMetricVisibility((prev) => ({
+          ...prev,
+          ammoValue: custom.detail.widgets.ammoValuation,
+          lowStockHealth: custom.detail.widgets.ammoLowStockAlert,
+        }));
+      }
+    };
+    window.addEventListener('armoryvault-theme-change', handleThemeChange);
+    return () => window.removeEventListener('armoryvault-theme-change', handleThemeChange);
+  }, []);
 
   // Modal States
   const [isAmmoModalOpen, setIsAmmoModalOpen] = useState(false);
@@ -261,7 +304,7 @@ export const AmmoDashboard = () => {
     setEditingAmmo(ammo);
     setIsAddingStockMode(false);
     setFormData({ ...ammo });
-    const loc = getItemStorageLocation('ammo', ammo.id, storageLocations);
+    const loc = storageIndex.getLocation('ammo', ammo.id);
     setAmmoStorageLocationId(loc?.id || null);
     setUpcStatus(null);
     setIsAmmoModalOpen(true);
@@ -600,7 +643,7 @@ export const AmmoDashboard = () => {
   const totalCaliberCount = useMemo(() => new Set(ammoList.map((a) => a.caliber)).size, [ammoList]);
   const totalAmmoVal = useMemo(
     () =>
-      ammoList.reduce((sum, a) => sum + (Number(a.count) || 0) * (Number(a.costPerRound) || 0), 0),
+      ammoList.reduce((sum, a) => sum + (Number(a.count) || 0) * parseCurrency(a.costPerRound), 0),
     [ammoList]
   );
   const lowAmmoAlerts = useMemo(() => ammoList.filter((ammo) => isAmmoLow(ammo)), [ammoList]);
@@ -634,7 +677,7 @@ export const AmmoDashboard = () => {
   }, [components]);
 
   const totalReloadingVal = useMemo(() => {
-    return components.reduce((sum, c) => sum + (Number(c.cost) || 0), 0);
+    return components.reduce((sum, c) => sum + parseCurrency(c.cost), 0);
   }, [components]);
 
   const grandTotalDepotVal = totalAmmoVal + totalReloadingVal;
@@ -693,7 +736,7 @@ export const AmmoDashboard = () => {
     return ammoList.filter((a) => {
       // Storage Location filter
       if (selectedStorageLocationId !== 'ALL') {
-        const loc = getItemStorageLocation('ammo', a.id, storageLocations);
+        const loc = storageIndex.getLocation('ammo', a.id);
         if (selectedStorageLocationId === 'UNASSIGNED') {
           if (loc) return false;
         } else if (loc?.id !== Number(selectedStorageLocationId)) {
@@ -740,7 +783,7 @@ export const AmmoDashboard = () => {
     searchQuery,
     customCategories,
     selectedStorageLocationId,
-    storageLocations,
+    storageIndex,
   ]);
 
   // Filtered Components List
@@ -1013,12 +1056,8 @@ export const AmmoDashboard = () => {
               </div>
               <div>
                 <div className="stat-label">Ammo Net Value</div>
-                <div className="stat-val">
-                  $
-                  {totalAmmoVal.toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
+                <div className="stat-val privacy-mask-val">
+                  {maskValue(formatCurrency(totalAmmoVal), 'currency', themeConfig.privacyMode)}
                 </div>
                 <div className="stat-sub">Live Ammo Stock Baseline</div>
               </div>
@@ -1739,7 +1778,7 @@ export const AmmoDashboard = () => {
                             }}
                           >
                             <StorageBadge
-                              location={getItemStorageLocation('ammo', ammo.id, storageLocations)}
+                              location={storageIndex.getLocation('ammo', ammo.id)}
                               onClick={(e) => {
                                 e?.stopPropagation();
                                 navigate('/storage');
@@ -1991,7 +2030,7 @@ export const AmmoDashboard = () => {
                                   Cost / Rnd
                                 </span>
                                 <strong style={{ fontSize: '1.1rem', color: 'var(--success)' }}>
-                                  ${ammo.costPerRound.toFixed(2)}
+                                  ${parseCurrency(ammo.costPerRound).toFixed(2)}
                                 </strong>
                               </div>
                             )}
@@ -2422,8 +2461,15 @@ export const AmmoDashboard = () => {
                               >
                                 Valuation
                               </span>
-                              <strong style={{ fontSize: '1.05rem', color: 'var(--success)' }}>
-                                ${Number(c.cost).toFixed(2)}
+                              <strong
+                                className="privacy-mask-val"
+                                style={{ fontSize: '1.05rem', color: 'var(--success)' }}
+                              >
+                                {maskValue(
+                                  formatCurrency(c.cost),
+                                  'currency',
+                                  themeConfig.privacyMode
+                                )}
                               </strong>
                             </div>
                           )}
@@ -3300,7 +3346,7 @@ export const AmmoDashboard = () => {
                         Cost Per Round
                       </span>
                       <div style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--success)' }}>
-                        ${inspectingAmmo.costPerRound.toFixed(2)}
+                        ${parseCurrency(inspectingAmmo.costPerRound).toFixed(2)}
                       </div>
                     </div>
                   )}

@@ -35,6 +35,7 @@ import {
   TacticalSlingIcon,
 } from '@/components/CustomIcons';
 import { Accessory, AccessoryMount, Firearm } from '@/types';
+import { formatCurrency } from '@/utils/currency';
 import { getLocalImageUrl } from '@/utils/imageUrl';
 import { getAccessoryTypeColor } from './AccessoryDetailModal';
 
@@ -786,9 +787,9 @@ export const MountAccessoryModal: React.FC<MountAccessoryModalProps> = ({
                           flexWrap: 'wrap',
                         }}
                       >
-                        {acc.value !== null && acc.value !== undefined && (
+                        {acc.value != null && (
                           <span style={{ color: 'var(--success)', fontWeight: 600 }}>
-                            ${acc.value.toLocaleString()}
+                            {formatCurrency(acc.value)}
                           </span>
                         )}
                         {acc.magnification && <span>Magnification: {acc.magnification}</span>}

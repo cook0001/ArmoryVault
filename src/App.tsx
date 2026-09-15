@@ -5,6 +5,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { Layout } from './components/Layout';
 import { ModulePromptView } from './components/ModulePromptView';
 import { UndoToastProvider } from './components/UndoToast';
+import { VaultDataProvider } from './context/VaultDataContext';
 import { ModuleProvider, useModules } from './modules/registry/ModuleContext';
 import { VaultLogin } from './pages/VaultLogin';
 
@@ -295,16 +296,18 @@ function App() {
 
   return (
     <ModuleProvider>
-      <HashRouter>
-        <ErrorBoundary>
-          <UndoToastProvider>
-            <CommandPalette />
-            <Suspense fallback={<PageLoader />}>
-              <AppRoutes lockVault={lockVault} />
-            </Suspense>
-          </UndoToastProvider>
-        </ErrorBoundary>
-      </HashRouter>
+      <VaultDataProvider>
+        <HashRouter>
+          <ErrorBoundary>
+            <UndoToastProvider>
+              <CommandPalette />
+              <Suspense fallback={<PageLoader />}>
+                <AppRoutes lockVault={lockVault} />
+              </Suspense>
+            </UndoToastProvider>
+          </ErrorBoundary>
+        </HashRouter>
+      </VaultDataProvider>
     </ModuleProvider>
   );
 }

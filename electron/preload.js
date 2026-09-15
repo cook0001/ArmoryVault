@@ -15,6 +15,8 @@ contextBridge.exposeInMainWorld('api', {
 
   getFirearms: () => ipcRenderer.invoke('get-firearms'),
   addFirearm: (firearm) => ipcRenderer.invoke('add-firearm', firearm),
+  importFirearmsBatch: (firearmsList, updatesList) =>
+    ipcRenderer.invoke('import-firearms-batch', firearmsList, updatesList),
   updateFirearm: (id, firearm) => ipcRenderer.invoke('update-firearm', id, firearm),
   deleteFirearm: (id) => ipcRenderer.invoke('delete-firearm', id),
   logRangeSession: (data) => ipcRenderer.invoke('log-range-session', data),
@@ -23,22 +25,30 @@ contextBridge.exposeInMainWorld('api', {
 
   getAmmo: () => ipcRenderer.invoke('get-ammo'),
   addAmmo: (ammo) => ipcRenderer.invoke('add-ammo', ammo),
+  importAmmoBatch: (ammoList, updatesList) =>
+    ipcRenderer.invoke('import-ammo-batch', ammoList, updatesList),
   updateAmmo: (id, ammo) => ipcRenderer.invoke('update-ammo', id, ammo),
   deleteAmmo: (id) => ipcRenderer.invoke('delete-ammo', id),
 
   getAccessories: () => ipcRenderer.invoke('get-accessories'),
   addAccessory: (acc) => ipcRenderer.invoke('add-accessory', acc),
+  importAccessoriesBatch: (accessoriesList) =>
+    ipcRenderer.invoke('import-accessories-batch', accessoriesList),
   updateAccessory: (id, acc) => ipcRenderer.invoke('update-accessory', id, acc),
   deleteAccessory: (id) => ipcRenderer.invoke('delete-accessory', id),
 
   getComponents: () => ipcRenderer.invoke('get-components'),
   addComponent: (comp) => ipcRenderer.invoke('add-component', comp),
+  importComponentsBatch: (componentsList) =>
+    ipcRenderer.invoke('import-components-batch', componentsList),
   updateComponent: (id, comp) => ipcRenderer.invoke('update-component', id, comp),
   deleteComponent: (id) => ipcRenderer.invoke('delete-component', id),
 
   getSkus: () => ipcRenderer.invoke('get-skus'),
   saveSkus: (skus) => ipcRenderer.invoke('save-skus', skus),
   deleteSku: (skuId) => ipcRenderer.invoke('delete-sku', skuId),
+  exportSkusCatalog: () => ipcRenderer.invoke('export-skus-catalog'),
+  importSkusCatalog: (data, mode) => ipcRenderer.invoke('import-skus-catalog', data, mode),
 
   getCustomSchedulePresets: () => ipcRenderer.invoke('get-custom-schedule-presets'),
   saveCustomSchedulePresets: (presets) =>
@@ -90,6 +100,7 @@ contextBridge.exposeInMainWorld('api', {
   lookupFFL: (params) => ipcRenderer.invoke('lookup-ffl', params),
   lookupRanges: (params) => ipcRenderer.invoke('lookup-ranges', params),
 
+  selectCSVFile: () => ipcRenderer.invoke('select-csv-file'),
   exportData: (dataString, filename) => ipcRenderer.invoke('export-data', dataString, filename),
   onUpdateMessage: (callback) => {
     const subscription = (_, data) => callback(data);
@@ -101,6 +112,8 @@ contextBridge.exposeInMainWorld('api', {
 
   // Mobile Sync API
   getLocalIp: () => ipcRenderer.invoke('get-local-ip'),
+  getAllLocalIps: () => ipcRenderer.invoke('get-all-local-ips'),
+  getPairingInfo: () => ipcRenderer.invoke('get-pairing-info'),
   getPairingToken: () => ipcRenderer.invoke('get-pairing-token'),
   revokePairingToken: () => ipcRenderer.invoke('revoke-pairing-token'),
   onSyncReceived: (callback) => {

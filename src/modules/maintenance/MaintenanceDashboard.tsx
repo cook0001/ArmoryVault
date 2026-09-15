@@ -21,6 +21,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { OpticZeroModal } from '@/components/modals/OpticZeroModal';
 import { QuickServiceModal } from '@/components/modals/QuickServiceModal';
 import type { Firearm, MaintenanceLog, MaintenanceScheduleItem, OpticZeroRecord } from '@/types';
+import { formatCurrency, parseCurrency } from '@/utils/currency';
 import {
   createScheduleItemsFromProfile,
   detectMaintenanceProfile,
@@ -306,7 +307,7 @@ export const MaintenanceDashboard: React.FC = () => {
       if (f.logs) {
         for (const l of f.logs) {
           if (l.type !== 'Range' && l.cost) {
-            sum += Number(l.cost) || 0;
+            sum += parseCurrency(l.cost);
           }
         }
       }
@@ -705,7 +706,7 @@ export const MaintenanceDashboard: React.FC = () => {
               color: 'var(--text-primary)',
             }}
           >
-            {scheduledFirearmsCount} / {firearms.length}
+            {`${scheduledFirearmsCount} / ${firearms.length}`}
           </div>
           <div
             style={{
@@ -896,7 +897,7 @@ export const MaintenanceDashboard: React.FC = () => {
                 color: '#34d399',
               }}
             >
-              ${totalMaintenanceCost.toFixed(2)}
+              {formatCurrency(totalMaintenanceCost)}
             </div>
             <div
               style={{

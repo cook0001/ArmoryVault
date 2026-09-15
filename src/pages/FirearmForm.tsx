@@ -5,6 +5,7 @@ import { AutocompleteInput } from '../components/AutocompleteInput';
 import { StorageLocationSelect } from '../components/StorageBadge';
 import { Firearm, StorageLocation } from '../types';
 import { formatCaliber } from '../utils/caliberHelpers';
+import { parseCurrencyOrNull } from '../utils/currency';
 import {
   ACTION_OPTIONS,
   CALIBER_OPTIONS,
@@ -195,6 +196,8 @@ export const FirearmForm = () => {
 
     const payload: Firearm = {
       ...(formData as Firearm),
+      purchase_price: parseCurrencyOrNull(formData.purchase_price),
+      sold_price: parseCurrencyOrNull(formData.sold_price),
       photos: finalPhotos,
       image_path: finalPhotos.length > 0 ? finalPhotos[0] : '', // Keep backward compatibility
       storageLocationId: storageLocationId || undefined,

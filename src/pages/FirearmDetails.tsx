@@ -34,13 +34,21 @@ import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AutocompleteInput } from '../components/AutocompleteInput';
 import { ChassisIcon, GunBeltIcon, ScopeIcon, StockIcon } from '../components/CustomIcons';
+import {
+  FirearmLogModal,
+  GunsmithDossierModal,
+  MaintenancePresetPickerModal,
+  MaintenanceScheduleModal,
+  MarkAsSoldModal,
+  SaveScheduleTemplateModal,
+  TaskCompletionModal,
+} from '../components/firearm-details/modals';
 import { Lightbox } from '../components/Lightbox';
 import {
   AccessoryDetailModal,
   getAccessoryTypeColor,
 } from '../components/modals/AccessoryDetailModal';
 import { AccessoryModal } from '../components/modals/AccessoryModal';
-import { FflPickerModal } from '../components/modals/FflPickerModal';
 import { MountAccessoryModal } from '../components/modals/MountAccessoryModal';
 import { StorageBadge } from '../components/StorageBadge';
 import { useUndoToast } from '../components/UndoToast';
@@ -53,6 +61,8 @@ import {
   MaintenanceScheduleItem,
   StorageLocation,
 } from '../types';
+import { formatCurrency, parseCurrency } from '../utils/currency';
+import { getLocalImageUrl } from '../utils/imageUrl';
 import {
   createScheduleItemsFromProfile,
   detectFirearmScheduleProfile,
@@ -72,7 +82,6 @@ export const FirearmDetails = () => {
   const navigate = useNavigate();
   const [firearm, setFirearm] = useState<Firearm | null>(null);
   const [isSelling, setIsSelling] = useState(false);
-  const [isFflPickerOpen, setIsFflPickerOpen] = useState(false);
   const [isLogging, setIsLogging] = useState(false);
   const [lightboxImages, setLightboxImages] = useState<string[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -124,12 +133,9 @@ export const FirearmDetails = () => {
   }>({ task_name: '', interval_rounds: 3000, enableDays: false, interval_days: 90, notes: '' });
   const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
   const [isPresetModalOpen, setIsPresetModalOpen] = useState(false);
-  const [selectedPresetId, setSelectedPresetId] = useState<string>('semi_pistol');
-  const [presetTab, setPresetTab] = useState<'profiles' | 'custom'>('profiles');
   const [customPresets, setCustomPresets] = useState<CustomSchedulePreset[]>([]);
   const [storageLocations, setStorageLocations] = useState<StorageLocation[]>([]);
   const [isSavePresetModalOpen, setIsSavePresetModalOpen] = useState(false);
-  const [customPresetForm, setCustomPresetForm] = useState({ name: '', description: '' });
 
   // Dossier State
   const [isDossierOpen, setIsDossierOpen] = useState(false);
@@ -137,14 +143,6 @@ export const FirearmDetails = () => {
   // Task Completion & Part Replacement Modal State
   const [isTaskCompletionModalOpen, setIsTaskCompletionModalOpen] = useState(false);
   const [completingTask, setCompletingTask] = useState<any>(null);
-  const [completionForm, setCompletionForm] = useState({
-    action_performed: '',
-    part_details: '',
-    part_manufacturer: '',
-    cost: '',
-    date: new Date().toISOString().split('T')[0],
-    notes: '',
-  });
 
   const getAmmoString = (a: Ammo) => {
     const isShotgun =
@@ -177,16 +175,24 @@ export const FirearmDetails = () => {
 
   const loadFirearm = async () => {
     if (window.api && id) {
-      const all = await window.api.getFirearms();
-      setAllFirearms(all);
-      const found = all.find((f) => f.id === Number(id));
+      const [all, ammo, allAcc, showSetup, presets, locs] = await Promise.all([
+        window.api.getFirearms(),
+        window.api.getAmmo ? window.api.getAmmo() : Promise.resolve([]),
+        window.api.getAccessories ? window.api.getAccessories() : Promise.resolve([]),
+        window.api.getConfig ? window.api.getConfig('showTotalSetupValue') : Promise.resolve(false),
+        window.api.getCustomSchedulePresets
+          ? window.api.getCustomSchedulePresets()
+          : Promise.resolve([]),
+        window.api.getStorageLocations ? window.api.getStorageLocations() : Promise.resolve([]),
+      ]);
+
+      setAllFirearms(all || []);
+      const found = (all || []).find((f) => f.id === Number(id));
       setFirearm(found || null);
 
-      const ammo = await window.api.getAmmo();
-      setInventoryAmmo(ammo);
+      setInventoryAmmo(ammo || []);
 
-      if (window.api.getAccessories) {
-        const allAcc = await window.api.getAccessories();
+      if (allAcc) {
         setAllAccessories(allAcc);
         const attached = allAcc.filter((a) => a.mounts?.some((m) => m.firearmId === Number(id)));
         setAttachedAccessories(attached);
@@ -197,20 +203,9 @@ export const FirearmDetails = () => {
         }
       }
 
-      if (window.api.getConfig) {
-        const showSetup = await window.api.getConfig('showTotalSetupValue');
-        setShowTotalSetupValue(!!showSetup);
-      }
-
-      if (window.api.getCustomSchedulePresets) {
-        const presets = await window.api.getCustomSchedulePresets();
-        setCustomPresets(presets || []);
-      }
-
-      if (window.api.getStorageLocations) {
-        const locs = await window.api.getStorageLocations();
-        setStorageLocations(locs || []);
-      }
+      setShowTotalSetupValue(!!showSetup);
+      setCustomPresets(presets || []);
+      setStorageLocations(locs || []);
     }
   };
 
@@ -249,14 +244,13 @@ export const FirearmDetails = () => {
     }
   };
 
-  const handleSell = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSell = async (formData: any) => {
     if (firearm) {
       const updated = {
         ...firearm,
         is_sold: true,
-        ...sellForm,
-        sold_price: parseFloat(sellForm.sold_price) || 0,
+        ...formData,
+        sold_price: parseFloat(formData.sold_price) || 0,
       };
       await window.api.updateFirearm(firearm.id!, updated);
       setFirearm(updated);
@@ -538,9 +532,8 @@ export const FirearmDetails = () => {
     setIsPresetModalOpen(false);
   };
 
-  const handleSaveAsTemplate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!firearm || !customPresetForm.name.trim()) return;
+  const handleSaveAsTemplate = async (name: string, description: string) => {
+    if (!firearm || !name.trim()) return;
     const currentSchedules = firearm.maintenance_schedules || [];
     if (currentSchedules.length === 0) {
       alert('Add at least one scheduled maintenance task before saving as a template.');
@@ -548,9 +541,8 @@ export const FirearmDetails = () => {
     }
     const newPreset: CustomSchedulePreset = {
       id: `custom_${Date.now()}`,
-      name: customPresetForm.name.trim(),
-      description:
-        customPresetForm.description.trim() || `${firearm.make} ${firearm.model} custom schedule`,
+      name: name.trim(),
+      description: description.trim() || `${firearm.make} ${firearm.model} custom schedule`,
       category: firearm.action_type || 'Custom',
       tasks: currentSchedules.map((s) => ({
         task_name: s.task_name,
@@ -563,7 +555,6 @@ export const FirearmDetails = () => {
     await window.api.saveCustomSchedulePresets(updated);
     setCustomPresets(updated);
     setIsSavePresetModalOpen(false);
-    setCustomPresetForm({ name: '', description: '' });
   };
 
   const handleDeleteCustomPreset = async (presetId: string, e: React.MouseEvent) => {
@@ -576,36 +567,7 @@ export const FirearmDetails = () => {
 
   const openCompleteTaskModal = (task: any) => {
     setCompletingTask(task);
-    setCompletionForm({
-      action_performed: task.task_name,
-      part_details: '',
-      part_manufacturer: '',
-      cost: '',
-      date: new Date().toISOString().split('T')[0],
-      notes: '',
-    });
     setIsTaskCompletionModalOpen(true);
-  };
-
-  const handleSaveTaskCompletion = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!firearm || !completingTask) return;
-
-    if (window.api && window.api.completeMaintenanceTask) {
-      const partDetailStr = completionForm.part_details
-        ? `${completionForm.part_manufacturer ? completionForm.part_manufacturer + ' ' : ''}${completionForm.part_details}`
-        : completionForm.action_performed;
-      await window.api.completeMaintenanceTask(firearm.id!, completingTask.id, {
-        action_performed: completionForm.action_performed,
-        part_details: partDetailStr,
-        cost: completionForm.cost ? parseFloat(completionForm.cost) : 0,
-        date: completionForm.date,
-        notes: completionForm.notes,
-      });
-      await loadFirearm();
-      setIsTaskCompletionModalOpen(false);
-      setCompletingTask(null);
-    }
   };
 
   const handleQuickClean = async () => {
@@ -697,18 +659,14 @@ export const FirearmDetails = () => {
                 >
                   Total Setup Value:{' '}
                   <strong style={{ color: 'var(--success)' }}>
-                    $
-                    {(
-                      (firearm.purchase_price || 0) +
-                      attachedAccessories.reduce((sum, a) => {
-                        const allocatedQty =
-                          a.mounts?.find((m) => m.firearmId === Number(id))?.quantity || 1;
-                        return sum + (a.value || 0) * allocatedQty;
-                      }, 0)
-                    ).toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
+                    {formatCurrency(
+                      parseCurrency(firearm.purchase_price) +
+                        attachedAccessories.reduce((sum, a) => {
+                          const allocatedQty =
+                            a.mounts?.find((m) => m.firearmId === Number(id))?.quantity || 1;
+                          return sum + parseCurrency(a.value) * allocatedQty;
+                        }, 0)
+                    )}
                   </strong>
                 </div>
               )}
@@ -931,8 +889,10 @@ export const FirearmDetails = () => {
                           }}
                         >
                           <img
-                            src={`local-file://${p}`}
+                            src={getLocalImageUrl(p, true)}
                             alt={slotName}
+                            loading="lazy"
+                            decoding="async"
                             style={{
                               width: '54px',
                               height: '38px',
@@ -1046,7 +1006,7 @@ export const FirearmDetails = () => {
             </div>
             <div className="info-item">
               <span>Price</span>
-              <p>{firearm.purchase_price ? `$${firearm.purchase_price}` : '-'}</p>
+              <p>{firearm.purchase_price != null ? formatCurrency(firearm.purchase_price) : '-'}</p>
             </div>
             <div className="info-item">
               <span>From</span>
@@ -1187,7 +1147,7 @@ export const FirearmDetails = () => {
                 </div>
                 <div className="info-item">
                   <span>Sale Price</span>
-                  <p>${firearm.sold_price}</p>
+                  <p>{formatCurrency(firearm.sold_price)}</p>
                 </div>
               </div>
               <div className="info-item full">
@@ -1271,7 +1231,7 @@ export const FirearmDetails = () => {
                 const typeColor = getAccessoryTypeColor(acc.type);
                 const allocatedQty =
                   acc.mounts?.find((m) => m.firearmId === Number(id))?.quantity || 1;
-                const allocatedValue = (acc.value || 0) * allocatedQty;
+                const allocatedValue = parseCurrency(acc.value) * allocatedQty;
 
                 return (
                   <div
@@ -1307,12 +1267,10 @@ export const FirearmDetails = () => {
                       >
                         {acc.photo ? (
                           <img
-                            src={
-                              acc.photo.startsWith('local-file://')
-                                ? acc.photo
-                                : `local-file://${acc.photo}`
-                            }
+                            src={getLocalImageUrl(acc.photo, true)}
                             alt={acc.model}
+                            loading="lazy"
+                            decoding="async"
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                           />
                         ) : (
@@ -1409,11 +1367,7 @@ export const FirearmDetails = () => {
                             marginTop: '0.15rem',
                           }}
                         >
-                          $
-                          {allocatedValue.toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}
+                          {formatCurrency(parseCurrency(acc.value) * allocatedQty)}
                           {allocatedQty > 1 && (
                             <span
                               style={{
@@ -1423,7 +1377,7 @@ export const FirearmDetails = () => {
                               }}
                             >
                               {' '}
-                              (${(acc.value || 0).toLocaleString()} ea)
+                              ({formatCurrency(acc.value)} ea)
                             </span>
                           )}
                         </div>
@@ -1766,13 +1720,7 @@ export const FirearmDetails = () => {
               {firearm.maintenance_schedules && firearm.maintenance_schedules.length > 0 && (
                 <button
                   className="btn-secondary"
-                  onClick={() => {
-                    setCustomPresetForm({
-                      name: `${firearm.make} ${firearm.model} Schedule`,
-                      description: `${firearm.action_type || ''} custom maintenance schedule`,
-                    });
-                    setIsSavePresetModalOpen(true);
-                  }}
+                  onClick={() => setIsSavePresetModalOpen(true)}
                   title="Save this firearm's schedules as a reusable template"
                 >
                   <Bookmark size={16} style={{ color: '#fbbf24' }} /> Save as Template
@@ -1780,10 +1728,7 @@ export const FirearmDetails = () => {
               )}
               <button
                 className="btn-secondary"
-                onClick={() => {
-                  setSelectedPresetId(detectFirearmScheduleProfile(firearm).id);
-                  setIsPresetModalOpen(true);
-                }}
+                onClick={() => setIsPresetModalOpen(true)}
                 title="Browse standard action profiles and custom templates"
               >
                 <Sliders size={16} style={{ color: '#c084fc' }} /> Load Preset...
@@ -1937,13 +1882,7 @@ export const FirearmDetails = () => {
                     <Sparkles size={16} /> Load Standard Schedule (
                     {detectFirearmScheduleProfile(firearm).name})
                   </button>
-                  <button
-                    className="btn-secondary"
-                    onClick={() => {
-                      setSelectedPresetId(detectFirearmScheduleProfile(firearm).id);
-                      setIsPresetModalOpen(true);
-                    }}
-                  >
+                  <button className="btn-secondary" onClick={() => setIsPresetModalOpen(true)}>
                     <Sliders size={16} /> Browse Presets & Templates (
                     {Object.keys(MAINTENANCE_PROFILES).length + customPresets.length})...
                   </button>
@@ -2249,9 +2188,9 @@ export const FirearmDetails = () => {
             >
               <strong>Total Money Spent:</strong>{' '}
               <span style={{ color: 'var(--danger)', fontWeight: 700, marginLeft: '0.5rem' }}>
-                $
-                {firearm.logs?.reduce((acc, log) => acc + (Number(log.cost) || 0), 0).toFixed(2) ||
-                  '0.00'}
+                {formatCurrency(
+                  firearm.logs?.reduce((acc, log) => acc + parseCurrency(log.cost), 0) || 0
+                )}
               </span>
             </div>
             {(() => {
@@ -2431,13 +2370,7 @@ export const FirearmDetails = () => {
                         }}
                       >
                         Cost:{' '}
-                        <span style={{ color: 'var(--warning)' }}>
-                          $
-                          {log.cost.toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}
-                        </span>
+                        <span style={{ color: 'var(--warning)' }}>{formatCurrency(log.cost)}</span>
                       </div>
                     )}
                   <div
@@ -2448,8 +2381,10 @@ export const FirearmDetails = () => {
                   {log.image_path && (
                     <div style={{ marginTop: '1rem' }}>
                       <img
-                        src={`local-file://${log.image_path}`}
+                        src={getLocalImageUrl(log.image_path, true)}
                         alt="Log Attachment"
+                        loading="lazy"
+                        decoding="async"
                         style={{
                           width: '100%',
                           borderRadius: '8px',
@@ -2580,1902 +2515,89 @@ export const FirearmDetails = () => {
           </div>
         </div>
       </div>{' '}
-      {isSelling &&
-        createPortal(
-          <div className="modal-overlay" onClick={() => setIsSelling(false)}>
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
-              <h2>Mark Firearm as Sold</h2>
-              <form onSubmit={handleSell}>
-                <div className="form-group">
-                  <label>Your Name (Seller)</label>
-                  <input
-                    required
-                    type="text"
-                    className="form-input"
-                    value={sellForm.seller_name}
-                    onChange={(e) => setSellForm({ ...sellForm, seller_name: e.target.value })}
-                    placeholder="e.g. John Doe"
-                  />
-                </div>
-                <div className="form-group">
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: '4px',
-                    }}
-                  >
-                    <label style={{ margin: 0 }}>Buyer Name</label>
-                    <button
-                      type="button"
-                      onClick={() => setIsFflPickerOpen(true)}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: '#3b82f6',
-                        fontSize: '0.8rem',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        fontWeight: 600,
-                      }}
-                    >
-                      <Building2 size={13} />
-                      Lookup Licensed FFL
-                    </button>
-                  </div>
-                  <input
-                    required
-                    type="text"
-                    className="form-input"
-                    value={sellForm.sold_to_name}
-                    onChange={(e) => setSellForm({ ...sellForm, sold_to_name: e.target.value })}
-                    placeholder="e.g. Jane Smith or Apex Armory FFL"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Sale Date</label>
-                  <input
-                    required
-                    type="date"
-                    value={sellForm.sold_date}
-                    onChange={(e) => setSellForm({ ...sellForm, sold_date: e.target.value })}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Sale Price ($)</label>
-                  <input
-                    required
-                    type="number"
-                    step="0.01"
-                    value={sellForm.sold_price}
-                    onChange={(e) => setSellForm({ ...sellForm, sold_price: e.target.value })}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Sale Notes (Optional Secondary Info)</label>
-                  <textarea
-                    rows={3}
-                    value={sellForm.sale_notes}
-                    onChange={(e) => setSellForm({ ...sellForm, sale_notes: e.target.value })}
-                  ></textarea>
-                </div>
-                <div className="modal-actions">
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => setIsSelling(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn-primary">
-                    Confirm Sale
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>,
-          document.body
-        )}
-      <FflPickerModal
-        isOpen={isFflPickerOpen}
-        onClose={() => setIsFflPickerOpen(false)}
-        onSelect={(dealer) => {
-          const fflName = dealer.trade_name
-            ? `${dealer.business_name} (DBA: ${dealer.trade_name})`
-            : dealer.business_name;
-          const fflDetails = `FFL: ${dealer.license_num}\nAddress: ${dealer.street ? `${dealer.street}, ` : ''}${dealer.city}, ${dealer.state} ${dealer.zip}\nPhone: ${dealer.phone || 'N/A'}`;
-          setSellForm((prev) => ({
-            ...prev,
-            sold_to_name: fflName,
-            sale_notes: prev.sale_notes
-              ? `${prev.sale_notes}\n\n[Transfer FFL Dealer]\n${fflDetails}`
-              : `[Transfer FFL Dealer]\n${fflDetails}`,
-          }));
-        }}
+      <MarkAsSoldModal
+        isOpen={isSelling}
+        onClose={() => setIsSelling(false)}
+        onConfirmSale={handleSell}
+        initialData={sellForm}
       />
-      {isLogging &&
-        createPortal(
-          <div
-            className="modal-overlay"
-            onClick={() => {
-              setIsLogging(false);
-              setEditingLogId(null);
-            }}
-          >
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
-              <h2>Add Log Entry</h2>
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  let updatedLogs = [];
-                  if (editingLogId) {
-                    updatedLogs =
-                      firearm.logs?.map((l) =>
-                        l.id === editingLogId
-                          ? ({ ...logForm, id: editingLogId } as MaintenanceLog)
-                          : l
-                      ) || [];
-                  } else {
-                    const newLog = { ...logForm, id: Date.now() } as MaintenanceLog;
-                    updatedLogs = [...(firearm.logs || []), newLog];
-                  }
-                  const updated = { ...firearm, logs: updatedLogs };
-                  await window.api.updateFirearm(firearm.id!, updated);
-
-                  if (
-                    !editingLogId &&
-                    logForm.type === 'Range' &&
-                    logForm.rounds_fired &&
-                    logForm.rounds_fired > 0 &&
-                    logForm.ammo_used
-                  ) {
-                    const allAmmo = await window.api.getAmmo();
-                    const matched = allAmmo.find((a) => getAmmoString(a) === logForm.ammo_used);
-
-                    if (matched) {
-                      if (matched.count >= logForm.rounds_fired) {
-                        matched.count -= logForm.rounds_fired;
-                        await window.api.updateAmmo(matched.id!, matched);
-                        alert(
-                          `Smart Ammo Tracker: Deducted ${logForm.rounds_fired} rounds from your inventory.`
-                        );
-                      } else {
-                        alert(
-                          `Smart Ammo Tracker: Not enough inventory to deduct ${logForm.rounds_fired} rounds! Log saved without deducting.`
-                        );
-                      }
-                    }
-                  }
-
-                  setFirearm(updated);
-                  setIsLogging(false);
-                  setEditingLogId(null);
-                  setLogForm({
-                    date: new Date().toISOString().split('T')[0],
-                    type: 'Range',
-                    notes: '',
-                    rounds_fired: '' as any,
-                    ammo_used: '',
-                    malfunctions: '' as any,
-                    repaired_part: '',
-                    part_manufacturer: '',
-                    installed_part_details: '',
-                    cost: '' as any,
-                    image_path: '',
-                  });
-                }}
-              >
-                <div className="form-group">
-                  <label>Date</label>
-                  <input
-                    required
-                    type="date"
-                    value={logForm.date}
-                    onChange={(e) => setLogForm({ ...logForm, date: e.target.value })}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Type</label>
-                  <AutocompleteInput
-                    mode="select"
-                    name="logType"
-                    value={logForm.type || 'Range'}
-                    onChange={(e) => setLogForm({ ...logForm, type: e.target.value as any })}
-                    options={['Range', 'Cleaning', 'Modification', 'Repair', 'Other']}
-                  />
-                </div>
-                {logForm.type === 'Range' && (
-                  <>
-                    <div className="form-group">
-                      <label>Rounds Fired</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={logForm.rounds_fired === undefined ? '' : logForm.rounds_fired}
-                        onChange={(e) =>
-                          setLogForm({
-                            ...logForm,
-                            rounds_fired:
-                              e.target.value === '' ? ('' as any) : parseInt(e.target.value),
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Malfunctions (FTF/FTE)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={logForm.malfunctions === undefined ? '' : logForm.malfunctions}
-                        onChange={(e) =>
-                          setLogForm({
-                            ...logForm,
-                            malfunctions:
-                              e.target.value === '' ? ('' as any) : parseInt(e.target.value),
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Ammo Used</label>
-                      <AutocompleteInput
-                        name="ammo_used"
-                        value={logForm.ammo_used || ''}
-                        onChange={(e) => setLogForm({ ...logForm, ammo_used: e.target.value })}
-                        options={inventoryAmmo
-                          .filter((ammo) => {
-                            if (!firearm?.caliber || !ammo.caliber) return true;
-                            const gunCal = firearm.caliber.toLowerCase().replace(/[^a-z0-9]/g, '');
-                            const ammoCal = ammo.caliber.toLowerCase().replace(/[^a-z0-9]/g, '');
-                            return gunCal.includes(ammoCal) || ammoCal.includes(gunCal);
-                          })
-                          .map((ammo) => getAmmoString(ammo))}
-                        placeholder="Select from inventory or type manually"
-                      />
-                    </div>
-                  </>
-                )}
-                {(logForm.type === 'Repair' || logForm.type === 'Modification') && (
-                  <>
-                    {logForm.type === 'Repair' && (
-                      <div className="form-group">
-                        <label>Part Changed / Repaired</label>
-                        <AutocompleteInput
-                          name="repaired_part"
-                          value={logForm.repaired_part || ''}
-                          onChange={(e) =>
-                            setLogForm({ ...logForm, repaired_part: e.target.value })
-                          }
-                          options={[
-                            'Springs',
-                            'Firing Pin / Striker',
-                            'Extractor',
-                            'Ejector',
-                            'Barrel',
-                            'Trigger Group',
-                            'Sights',
-                            'Gas System',
-                            'Magazine',
-                            'Stock / Furniture',
-                            'Bolt / Carrier',
-                            'Other',
-                          ]}
-                          placeholder="Select common part or type custom"
-                        />
-                      </div>
-                    )}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                      <div className="form-group">
-                        <label>Part Manufacturer</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          value={logForm.part_manufacturer || ''}
-                          onChange={(e) =>
-                            setLogForm({ ...logForm, part_manufacturer: e.target.value })
-                          }
-                          placeholder="e.g. Apex Tactical"
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Installed Part Details</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          value={logForm.installed_part_details || ''}
-                          onChange={(e) =>
-                            setLogForm({ ...logForm, installed_part_details: e.target.value })
-                          }
-                          placeholder="e.g. Heavy Duty Extractor"
-                        />
-                      </div>
-                    </div>
-                  </>
-                )}
-                {(logForm.type === 'Modification' ||
-                  logForm.type === 'Repair' ||
-                  logForm.type === 'Other') && (
-                  <div className="form-group">
-                    <label>Cost ($)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={logForm.cost === undefined ? '' : logForm.cost}
-                      onChange={(e) =>
-                        setLogForm({
-                          ...logForm,
-                          cost: e.target.value === '' ? ('' as any) : parseFloat(e.target.value),
-                        })
-                      }
-                    />
-                  </div>
-                )}
-                <div className="form-group">
-                  <label>Notes</label>
-                  <textarea
-                    rows={3}
-                    value={logForm.notes}
-                    onChange={(e) => setLogForm({ ...logForm, notes: e.target.value })}
-                  ></textarea>
-                </div>
-                <div className="form-group">
-                  <label>Photo Attachment</label>
-                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                    <button type="button" className="btn-secondary" onClick={handleLogImage}>
-                      Select Photo
-                    </button>
-                    {logForm.image_path && (
-                      <span style={{ color: 'var(--success)', fontSize: '0.9rem' }}>
-                        Photo selected
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="modal-actions">
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => {
-                      setIsLogging(false);
-                      setEditingLogId(null);
-                      setLogForm({
-                        date: new Date().toISOString().split('T')[0],
-                        type: 'Range',
-                        notes: '',
-                        rounds_fired: '' as any,
-                        ammo_used: '',
-                        malfunctions: '' as any,
-                        repaired_part: '',
-                        part_manufacturer: '',
-                        installed_part_details: '',
-                        cost: '' as any,
-                        image_path: '',
-                      });
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn-primary">
-                    {editingLogId ? 'Save Changes' : 'Save Log'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>,
-          document.body
-        )}
-      {/* Add / Edit Maintenance Schedule Modal */}
-      {isScheduleModalOpen &&
-        createPortal(
-          <div className="modal-overlay" onClick={() => setIsScheduleModalOpen(false)}>
-            <div
-              className="modal"
-              onClick={(e) => e.stopPropagation()}
-              style={{ maxWidth: '500px' }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '1.25rem',
-                  borderBottom: '1px solid var(--border-light)',
-                  paddingBottom: '0.75rem',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Wrench size={20} style={{ color: 'var(--accent)' }} />
-                  <h3 style={{ margin: 0 }}>
-                    {editingScheduleId ? 'Edit Maintenance Schedule' : 'New Maintenance Schedule'}
-                  </h3>
-                </div>
-                <button className="btn-icon" onClick={() => setIsScheduleModalOpen(false)}>
-                  ×
-                </button>
-              </div>
-              <form
-                onSubmit={handleSaveSchedule}
-                style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
-              >
-                <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      marginBottom: '0.4rem',
-                      fontWeight: 600,
-                      fontSize: '0.9rem',
-                    }}
-                  >
-                    Task Name / Action *
-                  </label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="e.g. Replace Extractor & Spring, Detail Clean, Recoil Spring"
-                    value={scheduleForm.task_name}
-                    onChange={(e) =>
-                      setScheduleForm({ ...scheduleForm, task_name: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      marginBottom: '0.4rem',
-                      fontWeight: 600,
-                      fontSize: '0.9rem',
-                    }}
-                  >
-                    Service Interval (Rounds) *
-                  </label>
-                  <input
-                    type="number"
-                    min="50"
-                    step="50"
-                    className="form-input"
-                    placeholder="e.g. 3000"
-                    value={scheduleForm.interval_rounds}
-                    onChange={(e) =>
-                      setScheduleForm({
-                        ...scheduleForm,
-                        interval_rounds: parseInt(e.target.value) || 0,
-                      })
-                    }
-                    required
-                  />
-                  <div
-                    style={{
-                      fontSize: '0.8rem',
-                      color: 'var(--text-secondary)',
-                      marginTop: '0.3rem',
-                    }}
-                  >
-                    Alerts will trigger every {scheduleForm.interval_rounds || 0} rounds fired
-                    through this firearm.
-                  </div>
-                </div>
-
-                {/* Time Interval Option */}
-                <div
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    padding: '0.75rem',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-light)',
-                  }}
-                >
-                  <label
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      cursor: 'pointer',
-                      fontSize: '0.9rem',
-                      fontWeight: 600,
-                      color: 'var(--text-primary)',
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={scheduleForm.enableDays || false}
-                      onChange={(e) =>
-                        setScheduleForm({ ...scheduleForm, enableDays: e.target.checked })
-                      }
-                    />
-                    Also trigger on elapsed time (Days)
-                  </label>
-                  {scheduleForm.enableDays && (
-                    <div style={{ marginTop: '0.75rem' }}>
-                      <label
-                        style={{
-                          display: 'block',
-                          marginBottom: '0.4rem',
-                          fontSize: '0.85rem',
-                          fontWeight: 500,
-                        }}
-                      >
-                        Service Interval (Days) *
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        step="1"
-                        className="form-input"
-                        placeholder="e.g. 90, 180, 365"
-                        value={scheduleForm.interval_days || ''}
-                        onChange={(e) =>
-                          setScheduleForm({
-                            ...scheduleForm,
-                            interval_days: parseInt(e.target.value) || 0,
-                          })
-                        }
-                        required={scheduleForm.enableDays}
-                      />
-                      <div
-                        style={{
-                          fontSize: '0.75rem',
-                          color: 'var(--text-secondary)',
-                          marginTop: '0.3rem',
-                        }}
-                      >
-                        Task will alert when <strong>either</strong>{' '}
-                        {scheduleForm.interval_rounds || 0} rounds OR{' '}
-                        {scheduleForm.interval_days || 0} days have elapsed.
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      marginBottom: '0.4rem',
-                      fontSize: '0.85rem',
-                      color: 'var(--text-secondary)',
-                    }}
-                  >
-                    Notes / Part Recommendations (Optional)
-                  </label>
-                  <textarea
-                    className="form-input"
-                    rows={2}
-                    placeholder="e.g. Apex Tactical HD extractor or OEM factory replacement"
-                    value={scheduleForm.notes}
-                    onChange={(e) => setScheduleForm({ ...scheduleForm, notes: e.target.value })}
-                  />
-                </div>
-
-                <div
-                  className="modal-actions"
-                  style={{
-                    marginTop: '0.5rem',
-                    paddingTop: '1rem',
-                    borderTop: '1px solid var(--border-light)',
-                  }}
-                >
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => setIsScheduleModalOpen(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn-primary">
-                    {editingScheduleId ? 'Update Schedule' : 'Save Task'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>,
-          document.body
-        )}
-      {/* Task Completion & Part Replacement Modal */}
-      {isTaskCompletionModalOpen &&
-        completingTask &&
-        createPortal(
-          <div className="modal-overlay" onClick={() => setIsTaskCompletionModalOpen(false)}>
-            <div
-              className="modal"
-              onClick={(e) => e.stopPropagation()}
-              style={{ maxWidth: '580px' }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '1.25rem',
-                  borderBottom: '1px solid var(--border-light)',
-                  paddingBottom: '0.75rem',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <CheckCircle size={22} style={{ color: 'var(--success)' }} />
-                  <div>
-                    <h3 style={{ margin: 0 }}>Complete Maintenance: {completingTask.task_name}</h3>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                      Log replacement parts, cost, and reset interval counter.
-                    </div>
-                  </div>
-                </div>
-                <button className="btn-icon" onClick={() => setIsTaskCompletionModalOpen(false)}>
-                  ×
-                </button>
-              </div>
-              <form
-                onSubmit={handleSaveTaskCompletion}
-                style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
-              >
-                <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      marginBottom: '0.4rem',
-                      fontWeight: 600,
-                      fontSize: '0.9rem',
-                    }}
-                  >
-                    Action Performed
-                  </label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={completionForm.action_performed}
-                    onChange={(e) =>
-                      setCompletionForm({ ...completionForm, action_performed: e.target.value })
-                    }
-                    placeholder="e.g. Replaced Extractor & Spring"
-                    required
-                  />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <div>
-                    <label
-                      style={{
-                        display: 'block',
-                        marginBottom: '0.4rem',
-                        fontSize: '0.85rem',
-                        fontWeight: 500,
-                      }}
-                    >
-                      Part Manufacturer / Brand
-                    </label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="e.g. Apex Tactical / OEM Factory"
-                      value={completionForm.part_manufacturer}
-                      onChange={(e) =>
-                        setCompletionForm({ ...completionForm, part_manufacturer: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <label
-                      style={{
-                        display: 'block',
-                        marginBottom: '0.4rem',
-                        fontSize: '0.85rem',
-                        fontWeight: 500,
-                      }}
-                    >
-                      Specific Part Model / Details
-                    </label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="e.g. Heavy Duty Extractor (Non-LCI)"
-                      value={completionForm.part_details}
-                      onChange={(e) =>
-                        setCompletionForm({ ...completionForm, part_details: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <div>
-                    <label
-                      style={{
-                        display: 'block',
-                        marginBottom: '0.4rem',
-                        fontSize: '0.85rem',
-                        fontWeight: 500,
-                      }}
-                    >
-                      Part Cost ($)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      className="form-input"
-                      placeholder="0.00"
-                      value={completionForm.cost}
-                      onChange={(e) =>
-                        setCompletionForm({ ...completionForm, cost: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <label
-                      style={{
-                        display: 'block',
-                        marginBottom: '0.4rem',
-                        fontSize: '0.85rem',
-                        fontWeight: 500,
-                      }}
-                    >
-                      Date Completed
-                    </label>
-                    <input
-                      type="date"
-                      className="form-input"
-                      value={completionForm.date}
-                      onChange={(e) =>
-                        setCompletionForm({ ...completionForm, date: e.target.value })
-                      }
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      marginBottom: '0.4rem',
-                      fontSize: '0.85rem',
-                      color: 'var(--text-secondary)',
-                    }}
-                  >
-                    Service Notes / Condition Observed
-                  </label>
-                  <textarea
-                    className="form-input"
-                    rows={2}
-                    placeholder="e.g. Factory extractor claw was chipped; installed Apex extractor with heavy plunger spring. Function tested 100%."
-                    value={completionForm.notes}
-                    onChange={(e) =>
-                      setCompletionForm({ ...completionForm, notes: e.target.value })
-                    }
-                  />
-                </div>
-
-                <div
-                  className="modal-actions"
-                  style={{
-                    marginTop: '0.5rem',
-                    paddingTop: '1rem',
-                    borderTop: '1px solid var(--border-light)',
-                  }}
-                >
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => setIsTaskCompletionModalOpen(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="btn-success"
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-                  >
-                    <CheckCircle size={16} /> Save & Complete Task
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>,
-          document.body
-        )}
-      {/* Maintenance Preset Picker Modal */}
-      {isPresetModalOpen &&
-        createPortal(
-          <div
-            className="modal-overlay"
-            onClick={() => setIsPresetModalOpen(false)}
-            style={{ zIndex: 100100 }}
-          >
-            <div
-              className="modal"
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                maxWidth: '920px',
-                maxHeight: '90vh',
-                display: 'flex',
-                flexDirection: 'column',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '1rem',
-                  borderBottom: '1px solid var(--border-light)',
-                  paddingBottom: '0.75rem',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Sliders size={22} style={{ color: 'var(--accent)' }} />
-                  <div>
-                    <h3 style={{ margin: 0 }}>Maintenance Schedule Presets</h3>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                      Choose a maintenance profile or load one of your saved custom templates.
-                    </div>
-                  </div>
-                </div>
-                <button className="btn-icon" onClick={() => setIsPresetModalOpen(false)}>
-                  ×
-                </button>
-              </div>
-
-              {/* Category Tabs */}
-              <div
-                style={{
-                  display: 'flex',
-                  gap: '0.5rem',
-                  marginBottom: '1rem',
-                  borderBottom: '1px solid var(--border-light)',
-                  paddingBottom: '0.5rem',
-                }}
-              >
-                <button
-                  type="button"
-                  className={presetTab === 'profiles' ? 'btn-primary' : 'btn-secondary'}
-                  onClick={() => setPresetTab('profiles')}
-                  style={{ padding: '0.4rem 0.9rem', fontSize: '0.85rem' }}
-                >
-                  Standard Action Profiles ({Object.keys(MAINTENANCE_PROFILES).length})
-                </button>
-                <button
-                  type="button"
-                  className={presetTab === 'custom' ? 'btn-primary' : 'btn-secondary'}
-                  onClick={() => setPresetTab('custom')}
-                  style={{
-                    padding: '0.4rem 0.9rem',
-                    fontSize: '0.85rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                  }}
-                >
-                  <Bookmark size={14} style={{ color: '#fbbf24' }} /> My Custom Templates (
-                  {customPresets.length})
-                </button>
-              </div>
-
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1.3fr',
-                  gap: '1.5rem',
-                  overflowY: 'auto',
-                  paddingRight: '0.5rem',
-                  flex: 1,
-                  minHeight: '340px',
-                }}
-              >
-                {/* Profile Selector List */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <div
-                    style={{
-                      fontSize: '0.8rem',
-                      fontWeight: 600,
-                      color: 'var(--text-secondary)',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      marginBottom: '0.2rem',
-                    }}
-                  >
-                    {presetTab === 'profiles'
-                      ? 'Available Action Profiles'
-                      : 'Your Custom Templates'}
-                  </div>
-
-                  {presetTab === 'profiles' ? (
-                    Object.values(MAINTENANCE_PROFILES).map((profile) => {
-                      const isDetected = profile.id === detectFirearmScheduleProfile(firearm).id;
-                      const isSelected = profile.id === selectedPresetId;
-
-                      return (
-                        <div
-                          key={profile.id}
-                          onClick={() => setSelectedPresetId(profile.id)}
-                          style={{
-                            padding: '0.75rem 1rem',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            background: isSelected
-                              ? 'rgba(56, 189, 248, 0.15)'
-                              : 'rgba(255, 255, 255, 0.03)',
-                            border: isSelected
-                              ? '1px solid var(--accent)'
-                              : '1px solid var(--border-light)',
-                            transition: 'all 0.15s ease',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '0.25rem',
-                          }}
-                        >
-                          <div
-                            style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                            }}
-                          >
-                            <strong
-                              style={{
-                                fontSize: '0.95rem',
-                                color: isSelected ? '#fff' : 'var(--text-primary)',
-                              }}
-                            >
-                              {profile.name}
-                            </strong>
-                            {isDetected && (
-                              <span
-                                style={{
-                                  background: '#38bdf8',
-                                  color: '#0f172a',
-                                  fontSize: '0.65rem',
-                                  fontWeight: 800,
-                                  padding: '0.1rem 0.4rem',
-                                  borderRadius: '4px',
-                                  textTransform: 'uppercase',
-                                }}
-                              >
-                                Recommended
-                              </span>
-                            )}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: '0.75rem',
-                              color: 'var(--text-secondary)',
-                              lineHeight: 1.3,
-                            }}
-                          >
-                            {profile.description}
-                          </div>
-                        </div>
-                      );
-                    })
-                  ) : customPresets.length === 0 ? (
-                    <div
-                      style={{
-                        padding: '2rem 1rem',
-                        textAlign: 'center',
-                        background: 'rgba(0,0,0,0.2)',
-                        borderRadius: '8px',
-                        border: '1px dashed var(--border-light)',
-                      }}
-                    >
-                      <Bookmark
-                        size={24}
-                        style={{ color: '#fbbf24', opacity: 0.7, marginBottom: '0.5rem' }}
-                      />
-                      <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                        No custom templates saved yet.
-                      </p>
-                      <p
-                        style={{
-                          margin: '0.3rem 0 0',
-                          fontSize: '0.75rem',
-                          color: 'var(--text-secondary)',
-                        }}
-                      >
-                        Click "Save as Template" on any configured firearm to create one.
-                      </p>
-                    </div>
-                  ) : (
-                    customPresets.map((preset) => {
-                      const isSelected = preset.id === selectedPresetId;
-                      return (
-                        <div
-                          key={preset.id}
-                          onClick={() => setSelectedPresetId(preset.id)}
-                          style={{
-                            padding: '0.75rem 1rem',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            background: isSelected
-                              ? 'rgba(251, 191, 36, 0.15)'
-                              : 'rgba(255, 255, 255, 0.03)',
-                            border: isSelected
-                              ? '1px solid #fbbf24'
-                              : '1px solid var(--border-light)',
-                            transition: 'all 0.15s ease',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '0.25rem',
-                          }}
-                        >
-                          <div
-                            style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                            }}
-                          >
-                            <strong
-                              style={{
-                                fontSize: '0.95rem',
-                                color: isSelected ? '#fbbf24' : 'var(--text-primary)',
-                              }}
-                            >
-                              {preset.name}
-                            </strong>
-                            <button
-                              type="button"
-                              className="btn-icon"
-                              onClick={(e) => handleDeleteCustomPreset(preset.id, e)}
-                              style={{ padding: '0.2rem', color: 'var(--danger)' }}
-                              title="Delete template"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
-                          <div
-                            style={{
-                              fontSize: '0.75rem',
-                              color: 'var(--text-secondary)',
-                              lineHeight: 1.3,
-                            }}
-                          >
-                            {preset.description || `${preset.tasks.length} tasks`}
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-
-                {/* Profile Details & Task Preview */}
-                {(() => {
-                  let name = '';
-                  let desc = '';
-                  let tasks: any[] = [];
-                  let isDetected = false;
-
-                  if (presetTab === 'custom') {
-                    const custom =
-                      customPresets.find((p) => p.id === selectedPresetId) || customPresets[0];
-                    if (custom) {
-                      name = custom.name;
-                      desc = custom.description || 'Custom user maintenance template';
-                      tasks = custom.tasks;
-                    }
-                  } else {
-                    const profile =
-                      MAINTENANCE_PROFILES[selectedPresetId] || MAINTENANCE_PROFILES.semi_pistol;
-                    name = profile.name;
-                    desc = profile.description;
-                    tasks = profile.tasks;
-                    isDetected = profile.id === detectFirearmScheduleProfile(firearm).id;
-                  }
-
-                  if (!name && tasks.length === 0) {
-                    return (
-                      <div
-                        style={{
-                          background: 'rgba(0,0,0,0.25)',
-                          padding: '2rem',
-                          borderRadius: '10px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          textAlign: 'center',
-                        }}
-                      >
-                        <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
-                          Select a profile or template to preview tasks.
-                        </p>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div
-                      style={{
-                        background: 'rgba(0,0,0,0.25)',
-                        padding: '1.25rem',
-                        borderRadius: '10px',
-                        border: '1px solid var(--border-light)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                      }}
-                    >
-                      <div
-                        style={{
-                          marginBottom: '1rem',
-                          borderBottom: '1px solid var(--border-light)',
-                          paddingBottom: '0.75rem',
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            marginBottom: '0.25rem',
-                          }}
-                        >
-                          <h4
-                            style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-primary)' }}
-                          >
-                            {name}
-                          </h4>
-                          {isDetected && (
-                            <span
-                              style={{
-                                background: 'rgba(56, 189, 248, 0.15)',
-                                color: '#38bdf8',
-                                border: '1px solid rgba(56, 189, 248, 0.3)',
-                                padding: '0.1rem 0.4rem',
-                                borderRadius: '4px',
-                                fontSize: '0.7rem',
-                                fontWeight: 600,
-                              }}
-                            >
-                              Matches This Firearm
-                            </span>
-                          )}
-                        </div>
-                        <p
-                          style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}
-                        >
-                          {desc}
-                        </p>
-                      </div>
-
-                      <div
-                        style={{
-                          fontSize: '0.8rem',
-                          fontWeight: 600,
-                          color: 'var(--text-secondary)',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.05em',
-                          marginBottom: '0.5rem',
-                        }}
-                      >
-                        Included Schedule Tasks ({tasks.length})
-                      </div>
-
-                      <div
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '0.6rem',
-                          overflowY: 'auto',
-                          flex: 1,
-                        }}
-                      >
-                        {tasks.map((task, idx) => (
-                          <div
-                            key={idx}
-                            style={{
-                              background: 'rgba(255,255,255,0.03)',
-                              padding: '0.65rem 0.85rem',
-                              borderRadius: '6px',
-                              border: '1px solid rgba(255,255,255,0.05)',
-                            }}
-                          >
-                            <div
-                              style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                marginBottom: '0.2rem',
-                              }}
-                            >
-                              <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>
-                                {task.task_name}
-                              </strong>
-                              <div style={{ display: 'flex', gap: '0.3rem' }}>
-                                <span
-                                  style={{
-                                    background: 'rgba(56, 189, 248, 0.15)',
-                                    color: '#38bdf8',
-                                    padding: '0.1rem 0.4rem',
-                                    borderRadius: '4px',
-                                    fontSize: '0.75rem',
-                                    fontWeight: 700,
-                                  }}
-                                >
-                                  Every {task.interval_rounds.toLocaleString()} rds
-                                </span>
-                                {task.interval_days && (
-                                  <span
-                                    style={{
-                                      background: 'rgba(251, 191, 36, 0.15)',
-                                      color: '#fbbf24',
-                                      padding: '0.1rem 0.4rem',
-                                      borderRadius: '4px',
-                                      fontSize: '0.75rem',
-                                      fontWeight: 700,
-                                    }}
-                                  >
-                                    {task.interval_days}d
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            {task.notes && (
-                              <div
-                                style={{
-                                  fontSize: '0.75rem',
-                                  color: 'var(--text-secondary)',
-                                  lineHeight: 1.3,
-                                }}
-                              >
-                                {task.notes}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              <div
-                className="modal-actions"
-                style={{
-                  marginTop: '1.25rem',
-                  paddingTop: '1rem',
-                  borderTop: '1px solid var(--border-light)',
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  gap: '0.5rem',
-                  flexWrap: 'wrap',
-                }}
-              >
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => setIsPresetModalOpen(false)}
-                >
-                  Cancel
-                </button>
-                {firearm.maintenance_schedules && firearm.maintenance_schedules.length > 0 && (
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() =>
-                      handleLoadPreset(selectedPresetId, 'append', presetTab === 'custom')
-                    }
-                  >
-                    Append to Existing Tasks
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="btn-primary"
-                  onClick={() =>
-                    handleLoadPreset(selectedPresetId, 'replace', presetTab === 'custom')
-                  }
-                >
-                  <Sparkles size={16} /> Apply Preset
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
-      {/* Save Current Schedule as Template Modal */}
-      {isSavePresetModalOpen &&
-        createPortal(
-          <div
-            className="modal-overlay"
-            onClick={() => setIsSavePresetModalOpen(false)}
-            style={{ zIndex: 100200 }}
-          >
-            <div
-              className="modal"
-              onClick={(e) => e.stopPropagation()}
-              style={{ maxWidth: '480px' }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '1.25rem',
-                  borderBottom: '1px solid var(--border-light)',
-                  paddingBottom: '0.75rem',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Bookmark size={20} style={{ color: '#fbbf24' }} />
-                  <h3 style={{ margin: 0 }}>Save as Custom Template</h3>
-                </div>
-                <button className="btn-icon" onClick={() => setIsSavePresetModalOpen(false)}>
-                  ×
-                </button>
-              </div>
-
-              <form
-                onSubmit={handleSaveAsTemplate}
-                style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
-              >
-                <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      marginBottom: '0.4rem',
-                      fontWeight: 600,
-                      fontSize: '0.9rem',
-                    }}
-                  >
-                    Template Name *
-                  </label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="e.g. Daniel's 3-Gun Shotgun Schedule"
-                    value={customPresetForm.name}
-                    onChange={(e) =>
-                      setCustomPresetForm({ ...customPresetForm, name: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      marginBottom: '0.4rem',
-                      fontSize: '0.85rem',
-                      color: 'var(--text-secondary)',
-                    }}
-                  >
-                    Description (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="e.g. Tuned recoil spring, extractor, and barrel maintenance"
-                    value={customPresetForm.description}
-                    onChange={(e) =>
-                      setCustomPresetForm({ ...customPresetForm, description: e.target.value })
-                    }
-                  />
-                </div>
-
-                <div
-                  style={{
-                    background: 'rgba(255,255,255,0.03)',
-                    padding: '0.75rem',
-                    borderRadius: '6px',
-                    fontSize: '0.8rem',
-                    color: 'var(--text-secondary)',
-                  }}
-                >
-                  This template will capture all{' '}
-                  <strong>
-                    {firearm.maintenance_schedules?.length || 0} active schedule tasks
-                  </strong>{' '}
-                  from this firearm so you can apply them to any other firearm with 1-click.
-                </div>
-
-                <div
-                  className="modal-actions"
-                  style={{
-                    marginTop: '0.5rem',
-                    paddingTop: '1rem',
-                    borderTop: '1px solid var(--border-light)',
-                  }}
-                >
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => setIsSavePresetModalOpen(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="btn-primary"
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-                  >
-                    <Bookmark size={15} /> Save Template
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>,
-          document.body
-        )}
-      {/* Gunsmith & Maintenance Dossier Modal */}
-      {isDossierOpen &&
-        firearm &&
-        createPortal(
-          <div
-            className="modal-overlay"
-            onClick={() => setIsDossierOpen(false)}
-            style={{ zIndex: 100100 }}
-          >
-            <div
-              className="modal"
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                maxWidth: '980px',
-                maxHeight: '92vh',
-                display: 'flex',
-                flexDirection: 'column',
-                background: '#0f172a',
-                color: '#f8fafc',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '1rem',
-                  borderBottom: '1px solid var(--border-light)',
-                  paddingBottom: '0.75rem',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <FileText size={22} style={{ color: '#38bdf8' }} />
-                  <div>
-                    <h3 style={{ margin: 0 }}>Gunsmith Service Record & Dossier</h3>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                      Complete provenance, round telemetry, service ledger, and mounted equipment.
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button
-                    type="button"
-                    className="btn-primary"
-                    onClick={() => window.print()}
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-                  >
-                    <Printer size={16} /> Print / Save PDF
-                  </button>
-                  <button className="btn-icon" onClick={() => setIsDossierOpen(false)}>
-                    ×
-                  </button>
-                </div>
-              </div>
-
-              {/* Printable Document Body */}
-              <div
-                id="printable-firearm-dossier"
-                style={{
-                  overflowY: 'auto',
-                  flex: 1,
-                  padding: '1rem',
-                  background: '#ffffff',
-                  color: '#0f172a',
-                  borderRadius: '8px',
-                }}
-              >
-                <style>{`
-                @media print {
-                  body * { visibility: hidden; }
-                  #printable-firearm-dossier, #printable-firearm-dossier * { visibility: visible; }
-                  #printable-firearm-dossier { position: absolute; left: 0; top: 0; width: 100%; padding: 0; margin: 0; background: #ffffff !important; color: #000000 !important; }
-                }
-              `}</style>
-
-                {/* Dossier Header */}
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    borderBottom: '2px solid #0f172a',
-                    paddingBottom: '1rem',
-                    marginBottom: '1.25rem',
-                  }}
-                >
-                  <div>
-                    <h2 style={{ margin: 0, fontSize: '1.6rem', color: '#0f172a' }}>
-                      {firearm.make} {firearm.model}
-                    </h2>
-                    <div style={{ fontSize: '0.9rem', color: '#475569', marginTop: '0.2rem' }}>
-                      Serial #: <strong>{firearm.serial_number || 'N/A'}</strong> &bull; Caliber:{' '}
-                      <strong>{firearm.caliber || 'N/A'}</strong> &bull; Action:{' '}
-                      <strong>{firearm.action_type || 'N/A'}</strong>
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#0284c7' }}>
-                      ARMORYVAULT DOSSIER
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                      Generated {new Date().toLocaleDateString()}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Telemetry Summary Cards */}
-                {(() => {
-                  const totalRounds =
-                    firearm.logs
-                      ?.filter((l) => l.type === 'Range')
-                      .reduce((sum, l) => sum + (Number(l.rounds_fired) || 0), 0) || 0;
-                  const totalMaintCost = (firearm.logs || []).reduce(
-                    (sum, l) => sum + (Number(l.cost) || 0),
-                    0
-                  );
-                  const totalCleanings = (firearm.logs || []).filter(
-                    (l) => l.type === 'Cleaning'
-                  ).length;
-                  const totalMalfunctions = (firearm.logs || []).reduce(
-                    (sum, l) => sum + (Number(l.malfunctions) || 0),
-                    0
-                  );
-                  const reliability =
-                    totalRounds > 0
-                      ? (((totalRounds - totalMalfunctions) / totalRounds) * 100).toFixed(1)
-                      : '100.0';
-
-                  return (
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(4, 1fr)',
-                        gap: '0.75rem',
-                        marginBottom: '1.5rem',
-                      }}
-                    >
-                      <div
-                        style={{
-                          background: '#f1f5f9',
-                          padding: '0.75rem',
-                          borderRadius: '6px',
-                          border: '1px solid #cbd5e1',
-                          textAlign: 'center',
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: '0.75rem',
-                            color: '#64748b',
-                            textTransform: 'uppercase',
-                            fontWeight: 600,
-                          }}
-                        >
-                          Lifetime Rounds
-                        </div>
-                        <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#0f172a' }}>
-                          {totalRounds.toLocaleString()}
-                        </div>
-                      </div>
-                      <div
-                        style={{
-                          background: '#f1f5f9',
-                          padding: '0.75rem',
-                          borderRadius: '6px',
-                          border: '1px solid #cbd5e1',
-                          textAlign: 'center',
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: '0.75rem',
-                            color: '#64748b',
-                            textTransform: 'uppercase',
-                            fontWeight: 600,
-                          }}
-                        >
-                          Service Spend
-                        </div>
-                        <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#0f172a' }}>
-                          ${totalMaintCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                        </div>
-                      </div>
-                      <div
-                        style={{
-                          background: '#f1f5f9',
-                          padding: '0.75rem',
-                          borderRadius: '6px',
-                          border: '1px solid #cbd5e1',
-                          textAlign: 'center',
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: '0.75rem',
-                            color: '#64748b',
-                            textTransform: 'uppercase',
-                            fontWeight: 600,
-                          }}
-                        >
-                          Cleanings Logged
-                        </div>
-                        <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#0f172a' }}>
-                          {totalCleanings}
-                        </div>
-                      </div>
-                      <div
-                        style={{
-                          background: '#f1f5f9',
-                          padding: '0.75rem',
-                          borderRadius: '6px',
-                          border: '1px solid #cbd5e1',
-                          textAlign: 'center',
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: '0.75rem',
-                            color: '#64748b',
-                            textTransform: 'uppercase',
-                            fontWeight: 600,
-                          }}
-                        >
-                          Reliability Rating
-                        </div>
-                        <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#059669' }}>
-                          {reliability}%
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* Specifications Table */}
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <h4
-                    style={{
-                      margin: '0 0 0.5rem',
-                      color: '#0f172a',
-                      borderBottom: '1px solid #e2e8f0',
-                      paddingBottom: '0.3rem',
-                      fontSize: '1rem',
-                    }}
-                  >
-                    Firearm Specifications
-                  </h4>
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(3, 1fr)',
-                      gap: '0.5rem',
-                      fontSize: '0.85rem',
-                    }}
-                  >
-                    <div>
-                      <strong>Barrel Length:</strong> {firearm.barrel_length || 'N/A'}
-                    </div>
-                    <div>
-                      <strong>Finish:</strong> {firearm.finish || 'N/A'}
-                    </div>
-                    <div>
-                      <strong>Condition:</strong> {firearm.condition || 'N/A'}
-                    </div>
-                    <div>
-                      <strong>Acquired:</strong> {firearm.purchase_date || 'N/A'}
-                    </div>
-                    <div>
-                      <strong>Purchase Price:</strong>{' '}
-                      {firearm.purchase_price
-                        ? `$${firearm.purchase_price.toLocaleString()}`
-                        : 'N/A'}
-                    </div>
-                    {firearm.is_nfa && (
-                      <div>
-                        <strong>NFA Type:</strong> {firearm.nfa_type || 'Yes'} (Stamp:{' '}
-                        {firearm.stamp_status || 'Approved'})
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Active Maintenance Schedules */}
-                {firearm.maintenance_schedules && firearm.maintenance_schedules.length > 0 && (
-                  <div style={{ marginBottom: '1.5rem' }}>
-                    <h4
-                      style={{
-                        margin: '0 0 0.5rem',
-                        color: '#0f172a',
-                        borderBottom: '1px solid #e2e8f0',
-                        paddingBottom: '0.3rem',
-                        fontSize: '1rem',
-                      }}
-                    >
-                      Active Service & Wear Schedules
-                    </h4>
-                    <table
-                      style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}
-                    >
-                      <thead>
-                        <tr
-                          style={{
-                            background: '#f1f5f9',
-                            borderBottom: '1px solid #cbd5e1',
-                            textAlign: 'left',
-                          }}
-                        >
-                          <th style={{ padding: '0.4rem' }}>Task</th>
-                          <th style={{ padding: '0.4rem' }}>Interval (Rds / Days)</th>
-                          <th style={{ padding: '0.4rem' }}>Last Performed</th>
-                          <th style={{ padding: '0.4rem' }}>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {firearm.maintenance_schedules.map((s, idx) => {
-                          const totalRounds =
-                            firearm.logs
-                              ?.filter((l) => l.type === 'Range')
-                              .reduce((sum, l) => sum + (Number(l.rounds_fired) || 0), 0) || 0;
-                          const roundsSinceLast = Math.max(
-                            0,
-                            totalRounds - (s.last_performed_rounds || 0)
-                          );
-                          const isDue = roundsSinceLast >= s.interval_rounds;
-                          return (
-                            <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                              <td style={{ padding: '0.4rem' }}>
-                                <strong>{s.task_name}</strong>
-                              </td>
-                              <td style={{ padding: '0.4rem' }}>
-                                {s.interval_rounds.toLocaleString()} rds
-                                {s.interval_days ? ` / ${s.interval_days}d` : ''}
-                              </td>
-                              <td style={{ padding: '0.4rem' }}>
-                                {s.last_performed_rounds.toLocaleString()} rds (
-                                {s.last_performed_date || 'N/A'})
-                              </td>
-                              <td
-                                style={{
-                                  padding: '0.4rem',
-                                  color: isDue ? '#dc2626' : '#059669',
-                                  fontWeight: 600,
-                                }}
-                              >
-                                {isDue ? 'SERVICE DUE' : 'GOOD'}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {/* Complete Service & Range Ledger */}
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <h4
-                    style={{
-                      margin: '0 0 0.5rem',
-                      color: '#0f172a',
-                      borderBottom: '1px solid #e2e8f0',
-                      paddingBottom: '0.3rem',
-                      fontSize: '1rem',
-                    }}
-                  >
-                    Complete Service & Range Ledger
-                  </h4>
-                  {!firearm.logs || firearm.logs.length === 0 ? (
-                    <p style={{ fontSize: '0.85rem', color: '#64748b', fontStyle: 'italic' }}>
-                      No service or range events recorded yet.
-                    </p>
-                  ) : (
-                    <table
-                      style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}
-                    >
-                      <thead>
-                        <tr
-                          style={{
-                            background: '#f1f5f9',
-                            borderBottom: '1px solid #cbd5e1',
-                            textAlign: 'left',
-                          }}
-                        >
-                          <th style={{ padding: '0.4rem' }}>Date</th>
-                          <th style={{ padding: '0.4rem' }}>Event</th>
-                          <th style={{ padding: '0.4rem' }}>Rounds</th>
-                          <th style={{ padding: '0.4rem' }}>Part / Modification</th>
-                          <th style={{ padding: '0.4rem' }}>Cost</th>
-                          <th style={{ padding: '0.4rem' }}>Notes</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {firearm.logs.map((log, idx) => (
-                          <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                            <td style={{ padding: '0.4rem', whiteSpace: 'nowrap' }}>{log.date}</td>
-                            <td style={{ padding: '0.4rem' }}>
-                              <strong>{log.type}</strong>
-                            </td>
-                            <td style={{ padding: '0.4rem' }}>
-                              {log.rounds_fired ? `${log.rounds_fired} rds` : '—'}
-                            </td>
-                            <td style={{ padding: '0.4rem' }}>
-                              {log.installed_part_details || log.repaired_part || '—'}
-                            </td>
-                            <td style={{ padding: '0.4rem' }}>
-                              {log.cost ? `$${Number(log.cost).toFixed(2)}` : '—'}
-                            </td>
-                            <td style={{ padding: '0.4rem', color: '#475569' }}>
-                              {log.notes || '—'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-
-                {/* Mounted Accessories & Optics */}
-                {attachedAccessories.length > 0 && (
-                  <div>
-                    <h4
-                      style={{
-                        margin: '0 0 0.5rem',
-                        color: '#0f172a',
-                        borderBottom: '1px solid #e2e8f0',
-                        paddingBottom: '0.3rem',
-                        fontSize: '1rem',
-                      }}
-                    >
-                      Mounted Accessories, Optics & Suppressors
-                    </h4>
-                    <table
-                      style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}
-                    >
-                      <thead>
-                        <tr
-                          style={{
-                            background: '#f1f5f9',
-                            borderBottom: '1px solid #cbd5e1',
-                            textAlign: 'left',
-                          }}
-                        >
-                          <th style={{ padding: '0.4rem' }}>Type</th>
-                          <th style={{ padding: '0.4rem' }}>Manufacturer / Model</th>
-                          <th style={{ padding: '0.4rem' }}>Serial #</th>
-                          <th style={{ padding: '0.4rem' }}>Rounds on Gear</th>
-                          <th style={{ padding: '0.4rem' }}>Value</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {attachedAccessories.map((acc, idx) => (
-                          <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                            <td style={{ padding: '0.4rem' }}>{acc.type}</td>
-                            <td style={{ padding: '0.4rem' }}>
-                              <strong>
-                                {acc.manufacturer} {acc.model}
-                              </strong>
-                            </td>
-                            <td style={{ padding: '0.4rem' }}>{acc.serialNumber || 'N/A'}</td>
-                            <td style={{ padding: '0.4rem' }}>
-                              {acc.round_count
-                                ? `${acc.round_count.toLocaleString()} rds`
-                                : '0 rds'}
-                            </td>
-                            <td style={{ padding: '0.4rem' }}>
-                              {acc.value ? `$${acc.value.toLocaleString()}` : '—'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
+      {firearm && (
+        <FirearmLogModal
+          isOpen={isLogging}
+          onClose={() => {
+            setIsLogging(false);
+            setEditingLogId(null);
+          }}
+          firearm={firearm}
+          inventoryAmmo={inventoryAmmo}
+          editingLogId={editingLogId}
+          initialLogForm={logForm}
+          onLogSaved={(updated) => {
+            setFirearm(updated);
+            setIsLogging(false);
+            setEditingLogId(null);
+          }}
+        />
+      )}
+      {firearm && (
+        <MaintenanceScheduleModal
+          isOpen={isScheduleModalOpen}
+          onClose={() => {
+            setIsScheduleModalOpen(false);
+            setEditingScheduleId(null);
+          }}
+          firearm={firearm}
+          editingScheduleId={editingScheduleId}
+          initialForm={scheduleForm}
+          onScheduleSaved={(updated) => {
+            setFirearm(updated);
+            setIsScheduleModalOpen(false);
+            setEditingScheduleId(null);
+          }}
+        />
+      )}
+      {firearm && (
+        <TaskCompletionModal
+          isOpen={isTaskCompletionModalOpen}
+          onClose={() => {
+            setIsTaskCompletionModalOpen(false);
+            setCompletingTask(null);
+          }}
+          firearm={firearm}
+          task={completingTask}
+          onCompleted={async () => {
+            await loadFirearm();
+            setIsTaskCompletionModalOpen(false);
+            setCompletingTask(null);
+          }}
+        />
+      )}
+      {firearm && (
+        <MaintenancePresetPickerModal
+          isOpen={isPresetModalOpen}
+          onClose={() => setIsPresetModalOpen(false)}
+          firearm={firearm}
+          customPresets={customPresets}
+          onLoadPreset={handleLoadPreset}
+          onDeleteCustomPreset={handleDeleteCustomPreset}
+        />
+      )}
+      {firearm && (
+        <SaveScheduleTemplateModal
+          isOpen={isSavePresetModalOpen}
+          onClose={() => setIsSavePresetModalOpen(false)}
+          firearm={firearm}
+          onSave={handleSaveAsTemplate}
+        />
+      )}
+      {firearm && (
+        <GunsmithDossierModal
+          isOpen={isDossierOpen}
+          onClose={() => setIsDossierOpen(false)}
+          firearm={firearm}
+          attachedAccessories={attachedAccessories}
+        />
+      )}
       {firearm && (
         <AccessoryModal
           isOpen={isAccessoryModalOpen}

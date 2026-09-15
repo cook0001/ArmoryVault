@@ -41,3 +41,8 @@ vite.config.js.map
 *.enc
 *.bak
 dist-modules
+
+# AI Agent rules & configurations
+agents.md
+AGENTS.md
+.agents/

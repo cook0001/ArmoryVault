@@ -150,7 +150,7 @@ INSTRUCTIONS:
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 100100,
+        zIndex: 100500,
         padding: '1rem',
       }}
     >
