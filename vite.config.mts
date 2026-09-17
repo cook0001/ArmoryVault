@@ -25,7 +25,7 @@ export default defineConfig({
             if (id.includes('lucide-react')) {
               return 'vendor-icons';
             }
-            if (id.includes('qrcode') || id.includes('react-qr-code') || id.includes('html5-qrcode')) {
+            if (id.includes('qrcode') || id.includes('react-qr-code')) {
               return 'vendor-qr';
             }
             return 'vendor-misc';

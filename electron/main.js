@@ -90,8 +90,8 @@ app.whenReady().then(() => {
     const isThumb = url.includes('thumb=1');
     url = url.split('?')[0];
 
-    // Strip local-file:// or local-file:///
-    url = url.replace(/^local-file:\/+/, '');
+    // Strip local-file:// or local-file:/// or local-file://localhost/
+    url = url.replace(/^local-file:\/+(localhost\/)?/, '');
     // Strip file:// or file:/// or file/// (browser sometimes strips the colon)
     url = url.replace(/^(file:\/+)|(file\/+)/, '');
 
