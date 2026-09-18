@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+- **Hosting & Catalog Integration**:
+  - Updated modular extension catalog endpoints in `ModuleManager.js` to point to `https://armstrader.store/armoryvault/modules/modules-index.json`.
+  - Migrated web portal documentation and links in `README.md` and `website/` to `https://armstrader.store/armoryvault`.
+  - Deprecated GitHub Pages deployment workflow in `.github/workflows/website.yml`.
+
+---
+
 ## [2.11.0] - 2026-09-14
 
 ### Performance & Client Architecture

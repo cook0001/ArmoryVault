@@ -15,10 +15,9 @@ class ModuleManager {
     this.tempDir = path.join(app.getPath('userData'), 'temp_downloads');
     this.cacheFile = path.join(app.getPath('userData'), 'remote_modules_cache.json');
     this.devModulesDir = path.join(__dirname, '..', 'src', 'modules');
-    this.catalogUrl =
-      'https://raw.githubusercontent.com/cook0001/ArmoryVault-Modules/main/modules-index.json';
+    this.catalogUrl = 'https://armstrader.store/armoryvault/modules/modules-index.json';
     this.catalogFallbackUrl =
-      'https://github.com/cook0001/ArmoryVault-Modules/releases/latest/download/modules-index.json';
+      'https://raw.githubusercontent.com/cook0001/ArmoryVault-Modules/main/modules-index.json';
 
     if (!fs.existsSync(this.installedDir)) {
       fs.mkdirSync(this.installedDir, { recursive: true });

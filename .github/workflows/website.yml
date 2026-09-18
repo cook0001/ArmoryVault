@@ -1,12 +1,8 @@
-name: Deploy Website to GitHub Pages
+name: Deploy Website to GitHub Pages (Deprecated - Migrated to armstrader.store)
 
+# Deprecated: Website is now hosted directly at https://armstrader.store/armoryvault
+# Workflow disabled to prevent overriding armstrader.store domain hosting.
 on:
-  push:
-    branches: ["main"]
-    paths:
-      - "website/**"
-      - "package.json"
-      - ".github/workflows/website.yml"
   workflow_dispatch:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
