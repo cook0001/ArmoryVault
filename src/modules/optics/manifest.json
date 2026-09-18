@@ -1,0 +1,14 @@
+{
+  "id": "optics",
+  "name": "Optics & Zero Vault",
+  "version": "1.0.0",
+  "minAppVersion": "2.9.0",
+  "author": "ArmoryVault",
+  "category": "bench",
+  "description": "Log optic reticles, focal planes, zero distances, turret click values, torque specs, and battery health.",
+  "dataKeys": [
+    "optics_vault_inventory"
+  ],
+  "entry": "module.bundle.js",
+  "icon": "Scope"
+}

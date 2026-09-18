@@ -145,9 +145,79 @@ export function setupMockBackend() {
         return id;
       },
       logRangeSession: async (data: any) => {
-        return { success: true, firearm_rounds: data.rounds_fired, ammo_remaining: 100 };
+        const firearms = getStoredFirearms();
+        const fIndex = firearms.findIndex((f) => f.id === Number(data.firearm_id));
+        let firearmRounds = 0;
+        if (fIndex !== -1) {
+          const f = firearms[fIndex];
+          const logs = f.logs || [];
+          const nextId = logs.length > 0 ? Math.max(...logs.map((l) => l.id || 0)) + 1 : 1;
+          const newLog = {
+            id: nextId,
+            date: data.date || new Date().toISOString().split('T')[0],
+            type: 'Range' as const,
+            rounds_fired: Number(data.rounds_fired) || 0,
+            ammo_used: data.ammo_name || '',
+            cost: Number(data.cost) || 0,
+            notes: data.notes || '',
+          };
+          logs.push(newLog);
+          f.logs = logs;
+          firearmRounds = logs
+            .filter((l) => l.type === 'Range')
+            .reduce((sum, l) => sum + (l.rounds_fired || 0), 0);
+          saveFirearms(firearms);
+        }
+
+        // Deduct ammo
+        let ammoRemaining: number | undefined;
+        if (data.ammo_id) {
+          const ammoList = getStoredAmmo();
+          const aIndex = ammoList.findIndex((a) => a.id === Number(data.ammo_id));
+          if (aIndex !== -1) {
+            ammoList[aIndex].count = Math.max(
+              0,
+              (ammoList[aIndex].count || 0) - (Number(data.rounds_fired) || 0)
+            );
+            ammoRemaining = ammoList[aIndex].count;
+            saveAmmo(ammoList);
+          }
+        }
+        return { success: true, firearm_rounds: firearmRounds, ammo_remaining: ammoRemaining };
       },
-      completeMaintenanceTask: async () => true,
+      completeMaintenanceTask: async (firearmId: number, taskId: string, logData: any) => {
+        const firearms = getStoredFirearms();
+        const fIndex = firearms.findIndex((f) => f.id === Number(firearmId));
+        if (fIndex === -1) return false;
+        const f = firearms[fIndex];
+        const logs = f.logs || [];
+        const nextId = logs.length > 0 ? Math.max(...logs.map((l) => l.id || 0)) + 1 : 1;
+        const currentRounds = logs
+          .filter((l) => l.type === 'Range')
+          .reduce((sum, l) => sum + (l.rounds_fired || 0), 0);
+        const newLog = {
+          id: nextId,
+          date: logData.date || new Date().toISOString().split('T')[0],
+          type: logData.type || logData.service_type || 'Repair',
+          installed_part_details: logData.part_details || logData.action_performed || '',
+          repaired_part: logData.action_performed || '',
+          cost: Number(logData.cost) || 0,
+          notes: logData.notes || '',
+        };
+        logs.push(newLog);
+        f.logs = logs;
+
+        if (f.maintenance_schedules && taskId) {
+          const tIdx = f.maintenance_schedules.findIndex((t) => t.id === taskId);
+          if (tIdx !== -1) {
+            f.maintenance_schedules[tIdx].last_performed_rounds = currentRounds;
+            f.maintenance_schedules[tIdx].last_performed_date =
+              logData.date || new Date().toISOString().split('T')[0];
+          }
+        }
+        saveFirearms(firearms);
+        return true;
+      },
       getAmmo: async () => {
         if (mockLocked) return [];
         return getStoredAmmo();
@@ -402,11 +472,11 @@ export function setupMockBackend() {
       },
       generateArmoryBinder: async (data: any) => {
         console.log('Mock generate Armory Binder', data);
-        return 'file:///mock/path/Armory_Insurance_Appraisal.pdf';
+        return null;
       },
       generateWorkOrder: async (data: any) => {
         console.log('Mock generate Work Order', data);
-        return 'file:///mock/path/Armorer_Work_Order.pdf';
+        return null;
       },
       lookupFFL: async (params: any) => {
         const mockFFLs = [

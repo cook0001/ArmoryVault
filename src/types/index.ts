@@ -418,6 +418,7 @@ declare global {
       selectBackupFolder: () => Promise<string | null>;
       getConfig: (key: string) => Promise<any>;
       setConfig: (key: string, value: any) => Promise<void>;
+      saveConfig?: (key: string, value: any) => Promise<void>;
       archiveModuleData?: (
         moduleId: string,
         dataKeys: string[]

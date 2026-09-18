@@ -4,6 +4,29 @@ All notable changes to the ArmoryVault native application are documented in this
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- **Independent Per-Module SQLite Databases**: Decoupled the database layer so `armoryvault.sqlite` is strictly the Core database, and each module (`reloading`, `ballistics`, `maintenance`, `optics`, `boundbook`, `nfa`, `labels`, `ranges`) automatically saves to its own dedicated SQLite database file under `module_data/<module_id>.sqlite` with WAL mode and foreign reference cascade cleanup.
+- **Storage Spaces Auto-Migration & Catch-Up**: Fixed legacy storage space ID parser in `db.rs` supporting both numeric integer IDs (`1, 2, 3`) and string UUIDs. Added `catch_up_missing_collections` so empty tables (like storage locations) are automatically repopulated from the decrypted vault on login.
+- **3-Tier Resilient Report & Work Order Engine**: Implemented native `generate_work_order`, `generate_armory_binder`, `generate_bill_of_sale`, and `generate_insurance_report` commands with native macOS Save As dialog (`rfd::FileDialog`). Features 3-tier fallback architecture: Tier 1 (local Typst binary), Tier 2 (ArmsTrader ephemeral cloud bridge), Tier 3 (standalone offline printable HTML certificate).
+- **Full ZIP Backup & Restore**: Implemented native `create_zip_backup` and `restore_backup` archiving `armoryvault.sqlite`, `module_data/*.sqlite`, `firearms_inventory.enc`, `config.json`, `photos/`, and `documents/`.
+- **Full 8-Module Native Tauri Suite**: Fully integrated and verified all 8 official ArmoryVault modules (`reloading`, `maintenance`, `ballistics`, `nfa`, `boundbook`, `optics`, `ranges`, and `labels`) within the native Tauri build, registering their manifests, custom vector icons, and route hosts.
+- **Native Rust SQLite KV Storage for Modules**: Added `get_config` and `set_config` native Rust commands backed by the SQLite `kv_meta` table, providing persistent and encrypted storage for module inventories (`optics_vault_inventory`), bookmarked ranges (`saved_ranges`), custom print templates (`saved_label_templates`), and user schedules.
+- **Native Ballistics & Load Ladder CRUD**: Added native Rust persistence commands (`get_ballistic_profiles`, `save_ballistic_profile`, `delete_ballistic_profile`, `get_load_ladder_tests`, `save_load_ladder_test`, `delete_load_ladder_test`) with complete unit test coverage.
+- **Transactional Handload Batch Manufacturing**: Implemented native Rust `manufacture_handload_batch` command that transactionally increments loaded ammunition stock, decrements powder/primers/brass/bullets, and logs an audit trail event in SQLite.
+- **Hybrid Cloud & Fallback Directory Lookups**: Integrated `lookupRanges` and `lookupFFL` in `tauriBridge.ts` with direct ArmsTrader API querying and graceful offline fallback.
+- **Native Rust SQLite Maintenance & Range Engine**: Implemented `complete_maintenance_task` (calculating cumulative rounds, updating scheduled task counters, and recording audit activity) and `log_range_session` (appending range logs, deducting ammo stock, updating accessory counters) directly in native Rust (`rusqlite`).
+- **Batch Inventory Imports**: Added native transactional batch import commands (`import_firearms_batch`, `import_ammo_batch`, `import_accessories_batch`, `import_components_batch`) with conflict resolution.
+- **Platform-Adaptive Technical Inspections**: Enhanced armorer inspection certificate generator with specialized military and civilian checks dynamically branching for Revolvers, Bolt Action Rifles, Lever Action Rifles, Shotguns, Modern Sporting Rifles, and Semi-Automatic Handguns.
+- **Armorer Work Order & Inspection Certificate Export**: Built native HTML certificate generator (`workOrderExporter.ts`) connected to Tauri file dialogs and filesystem writers.
+- **Master Armory Schedule Controls**: Added inline task creation form, task deletion with confirmation, and preset reset capabilities to `MasterScheduleTab`.
+- **ThresholdSettingsModal**: Extracted modal component to `modals/ThresholdSettingsModal.tsx` following anti-monolith architectural standards.
+
+### Changed
+- **Sidebar Navigation Restructuring**: Renamed "Tools" to "Modules". Moved "Storage" to core "Vault" group alongside Dashboard, Ammunition, and Accessories. Installed modules (Maintenance, Bound Book, Ballistics, etc.) are neatly housed under "Modules" with a quick-add header button and empty-state discovery button.
+- **Core Program Isolation**: Default installed modules set to empty array (`DEFAULT_INSTALLED_MODULES = []`) so optional modules are installed only on-demand by the end user via the Module Center.
+- **Icon & UI Consistency**: Replaced raw `×` characters with vector `<X size={18} />` components across firearm details maintenance modals.
+
 ## [2.11.0-beta.1] - 2026-09-15
 
 ### Added

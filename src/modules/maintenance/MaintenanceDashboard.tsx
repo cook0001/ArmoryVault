@@ -16,7 +16,6 @@ import {
   X,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { OpticZeroModal } from '@/components/modals/OpticZeroModal';
 import { QuickServiceModal } from '@/components/modals/QuickServiceModal';
@@ -26,6 +25,8 @@ import {
   createScheduleItemsFromProfile,
   detectMaintenanceProfile,
 } from '@/utils/maintenancePresets';
+import { getPlatformInspectionChecks } from '@/utils/workOrderExporter';
+import { ThresholdSettingsModal } from './modals/ThresholdSettingsModal';
 import { MasterScheduleTab } from './subtabs/MasterScheduleTab';
 import { OpticRegistryTab } from './subtabs/OpticRegistryTab';
 import { PartsLedgerTab } from './subtabs/PartsLedgerTab';
@@ -391,6 +392,17 @@ export const MaintenanceDashboard: React.FC = () => {
     setIsGeneratingWorkOrder(true);
     try {
       const today = new Date().toISOString().split('T')[0];
+      const detectedProfile = detectMaintenanceProfile(firearm);
+      const inspectionChecks = getPlatformInspectionChecks(firearm, detectedProfile?.id);
+      const torqueSpecs = ((firearm as any).optic_zeros || firearm.optic_zero_records || []).map(
+        (oz: any) => ({
+          component: `${oz.opticName || oz.optic_name || 'Optic'} Mount`,
+          torque_in_lb: oz.baseTorqueInLbs || oz.base_torque_in_lb || 15,
+          threadlocker: oz.threadlocker || 'Loctite 242 (Blue)',
+          status: 'VERIFIED',
+        })
+      );
+
       const woData = {
         date: log?.date || today,
         work_order_number: `WO-${(log?.date || today).replace(/-/g, '')}-${firearm.id || 101}`,
@@ -427,25 +439,12 @@ export const MaintenanceDashboard: React.FC = () => {
               },
             ]
           : [],
-        torque_specs: ((firearm as any).optic_zeros || firearm.optic_zero_records || []).map(
-          (oz: any) => ({
-            component: `${oz.optic_name || 'Optic'} Mount`,
-            torque_in_lb: oz.base_torque_in_lb || 15,
-            threadlocker: oz.threadlocker || 'Loctite 242 (Blue)',
-            status: 'VERIFIED',
-          })
-        ),
+        torque_specs: torqueSpecs,
         test_fire: {
           performed: false,
           rounds_fired: 0,
         },
-        inspection_checks: [
-          { check: 'Headspace Verification', result: 'PASSED (Within Gauge Limits)' },
-          { check: 'Bore & Chamber Condition', result: 'PASSED (Clean, sharp rifling)' },
-          { check: 'Extractor Tension & Claw', result: 'PASSED (Positive casing grasp)' },
-          { check: 'Firing Pin Integrity', result: 'PASSED (Normal protrusion)' },
-          { check: 'Drop Safety & Disconnector', result: 'PASSED (Operational)' },
-        ],
+        inspection_checks: inspectionChecks,
       };
 
       const result = await window.api.generateWorkOrder(woData);
@@ -498,6 +497,52 @@ export const MaintenanceDashboard: React.FC = () => {
       }
       return s;
     });
+
+    const updatedFirearm: Firearm = {
+      ...firearm,
+      maintenance_schedules: updatedSchedules,
+    };
+
+    if (window.api) {
+      await window.api.updateFirearm(firearm.id!, updatedFirearm);
+      window.dispatchEvent(new CustomEvent('armoryvault-reload'));
+      loadFirearms();
+    }
+  };
+
+  // Add new task to firearm schedule
+  const handleAddTask = async (
+    firearm: Firearm,
+    task: { task_name: string; interval_rounds: number; interval_days?: number; notes?: string }
+  ) => {
+    const currentSchedules = firearm.maintenance_schedules || [];
+    const baselineRounds = getTotalRounds(firearm);
+    const newTask: MaintenanceScheduleItem = {
+      id: `task-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      task_name: task.task_name,
+      interval_rounds: task.interval_rounds,
+      interval_days: task.interval_days,
+      last_performed_rounds: baselineRounds,
+      last_performed_date: new Date().toISOString().split('T')[0],
+      notes: task.notes,
+    };
+
+    const updatedFirearm: Firearm = {
+      ...firearm,
+      maintenance_schedules: [...currentSchedules, newTask],
+    };
+
+    if (window.api) {
+      await window.api.updateFirearm(firearm.id!, updatedFirearm);
+      window.dispatchEvent(new CustomEvent('armoryvault-reload'));
+      loadFirearms();
+    }
+  };
+
+  // Delete task from firearm schedule
+  const handleDeleteTask = async (firearm: Firearm, taskId: string) => {
+    const currentSchedules = firearm.maintenance_schedules || [];
+    const updatedSchedules = currentSchedules.filter((s) => s.id !== taskId);
 
     const updatedFirearm: Firearm = {
       ...firearm,
@@ -1064,6 +1109,8 @@ export const MaintenanceDashboard: React.FC = () => {
           onOpenQuickService={handleOpenQuickService}
           onApplyPreset={handleApplyPreset}
           onSaveScheduleItem={handleSaveScheduleItem}
+          onAddTask={handleAddTask}
+          onDeleteTask={handleDeleteTask}
           onNavigateDetails={(id) => navigate(`/details/${id}`)}
         />
       )}
@@ -1125,137 +1172,13 @@ export const MaintenanceDashboard: React.FC = () => {
       )}
 
       {/* ─── THRESHOLD SETTINGS MODAL ─── */}
-      {isSettingsOpen &&
-        createPortal(
-          <div className="modal-overlay" onClick={() => setIsSettingsOpen(false)}>
-            <div
-              className="modal"
-              style={{ maxWidth: '460px', width: '100%' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div
-                className="modal-header"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  borderBottom: '1px solid var(--border-light)',
-                  paddingBottom: '0.75rem',
-                  marginBottom: '1rem',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <SlidersHorizontal size={20} color="#3b82f6" />
-                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>
-                    Maintenance Alert Preferences
-                  </h3>
-                </div>
-                <button
-                  type="button"
-                  className="icon-button"
-                  onClick={() => setIsSettingsOpen(false)}
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const formData = new FormData(e.currentTarget);
-                  const rounds = Number.parseInt(formData.get('due_rounds') as string, 10) || 200;
-                  const days = Number.parseInt(formData.get('due_days') as string, 10) || 14;
-                  handleSaveThresholds(rounds, days);
-                }}
-                style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
-              >
-                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  Configure when scheduled tasks are flagged with the amber "Due Soon" status prior
-                  to reaching their mandatory service interval.
-                </p>
-
-                <div>
-                  <label
-                    htmlFor="due_rounds"
-                    style={{
-                      display: 'block',
-                      marginBottom: '0.4rem',
-                      fontSize: '0.85rem',
-                      fontWeight: 500,
-                    }}
-                  >
-                    Round Count Warning Window
-                  </label>
-                  <input
-                    id="due_rounds"
-                    name="due_rounds"
-                    type="number"
-                    min="25"
-                    step="25"
-                    className="form-input"
-                    defaultValue={dueSoonRounds}
-                    required
-                  />
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                    Flag as Due Soon when within this many rounds of target interval (default: 200
-                    rds)
-                  </span>
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="due_days"
-                    style={{
-                      display: 'block',
-                      marginBottom: '0.4rem',
-                      fontSize: '0.85rem',
-                      fontWeight: 500,
-                    }}
-                  >
-                    Days Warning Window
-                  </label>
-                  <input
-                    id="due_days"
-                    name="due_days"
-                    type="number"
-                    min="1"
-                    max="180"
-                    className="form-input"
-                    defaultValue={dueSoonDays}
-                    required
-                  />
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                    Flag as Due Soon when within this many days of calendar interval (default: 14
-                    days)
-                  </span>
-                </div>
-
-                <div
-                  className="modal-actions"
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'flex-end',
-                    gap: '0.75rem',
-                    paddingTop: '0.75rem',
-                    borderTop: '1px solid var(--border-light)',
-                  }}
-                >
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => setIsSettingsOpen(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn-primary">
-                    Save Preferences
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>,
-          document.body
-        )}
+      <ThresholdSettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        dueSoonRounds={dueSoonRounds}
+        dueSoonDays={dueSoonDays}
+        onSave={handleSaveThresholds}
+      />
     </div>
   );
 };

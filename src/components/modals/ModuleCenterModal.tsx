@@ -11,16 +11,19 @@ import {
   Info,
   Layers,
   Loader2,
+  Printer,
   RefreshCw,
   RotateCcw,
   Search,
   ShieldCheck,
   Sparkles,
+  Target,
   Trash2,
   Wrench,
   X,
 } from 'lucide-react';
 import React, { useState } from 'react';
+import { ScopeIcon } from '@/components/CustomIcons';
 import { useModules } from '../../modules/registry/ModuleContext';
 import { ArmoryModule } from '../../modules/registry/types';
 
@@ -36,6 +39,9 @@ const MODULE_ESTIMATED_SIZES: Record<string, string> = {
   ballistics: '11 KB',
   boundbook: '7 KB',
   nfa: '6 KB',
+  optics: '12 KB',
+  ranges: '10 KB',
+  labels: '13 KB',
 };
 
 export const ModuleCenterModal: React.FC<ModuleCenterModalProps> = ({
@@ -86,6 +92,12 @@ export const ModuleCenterModal: React.FC<ModuleCenterModalProps> = ({
         return <ShieldCheck size={24} className="text-blue-400" />;
       case 'boundbook':
         return <BookOpen size={24} className="text-indigo-400" />;
+      case 'optics':
+        return <ScopeIcon size={24} className="text-rose-400" />;
+      case 'ranges':
+        return <Target size={24} className="text-teal-400" />;
+      case 'labels':
+        return <Printer size={24} className="text-cyan-400" />;
       default:
         return <Blocks size={24} className="text-cyan-400" />;
     }

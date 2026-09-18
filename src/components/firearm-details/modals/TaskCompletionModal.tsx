@@ -1,4 +1,4 @@
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Firearm, MaintenanceScheduleItem } from '../../../types';
@@ -93,8 +93,8 @@ export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
               </div>
             </div>
           </div>
-          <button className="btn-icon" onClick={onClose}>
-            ×
+          <button className="btn-icon" onClick={onClose} title="Close">
+            <X size={18} />
           </button>
         </div>
         <form

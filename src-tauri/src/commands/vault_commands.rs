@@ -45,11 +45,13 @@ pub fn unlock_vault(password: String, state: State<AppState>) -> Result<bool, St
     if let Ok(mut conn) = Connection::open(&sqlite_path) {
         let _ = Database::init(&conn);
 
-        // Check if SQLite is empty and we have decrypted JSON to migrate
-        let count: i64 = conn.query_row("SELECT COUNT(*) FROM firearms", [], |r| r.get(0)).unwrap_or(0);
-        if count == 0 {
-            if let Ok(val) = serde_json::from_str::<serde_json::Value>(&decrypted_json) {
+        if let Ok(val) = serde_json::from_str::<serde_json::Value>(&decrypted_json) {
+            let count: i64 = conn.query_row("SELECT COUNT(*) FROM firearms", [], |r| r.get(0)).unwrap_or(0);
+            if count == 0 {
                 let _ = Database::import_legacy_json(&mut conn, &val);
+            } else {
+                // Catch-up check: populates storage spaces & module tables if missing!
+                let _ = Database::catch_up_missing_collections(&mut conn, &val);
             }
         }
     }
@@ -65,15 +67,35 @@ pub fn unlock_with_recovery_code(code: String, state: State<AppState>) -> Result
     let sqlite_path = AppPaths::get_sqlite_path();
     if let Ok(mut conn) = Connection::open(&sqlite_path) {
         let _ = Database::init(&conn);
-        let count: i64 = conn.query_row("SELECT COUNT(*) FROM firearms", [], |r| r.get(0)).unwrap_or(0);
-        if count == 0 {
-            if let Ok(val) = serde_json::from_str::<serde_json::Value>(&decrypted_json) {
+
+        if let Ok(val) = serde_json::from_str::<serde_json::Value>(&decrypted_json) {
+            let count: i64 = conn.query_row("SELECT COUNT(*) FROM firearms", [], |r| r.get(0)).unwrap_or(0);
+            if count == 0 {
                 let _ = Database::import_legacy_json(&mut conn, &val);
+            } else {
+                let _ = Database::catch_up_missing_collections(&mut conn, &val);
             }
         }
     }
 
     Ok(true)
+}
+
+#[tauri::command]
+pub fn change_password(
+    current_password: String,
+    new_password: String,
+    regenerate_recovery_key: Option<bool>,
+    state: State<AppState>,
+) -> Result<Option<String>, String> {
+    let mut vault = state.vault.lock().unwrap();
+    vault.change_password(&current_password, &new_password, regenerate_recovery_key.unwrap_or(false))
+}
+
+#[tauri::command]
+pub fn regenerate_recovery_key(current_password: String, state: State<AppState>) -> Result<String, String> {
+    let mut vault = state.vault.lock().unwrap();
+    vault.regenerate_recovery_key(&current_password)
 }
 
 #[tauri::command]

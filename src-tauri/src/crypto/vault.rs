@@ -226,4 +226,86 @@ impl VaultCrypto {
 
         String::from_utf8(decrypted).map_err(|e| format!("UTF-8 decode error: {}", e))
     }
+
+    /// Updates vault password and optionally rolls the 64-character recovery code
+    pub fn change_password(
+        &mut self,
+        current_password: &str,
+        new_password: &str,
+        regenerate_recovery_key: bool,
+    ) -> Result<Option<String>, String> {
+        let current_data = self.unlock_vault(current_password)?;
+
+        let mut rng = rand::thread_rng();
+        let master_key = if regenerate_recovery_key {
+            let mut mk = [0u8; 32];
+            rng.fill_bytes(&mut mk);
+            mk
+        } else {
+            self.master_key.ok_or_else(|| "Vault must be unlocked".to_string())?
+        };
+
+        let mut salt = [0u8; 16];
+        rng.fill_bytes(&mut salt);
+        let derived_key = Self::derive_key(new_password, &salt);
+
+        let mut iv = [0u8; 12];
+        rng.fill_bytes(&mut iv);
+
+        let cipher = Aes256Gcm::new_from_slice(&derived_key).map_err(|e| e.to_string())?;
+        let nonce = Nonce::from_slice(&iv);
+
+        let ciphertext_with_tag = cipher
+            .encrypt(nonce, master_key.as_ref())
+            .map_err(|e| e.to_string())?;
+
+        let (encrypted_master_key, auth_tag) =
+            ciphertext_with_tag.split_at(ciphertext_with_tag.len() - 16);
+
+        let meta = VaultMeta {
+            salt: hex::encode(salt),
+            iv: hex::encode(iv),
+            auth_tag: hex::encode(auth_tag),
+            encrypted_master_key: hex::encode(encrypted_master_key),
+        };
+
+        // Re-encrypt payload with master key
+        let mut data_iv = [0u8; 12];
+        rng.fill_bytes(&mut data_iv);
+
+        let data_cipher = Aes256Gcm::new_from_slice(&master_key).map_err(|e| e.to_string())?;
+        let data_nonce = Nonce::from_slice(&data_iv);
+
+        let enc_data_with_tag = data_cipher
+            .encrypt(data_nonce, current_data.as_bytes())
+            .map_err(|e| e.to_string())?;
+
+        let (encrypted_data, data_tag) = enc_data_with_tag.split_at(enc_data_with_tag.len() - 16);
+
+        let vault_file = EncryptedVaultFile {
+            vault: meta.clone(),
+            data_iv: hex::encode(data_iv),
+            data_auth_tag: hex::encode(data_tag),
+            encrypted_data: hex::encode(encrypted_data),
+        };
+
+        let json_str = serde_json::to_string_pretty(&vault_file).map_err(|e| e.to_string())?;
+        fs::write(&self.enc_path, json_str).map_err(|e| e.to_string())?;
+
+        self.master_key = Some(master_key);
+        self.vault_meta = Some(meta);
+
+        if regenerate_recovery_key {
+            Ok(Some(hex::encode(master_key)))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Regenerates recovery key using current password verification
+    pub fn regenerate_recovery_key(&mut self, current_password: &str) -> Result<String, String> {
+        self.change_password(current_password, current_password, true)?
+            .ok_or_else(|| "Failed to generate new recovery code".to_string())
+    }
 }
+

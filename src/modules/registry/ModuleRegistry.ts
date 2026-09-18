@@ -1,7 +1,10 @@
 import ballisticsModule from '../ballistics';
 import boundbookModule from '../boundbook';
+import labelsModule from '../labels';
 import maintenanceModule from '../maintenance';
 import nfaModule from '../nfa';
+import opticsModule from '../optics';
+import rangesModule from '../ranges';
 import reloadingModule from '../reloading';
 import { ArmoryModule, ModuleArchiveMetadata } from './types';
 
@@ -11,16 +14,13 @@ export const AVAILABLE_MODULES: ArmoryModule[] = [
   ballisticsModule,
   nfaModule,
   boundbookModule,
+  opticsModule,
+  rangesModule,
+  labelsModule,
 ];
 
 const CONFIG_KEY = 'installed_modules';
-export const DEFAULT_INSTALLED_MODULES = [
-  'reloading',
-  'maintenance',
-  'ballistics',
-  'nfa',
-  'boundbook',
-];
+export const DEFAULT_INSTALLED_MODULES: string[] = [];
 
 export async function getInstalledModuleIds(): Promise<string[]> {
   try {
@@ -29,7 +29,7 @@ export async function getInstalledModuleIds(): Promise<string[]> {
       if (Array.isArray(saved)) {
         return saved;
       }
-      // If never configured, save and return defaults
+      // If never configured, save and return defaults (empty)
       if (window.api.setConfig) {
         await window.api.setConfig(CONFIG_KEY, DEFAULT_INSTALLED_MODULES);
       }

@@ -68,4 +68,15 @@ impl AppPaths {
         let _ = fs::create_dir_all(&dir);
         dir
     }
+
+    pub fn get_module_data_dir() -> PathBuf {
+        let dir = Self::get_app_data_dir().join("module_data");
+        let _ = fs::create_dir_all(&dir);
+        dir
+    }
+
+    pub fn get_module_sqlite_path(module_id: &str) -> PathBuf {
+        Self::get_module_data_dir().join(format!("{}.sqlite", module_id))
+    }
 }
+

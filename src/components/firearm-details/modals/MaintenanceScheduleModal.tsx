@@ -1,4 +1,4 @@
-import { Wrench } from 'lucide-react';
+import { Wrench, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Firearm, MaintenanceScheduleItem } from '../../../types';
@@ -117,8 +117,8 @@ export const MaintenanceScheduleModal: React.FC<MaintenanceScheduleModalProps> =
               {editingScheduleId ? 'Edit Maintenance Schedule' : 'New Maintenance Schedule'}
             </h3>
           </div>
-          <button className="btn-icon" onClick={onClose}>
-            ×
+          <button className="btn-icon" onClick={onClose} title="Close">
+            <X size={18} />
           </button>
         </div>
         <form

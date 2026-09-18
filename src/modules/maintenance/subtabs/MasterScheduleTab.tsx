@@ -1,4 +1,14 @@
-import { Edit3, ExternalLink, Plus, Sparkles, Wrench } from 'lucide-react';
+import {
+  Check,
+  Edit3,
+  ExternalLink,
+  Plus,
+  RotateCcw,
+  Sparkles,
+  Trash2,
+  Wrench,
+  X,
+} from 'lucide-react';
 import React, { memo, useState } from 'react';
 import type { Firearm, MaintenanceScheduleItem } from '@/types';
 import { detectMaintenanceProfile } from '@/utils/maintenancePresets';
@@ -16,6 +26,11 @@ interface MasterScheduleTabProps {
     rounds: number,
     days?: number
   ) => Promise<void>;
+  onAddTask?: (
+    firearm: Firearm,
+    task: { task_name: string; interval_rounds: number; interval_days?: number; notes?: string }
+  ) => Promise<void>;
+  onDeleteTask?: (firearm: Firearm, taskId: string) => Promise<void>;
   onNavigateDetails: (id: number) => void;
 }
 
@@ -28,12 +43,22 @@ export const MasterScheduleTab: React.FC<MasterScheduleTabProps> = memo(
     onOpenQuickService,
     onApplyPreset,
     onSaveScheduleItem,
+    onAddTask,
+    onDeleteTask,
     onNavigateDetails,
   }) => {
     // Inline editing schedule interval state
     const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
     const [editIntervalRounds, setEditIntervalRounds] = useState<string>('');
     const [editIntervalDays, setEditIntervalDays] = useState<string>('');
+
+    // Add task form state
+    const [addingFirearmId, setAddingFirearmId] = useState<number | null>(null);
+    const [newTaskName, setNewTaskName] = useState('');
+    const [newTaskRounds, setNewTaskRounds] = useState('500');
+    const [newTaskDays, setNewTaskDays] = useState('');
+    const [newTaskNotes, setNewTaskNotes] = useState('');
+    const [isSubmittingTask, setIsSubmittingTask] = useState(false);
 
     const handleStartEditSchedule = (task: MaintenanceScheduleItem) => {
       setEditingScheduleId(task.id);
@@ -47,6 +72,37 @@ export const MasterScheduleTab: React.FC<MasterScheduleTabProps> = memo(
       if (Number.isNaN(rounds) || rounds <= 0) return;
       await onSaveScheduleItem(firearm, taskId, rounds, days);
       setEditingScheduleId(null);
+    };
+
+    const handleSaveNewTask = async (firearm: Firearm) => {
+      if (!newTaskName.trim() || !onAddTask) return;
+      const rounds = Number.parseInt(newTaskRounds, 10);
+      if (Number.isNaN(rounds) || rounds <= 0) return;
+      const days = newTaskDays.trim() ? Number.parseInt(newTaskDays, 10) : undefined;
+
+      setIsSubmittingTask(true);
+      try {
+        await onAddTask(firearm, {
+          task_name: newTaskName.trim(),
+          interval_rounds: rounds,
+          interval_days: days,
+          notes: newTaskNotes.trim() || undefined,
+        });
+        setAddingFirearmId(null);
+        setNewTaskName('');
+        setNewTaskRounds('500');
+        setNewTaskDays('');
+        setNewTaskNotes('');
+      } finally {
+        setIsSubmittingTask(false);
+      }
+    };
+
+    const handleDeleteTaskConfirm = async (firearm: Firearm, task: MaintenanceScheduleItem) => {
+      if (!onDeleteTask) return;
+      if (window.confirm(`Delete scheduled task "${task.task_name}" from ${firearm.make} ${firearm.model}?`)) {
+        await onDeleteTask(firearm, task.id);
+      }
     };
 
     if (firearms.length === 0) {
@@ -77,6 +133,7 @@ export const MasterScheduleTab: React.FC<MasterScheduleTabProps> = memo(
           const detectedProfile =
             firearmProfilesMap.get(firearm.id!) || detectMaintenanceProfile(firearm);
           const totalRounds = firearmRoundsMap.get(firearm.id!) ?? 0;
+          const isAddingTask = addingFirearmId === firearm.id;
 
           return (
             <div
@@ -116,11 +173,16 @@ export const MasterScheduleTab: React.FC<MasterScheduleTabProps> = memo(
                     <strong style={{ color: 'var(--text-primary)' }}>
                       {totalRounds.toLocaleString()}
                     </strong>
+                    {detectedProfile && (
+                      <span style={{ marginLeft: '0.6rem', color: 'var(--accent)', fontWeight: 500 }}>
+                        [{detectedProfile.name}]
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  {!hasSchedules && (
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {!hasSchedules ? (
                     <button
                       type="button"
                       className="btn-primary"
@@ -135,6 +197,47 @@ export const MasterScheduleTab: React.FC<MasterScheduleTabProps> = memo(
                       <Sparkles size={14} />
                       <span>Apply {detectedProfile.name} Preset</span>
                     </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              `Re-apply the recommended ${detectedProfile.name} preset? This will refresh default factory intervals.`
+                            )
+                          ) {
+                            onApplyPreset(firearm);
+                          }
+                        }}
+                        title={`Reset to standard ${detectedProfile.name} tasks`}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                          fontSize: '0.8rem',
+                        }}
+                      >
+                        <RotateCcw size={13} />
+                        <span>Reset Preset</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() => setAddingFirearmId(isAddingTask ? null : firearm.id!)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                          fontSize: '0.85rem',
+                        }}
+                      >
+                        <Plus size={14} />
+                        <span>Add Task</span>
+                      </button>
+                    </>
                   )}
 
                   <button
@@ -168,6 +271,131 @@ export const MasterScheduleTab: React.FC<MasterScheduleTabProps> = memo(
                   </button>
                 </div>
               </div>
+
+              {/* Inline Add Task Form */}
+              {isAddingTask && (
+                <div
+                  style={{
+                    backgroundColor: 'var(--bg-card-secondary, rgba(255, 255, 255, 0.03))',
+                    border: '1px solid var(--accent, #3b82f6)',
+                    borderRadius: '8px',
+                    padding: '1rem',
+                    marginBottom: '1rem',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '0.75rem',
+                    }}
+                  >
+                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                      Add New Maintenance Task for {firearm.make} {firearm.model}
+                    </div>
+                    <button
+                      type="button"
+                      className="icon-button"
+                      onClick={() => setAddingFirearmId(null)}
+                      title="Cancel"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '2fr 1fr 1fr',
+                      gap: '0.75rem',
+                      marginBottom: '0.75rem',
+                    }}
+                  >
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'var(--text-secondary)' }}>
+                        Task / Procedure Name *
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g., Clean Gas Block & Regulator"
+                        value={newTaskName}
+                        onChange={(e) => setNewTaskName(e.target.value)}
+                        className="form-input"
+                        style={{ width: '100%' }}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'var(--text-secondary)' }}>
+                        Round Interval *
+                      </label>
+                      <input
+                        type="number"
+                        min="25"
+                        step="25"
+                        placeholder="e.g., 500"
+                        value={newTaskRounds}
+                        onChange={(e) => setNewTaskRounds(e.target.value)}
+                        className="form-input"
+                        style={{ width: '100%' }}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'var(--text-secondary)' }}>
+                        Day Interval (Optional)
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="e.g., 90"
+                        value={newTaskDays}
+                        onChange={(e) => setNewTaskDays(e.target.value)}
+                        className="form-input"
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'var(--text-secondary)' }}>
+                      Armorer Notes / Instructions (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Inspect carbon build-up on exhaust vents; torque screws to 25 in-lbs."
+                      value={newTaskNotes}
+                      onChange={(e) => setNewTaskNotes(e.target.value)}
+                      className="form-input"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => setAddingFirearmId(null)}
+                      style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      onClick={() => handleSaveNewTask(firearm)}
+                      disabled={!newTaskName.trim() || isSubmittingTask}
+                      style={{ padding: '0.35rem 0.85rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+                    >
+                      <Check size={14} />
+                      <span>Save Task</span>
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Schedule Tasks Table / List */}
               {!hasSchedules ? (
@@ -329,6 +557,7 @@ export const MasterScheduleTab: React.FC<MasterScheduleTabProps> = memo(
                                     display: 'flex',
                                     gap: '0.4rem',
                                     justifyContent: 'flex-end',
+                                    alignItems: 'center',
                                   }}
                                 >
                                   <button
@@ -340,6 +569,19 @@ export const MasterScheduleTab: React.FC<MasterScheduleTabProps> = memo(
                                   >
                                     <Edit3 size={13} />
                                   </button>
+
+                                  {onDeleteTask && (
+                                    <button
+                                      type="button"
+                                      className="btn-secondary"
+                                      onClick={() => handleDeleteTaskConfirm(firearm, task)}
+                                      title="Delete Scheduled Task"
+                                      style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: 'var(--danger, #ef4444)' }}
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  )}
+
                                   <button
                                     type="button"
                                     className="btn-primary"

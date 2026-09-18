@@ -69,6 +69,7 @@ impl InventoryStore {
 
     pub fn delete_firearm(conn: &Connection, id: i64) -> Result<i64> {
         conn.execute("DELETE FROM firearms WHERE id = ?1", params![id])?;
+        super::module_db::ModuleDbManager::cleanup_firearm_references(id);
         Ok(id)
     }
 
@@ -318,9 +319,46 @@ impl InventoryStore {
         Ok(list)
     }
 
-    pub fn save_storage_location(conn: &Connection, loc: Value) -> Result<Value> {
-        let id = loc.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
-        let name = loc.get("name").and_then(|v| v.as_str());
+    pub fn save_storage_location(conn: &Connection, mut loc: Value) -> Result<Value> {
+        let next_id: i64 = conn.query_row(
+            "SELECT COALESCE(MAX(CAST(id AS INTEGER)), 0) + 1 FROM storage_locations",
+            [],
+            |r| r.get(0),
+        ).unwrap_or(1);
+
+        let id_num = if let Some(n) = loc.get("id").and_then(|v| v.as_i64()) {
+            n
+        } else if let Some(s) = loc.get("id").and_then(|v| v.as_str()) {
+            s.parse::<i64>().unwrap_or(next_id)
+        } else {
+            next_id
+        };
+
+        if let Some(obj) = loc.as_object_mut() {
+            obj.insert("id".to_string(), Value::Number(serde_json::Number::from(id_num)));
+        }
+
+        let id_str = id_num.to_string();
+        let name = loc.get("name").and_then(|v| v.as_str()).unwrap_or("Storage Space");
+        let data_str = serde_json::to_string(&loc).unwrap_or_default();
+
+        conn.execute(
+            "INSERT OR REPLACE INTO storage_locations (id, name, data) VALUES (?1, ?2, ?3)",
+            params![id_str, name, data_str],
+        )?;
+
+        Ok(loc)
+    }
+
+    pub fn update_storage_location(conn: &Connection, id: &str, mut loc: Value) -> Result<Value> {
+        if let Some(obj) = loc.as_object_mut() {
+            if let Ok(num) = id.parse::<i64>() {
+                obj.insert("id".to_string(), Value::Number(serde_json::Number::from(num)));
+            } else {
+                obj.insert("id".to_string(), Value::String(id.to_string()));
+            }
+        }
+        let name = loc.get("name").and_then(|v| v.as_str()).unwrap_or("Storage Space");
         let data_str = serde_json::to_string(&loc).unwrap_or_default();
 
         conn.execute(
@@ -367,4 +405,1035 @@ impl InventoryStore {
 
         Ok(conn.last_insert_rowid())
     }
+
+    // ─── Sync Queue (Mobile Companion App) ────────────────────────────────
+    pub fn get_sync_queue(conn: &Connection) -> Result<Vec<Value>> {
+        let mut stmt = conn.prepare("SELECT id, payload, created_at FROM sync_queue ORDER BY created_at DESC")?;
+        let rows = stmt.query_map([], |row| {
+            let id: String = row.get(0)?;
+            let payload_str: String = row.get(1)?;
+            let created_at: i64 = row.get(2)?;
+            let mut val = serde_json::from_str::<Value>(&payload_str).unwrap_or(Value::Null);
+            if let Some(obj) = val.as_object_mut() {
+                obj.insert("syncId".to_string(), Value::String(id.clone()));
+                obj.insert("id".to_string(), Value::String(id));
+                obj.insert("createdAt".to_string(), Value::Number(created_at.into()));
+            }
+            Ok(val)
+        })?;
+
+        let mut list = Vec::new();
+        for r in rows {
+            if let Ok(val) = r {
+                if !val.is_null() {
+                    list.push(val);
+                }
+            }
+        }
+        Ok(list)
+    }
+
+    pub fn remove_sync_item(conn: &Connection, id: &str) -> Result<String> {
+        conn.execute("DELETE FROM sync_queue WHERE id = ?1", params![id])?;
+        Ok(id.to_string())
+    }
+
+    pub fn clear_sync_queue(conn: &Connection) -> Result<()> {
+        conn.execute("DELETE FROM sync_queue", [])?;
+        Ok(())
+    }
+
+    // ─── Maintenance & Range Telemetry ────────────────────────────────────
+    pub fn complete_maintenance_task(
+        conn: &Connection,
+        firearm_id: i64,
+        task_id: &str,
+        log_data: Value,
+    ) -> Result<bool> {
+        let firearm_json_res: Result<String, _> = conn.query_row(
+            "SELECT data FROM firearms WHERE id = ?1",
+            params![firearm_id],
+            |r| r.get(0),
+        );
+
+        let firearm_json = match firearm_json_res {
+            Ok(json) => json,
+            Err(_) => return Ok(false),
+        };
+
+        let mut firearm: Value = serde_json::from_str(&firearm_json).unwrap_or(Value::Null);
+        let obj = match firearm.as_object_mut() {
+            Some(o) => o,
+            None => return Ok(false),
+        };
+
+        // 1. Calculate current total rounds from Range logs
+        let current_rounds = obj
+            .get("logs")
+            .and_then(|v| v.as_array())
+            .map(|logs| {
+                logs.iter()
+                    .filter(|l| l.get("type").and_then(|t| t.as_str()) == Some("Range"))
+                    .map(|l| l.get("rounds_fired").and_then(|r| r.as_i64()).unwrap_or(0))
+                    .sum::<i64>()
+            })
+            .unwrap_or(0);
+
+        // 2. Next log ID
+        let next_log_id = obj
+            .get("logs")
+            .and_then(|v| v.as_array())
+            .map(|logs| {
+                logs.iter()
+                    .filter_map(|l| l.get("id").and_then(|id| id.as_i64()))
+                    .max()
+                    .unwrap_or(0)
+                    + 1
+            })
+            .unwrap_or(1);
+
+        let date_str = log_data
+            .get("date")
+            .and_then(|d| d.as_str())
+            .filter(|s| !s.trim().is_empty())
+            .map(|s| s.to_string())
+            .unwrap_or_else(current_date_string);
+
+        let service_type = log_data
+            .get("type")
+            .or_else(|| log_data.get("service_type"))
+            .and_then(|t| t.as_str())
+            .unwrap_or("Repair");
+
+        let action = log_data
+            .get("action_performed")
+            .and_then(|s| s.as_str())
+            .unwrap_or("");
+
+        let part_details = log_data
+            .get("part_details")
+            .and_then(|s| s.as_str())
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or(action);
+
+        let cost = log_data
+            .get("cost")
+            .and_then(|c| c.as_f64())
+            .unwrap_or(0.0);
+
+        let notes = log_data
+            .get("notes")
+            .and_then(|n| n.as_str())
+            .unwrap_or("");
+
+        let new_log = serde_json::json!({
+            "id": next_log_id,
+            "date": date_str,
+            "type": service_type,
+            "installed_part_details": part_details,
+            "repaired_part": action,
+            "cost": cost,
+            "notes": notes,
+        });
+
+        // Append to logs
+        if let Some(logs) = obj.get_mut("logs").and_then(|l| l.as_array_mut()) {
+            logs.push(new_log);
+        } else {
+            obj.insert("logs".to_string(), Value::Array(vec![new_log]));
+        }
+
+        // 3. Update maintenance schedule item if task_id provided
+        if !task_id.trim().is_empty() {
+            if let Some(schedules) = obj.get_mut("maintenance_schedules").and_then(|s| s.as_array_mut()) {
+                for task in schedules.iter_mut() {
+                    if task.get("id").and_then(|id| id.as_str()) == Some(task_id) {
+                        if let Some(task_obj) = task.as_object_mut() {
+                            task_obj.insert("last_performed_rounds".to_string(), serde_json::json!(current_rounds));
+                            task_obj.insert("last_performed_date".to_string(), serde_json::json!(date_str));
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Save back
+        Self::update_firearm(conn, firearm_id, firearm)?;
+
+        // Audit log
+        let _ = Self::insert_activity_log(
+            conn,
+            serde_json::json!({
+                "timestamp": current_iso_timestamp(),
+                "action": "complete_maintenance_task",
+                "entityType": "firearm",
+                "entityId": firearm_id,
+                "detail": format!("Completed task: {}", if !action.is_empty() { action } else { task_id }),
+                "source": "desktop"
+            }),
+        );
+
+        Ok(true)
+    }
+
+    pub fn log_range_session(conn: &Connection, session_data: Value) -> Result<Value> {
+        let firearm_id = session_data.get("firearm_id").and_then(|v| v.as_i64()).unwrap_or(0);
+        let ammo_id = session_data.get("ammo_id").and_then(|v| v.as_i64());
+        let rounds = session_data.get("rounds_fired").and_then(|v| v.as_i64()).unwrap_or(0);
+
+        if rounds <= 0 {
+            return Ok(serde_json::json!({
+                "success": false,
+                "error": "Rounds fired must be greater than 0"
+            }));
+        }
+
+        let date_str = session_data
+            .get("date")
+            .and_then(|d| d.as_str())
+            .filter(|s| !s.trim().is_empty())
+            .map(|s| s.to_string())
+            .unwrap_or_else(current_date_string);
+
+        let notes = session_data.get("notes").and_then(|s| s.as_str()).unwrap_or("");
+        let location = session_data.get("location").and_then(|s| s.as_str()).unwrap_or("");
+        let cost = session_data.get("cost").and_then(|c| c.as_f64()).unwrap_or(0.0);
+
+        let mut firearm_rounds = 0;
+        let mut ammo_remaining = None;
+        let mut ammo_name = session_data.get("ammo_name").and_then(|s| s.as_str()).unwrap_or("").to_string();
+
+        // 1. Deduct ammo if ammo_id provided
+        if let Some(aid) = ammo_id {
+            if aid > 0 {
+                let ammo_json_res: Result<String, _> = conn.query_row(
+                    "SELECT data FROM ammo WHERE id = ?1",
+                    params![aid],
+                    |r| r.get(0),
+                );
+                if let Ok(ajson) = ammo_json_res {
+                    if let Ok(mut ammo_val) = serde_json::from_str::<Value>(&ajson) {
+                        if let Some(aobj) = ammo_val.as_object_mut() {
+                            if ammo_name.is_empty() {
+                                let mfg = aobj.get("manufacturer").and_then(|v| v.as_str()).unwrap_or("");
+                                let cal = aobj.get("caliber").and_then(|v| v.as_str()).unwrap_or("");
+                                let gr = aobj.get("grain").and_then(|v| v.as_str()).map(|g| format!(" {}gr", g)).unwrap_or_default();
+                                ammo_name = format!("{} {}{}", mfg, cal, gr).trim().to_string();
+                            }
+                            let count = aobj.get("count").and_then(|v| v.as_i64()).unwrap_or(0);
+                            let new_count = (count - rounds).max(0);
+                            aobj.insert("count".to_string(), serde_json::json!(new_count));
+                            ammo_remaining = Some(new_count);
+                            let _ = Self::update_ammo(conn, aid, ammo_val);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Append Range log to firearm
+        if firearm_id > 0 {
+            let firearm_json_res: Result<String, _> = conn.query_row(
+                "SELECT data FROM firearms WHERE id = ?1",
+                params![firearm_id],
+                |r| r.get(0),
+            );
+            if let Ok(fjson) = firearm_json_res {
+                if let Ok(mut firearm_val) = serde_json::from_str::<Value>(&fjson) {
+                    if let Some(fobj) = firearm_val.as_object_mut() {
+                        let next_log_id = fobj
+                            .get("logs")
+                            .and_then(|v| v.as_array())
+                            .map(|logs| {
+                                logs.iter()
+                                    .filter_map(|l| l.get("id").and_then(|id| id.as_i64()))
+                                    .max()
+                                    .unwrap_or(0)
+                                    + 1
+                            })
+                            .unwrap_or(1);
+
+                        let notes_combined = [
+                            if !location.is_empty() { format!("Location: {}", location) } else { String::new() },
+                            notes.to_string(),
+                        ]
+                        .into_iter()
+                        .filter(|s| !s.is_empty())
+                        .collect::<Vec<_>>()
+                        .join(" - ");
+
+                        let new_log = serde_json::json!({
+                            "id": next_log_id,
+                            "date": date_str,
+                            "type": "Range",
+                            "rounds_fired": rounds,
+                            "ammo_used": ammo_name,
+                            "cost": cost,
+                            "notes": notes_combined,
+                        });
+
+                        if let Some(logs) = fobj.get_mut("logs").and_then(|l| l.as_array_mut()) {
+                            logs.push(new_log);
+                        } else {
+                            fobj.insert("logs".to_string(), Value::Array(vec![new_log]));
+                        }
+
+                        firearm_rounds = fobj
+                            .get("logs")
+                            .and_then(|v| v.as_array())
+                            .map(|logs| {
+                                logs.iter()
+                                    .filter(|l| l.get("type").and_then(|t| t.as_str()) == Some("Range"))
+                                    .map(|l| l.get("rounds_fired").and_then(|r| r.as_i64()).unwrap_or(0))
+                                    .sum::<i64>()
+                            })
+                            .unwrap_or(0);
+
+                        let _ = Self::update_firearm(conn, firearm_id, firearm_val);
+                    }
+                }
+            }
+        }
+
+        // 3. Increment round_count on all accessories mounted to this firearm
+        if firearm_id > 0 {
+            if let Ok(accessories) = Self::get_accessories(conn) {
+                for mut acc in accessories {
+                    let mut updated = false;
+                    if let Some(acc_obj) = acc.as_object_mut() {
+                        let is_mounted = acc_obj
+                            .get("mounts")
+                            .and_then(|m| m.as_array())
+                            .map(|mounts| {
+                                mounts.iter().any(|m| {
+                                    m.get("firearmId").and_then(|id| id.as_i64()) == Some(firearm_id)
+                                        || m.get("firearm_id").and_then(|id| id.as_i64()) == Some(firearm_id)
+                                })
+                            })
+                            .unwrap_or(false);
+
+                        if is_mounted {
+                            let current_acc_rounds = acc_obj.get("round_count").and_then(|r| r.as_i64()).unwrap_or(0);
+                            acc_obj.insert("round_count".to_string(), serde_json::json!(current_acc_rounds + rounds));
+                            updated = true;
+                        }
+                    }
+                    if updated {
+                        if let Some(acc_id) = acc.get("id").and_then(|id| id.as_i64()) {
+                            let _ = Self::update_accessory(conn, acc_id, acc);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Activity Log
+        let _ = Self::insert_activity_log(
+            conn,
+            serde_json::json!({
+                "timestamp": current_iso_timestamp(),
+                "action": "range_session",
+                "entityType": "firearm",
+                "entityId": firearm_id,
+                "detail": format!("{} rounds fired", rounds),
+                "source": "desktop"
+            }),
+        );
+
+        Ok(serde_json::json!({
+            "success": true,
+            "firearm_rounds": firearm_rounds,
+            "ammo_remaining": ammo_remaining
+        }))
+    }
+
+    // ─── Batch Imports ───────────────────────────────────────────────────
+    pub fn import_firearms_batch(
+        conn: &Connection,
+        firearms_list: Vec<Value>,
+        updates_list: Option<Vec<Value>>,
+    ) -> Result<Value> {
+        let mut updated_count = 0;
+        if let Some(updates) = updates_list {
+            for item in updates {
+                if let Some(existing_id) = item.get("existingId").and_then(|id| id.as_i64()) {
+                    let updated_val = item.get("updatedItem").cloned().unwrap_or(item);
+                    let _ = Self::update_firearm(conn, existing_id, updated_val);
+                    updated_count += 1;
+                }
+            }
+        }
+
+        let mut inserted_count = 0;
+        for firearm in firearms_list {
+            if Self::insert_firearm(conn, firearm).is_ok() {
+                inserted_count += 1;
+            }
+        }
+
+        Ok(serde_json::json!({
+            "insertedCount": inserted_count,
+            "updatedCount": updated_count
+        }))
+    }
+
+    pub fn import_ammo_batch(
+        conn: &Connection,
+        ammo_list: Vec<Value>,
+        updates_list: Option<Vec<Value>>,
+    ) -> Result<Value> {
+        let mut updated_count = 0;
+        if let Some(updates) = updates_list {
+            for item in updates {
+                if let Some(existing_id) = item.get("existingId").and_then(|id| id.as_i64()) {
+                    let updated_val = item.get("updatedItem").cloned().unwrap_or(item);
+                    let _ = Self::update_ammo(conn, existing_id, updated_val);
+                    updated_count += 1;
+                }
+            }
+        }
+
+        let mut inserted_count = 0;
+        for ammo in ammo_list {
+            if Self::insert_ammo(conn, ammo).is_ok() {
+                inserted_count += 1;
+            }
+        }
+
+        Ok(serde_json::json!({
+            "insertedCount": inserted_count,
+            "updatedCount": updated_count
+        }))
+    }
+
+    pub fn import_accessories_batch(conn: &Connection, accessories_list: Vec<Value>) -> Result<Value> {
+        let mut inserted_count = 0;
+        for acc in accessories_list {
+            if Self::insert_accessory(conn, acc).is_ok() {
+                inserted_count += 1;
+            }
+        }
+        Ok(serde_json::json!({ "insertedCount": inserted_count }))
+    }
+
+    pub fn import_components_batch(conn: &Connection, components_list: Vec<Value>) -> Result<Value> {
+        let mut inserted_count = 0;
+        for comp in components_list {
+            if Self::insert_component(conn, comp).is_ok() {
+                inserted_count += 1;
+            }
+        }
+        Ok(serde_json::json!({ "insertedCount": inserted_count }))
+    }
+
+    fn map_key_to_module(key: &str) -> Option<&'static str> {
+        match key {
+            "optics_vault_inventory" => Some("optics"),
+            "saved_ranges" => Some("ranges"),
+            "saved_label_templates" => Some("labels"),
+            "custom_schedule_presets" => Some("maintenance"),
+            "bound_book_entries" => Some("boundbook"),
+            "nfa_items" => Some("nfa"),
+            "load_recipes" | "reloading_recipes" => Some("reloading"),
+            _ => None,
+        }
+    }
+
+    // ─── Key-Value Config (Modules & Settings) ────────────────────────────────
+    pub fn get_config(conn: &Connection, key: &str) -> Result<Option<Value>> {
+        if let Some(module) = Self::map_key_to_module(key) {
+            if let Ok(Some(val)) = super::module_db::ModuleDbManager::get_module_kv(module, key) {
+                return Ok(Some(val));
+            }
+        }
+
+        let mut stmt = conn.prepare("SELECT value FROM kv_meta WHERE key = ?1")?;
+        let mut rows = stmt.query(params![key])?;
+        if let Some(row) = rows.next()? {
+            let val_str: String = row.get(0)?;
+            let val: Value = serde_json::from_str(&val_str).unwrap_or(Value::Null);
+            Ok(Some(val))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn set_config(conn: &Connection, key: &str, value: &Value) -> Result<()> {
+        if let Some(module) = Self::map_key_to_module(key) {
+            let _ = super::module_db::ModuleDbManager::set_module_kv(module, key, value);
+        }
+
+        let val_str = serde_json::to_string(value).unwrap_or_default();
+        conn.execute(
+            "INSERT OR REPLACE INTO kv_meta (key, value) VALUES (?1, ?2)",
+            params![key, val_str],
+        )?;
+        Ok(())
+    }
+
+    // ─── Ballistics Profiles ──────────────────────────────────────────────────
+    pub fn get_ballistic_profiles(conn: &Connection) -> Result<Vec<Value>> {
+        let mut stmt = conn.prepare("SELECT data FROM ballistic_profiles")?;
+        let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
+        let mut list = Vec::new();
+        for r in rows.flatten() {
+            if let Ok(v) = serde_json::from_str::<Value>(&r) {
+                list.push(v);
+            }
+        }
+        Ok(list)
+    }
+
+    pub fn save_ballistic_profile(conn: &Connection, profile: Value) -> Result<String> {
+        let id = profile
+            .get("id")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| {
+                format!(
+                    "bp_{}",
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_millis()
+                )
+            });
+        let mut prof_obj = profile;
+        if let Some(obj) = prof_obj.as_object_mut() {
+            obj.insert("id".to_string(), Value::String(id.clone()));
+        }
+        let data = serde_json::to_string(&prof_obj).unwrap_or_default();
+        conn.execute(
+            "INSERT OR REPLACE INTO ballistic_profiles (id, data) VALUES (?1, ?2)",
+            params![id, data],
+        )?;
+        Ok(id)
+    }
+
+    pub fn delete_ballistic_profile(conn: &Connection, id: &str) -> Result<String> {
+        conn.execute("DELETE FROM ballistic_profiles WHERE id = ?1", params![id])?;
+        Ok(id.to_string())
+    }
+
+    // ─── Load Ladder Tests ────────────────────────────────────────────────────
+    pub fn get_load_ladder_tests(conn: &Connection) -> Result<Vec<Value>> {
+        let mut stmt = conn.prepare("SELECT data FROM load_ladder_tests")?;
+        let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
+        let mut list = Vec::new();
+        for r in rows.flatten() {
+            if let Ok(v) = serde_json::from_str::<Value>(&r) {
+                list.push(v);
+            }
+        }
+        Ok(list)
+    }
+
+    pub fn save_load_ladder_test(conn: &Connection, test: Value) -> Result<String> {
+        let id = test
+            .get("id")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| {
+                format!(
+                    "llt_{}",
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_millis()
+                )
+            });
+        let mut test_obj = test;
+        if let Some(obj) = test_obj.as_object_mut() {
+            obj.insert("id".to_string(), Value::String(id.clone()));
+        }
+        let data = serde_json::to_string(&test_obj).unwrap_or_default();
+        conn.execute(
+            "INSERT OR REPLACE INTO load_ladder_tests (id, data) VALUES (?1, ?2)",
+            params![id, data],
+        )?;
+        Ok(id)
+    }
+
+    pub fn delete_load_ladder_test(conn: &Connection, id: &str) -> Result<String> {
+        conn.execute("DELETE FROM load_ladder_tests WHERE id = ?1", params![id])?;
+        Ok(id.to_string())
+    }
+
+    // ─── Chronograph Strings (Reloading Module) ──────────────────────────────
+    pub fn get_chrono_strings(conn: &Connection) -> Result<Vec<Value>> {
+        if let Ok(r_conn) = super::module_db::ModuleDbManager::get_connection("reloading") {
+            let mut stmt = r_conn.prepare("SELECT data FROM chrono_strings")?;
+            let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
+            let mut list = Vec::new();
+            for r in rows.flatten() {
+                if let Ok(v) = serde_json::from_str::<Value>(&r) {
+                    list.push(v);
+                }
+            }
+            if !list.is_empty() {
+                return Ok(list);
+            }
+        }
+        let mut stmt = conn.prepare("SELECT data FROM chrono_strings")?;
+        let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
+        let mut list = Vec::new();
+        for r in rows.flatten() {
+            if let Ok(v) = serde_json::from_str::<Value>(&r) {
+                list.push(v);
+            }
+        }
+        Ok(list)
+    }
+
+    pub fn save_chrono_string(conn: &Connection, cs: Value) -> Result<String> {
+        let id = cs
+            .get("id")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| {
+                format!(
+                    "cs_{}",
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_millis()
+                )
+            });
+        let mut cs_obj = cs;
+        if let Some(obj) = cs_obj.as_object_mut() {
+            obj.insert("id".to_string(), Value::String(id.clone()));
+        }
+        let data = serde_json::to_string(&cs_obj).unwrap_or_default();
+
+        if let Ok(r_conn) = super::module_db::ModuleDbManager::get_connection("reloading") {
+            let _ = r_conn.execute(
+                "INSERT OR REPLACE INTO chrono_strings (id, data) VALUES (?1, ?2)",
+                params![id, data],
+            );
+        }
+        conn.execute(
+            "INSERT OR REPLACE INTO chrono_strings (id, data) VALUES (?1, ?2)",
+            params![id, data],
+        )?;
+        Ok(id)
+    }
+
+    pub fn delete_chrono_string(conn: &Connection, id: &str) -> Result<String> {
+        if let Ok(r_conn) = super::module_db::ModuleDbManager::get_connection("reloading") {
+            let _ = r_conn.execute("DELETE FROM chrono_strings WHERE id = ?1", params![id]);
+        }
+        conn.execute("DELETE FROM chrono_strings WHERE id = ?1", params![id])?;
+        Ok(id.to_string())
+    }
+
+    // ─── Target Analyses (Reloading Module) ──────────────────────────────────
+    pub fn get_target_analyses(conn: &Connection) -> Result<Vec<Value>> {
+        if let Ok(r_conn) = super::module_db::ModuleDbManager::get_connection("reloading") {
+            let mut stmt = r_conn.prepare("SELECT data FROM target_analyses")?;
+            let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
+            let mut list = Vec::new();
+            for r in rows.flatten() {
+                if let Ok(v) = serde_json::from_str::<Value>(&r) {
+                    list.push(v);
+                }
+            }
+            if !list.is_empty() {
+                return Ok(list);
+            }
+        }
+        let mut stmt = conn.prepare("SELECT data FROM target_analyses")?;
+        let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
+        let mut list = Vec::new();
+        for r in rows.flatten() {
+            if let Ok(v) = serde_json::from_str::<Value>(&r) {
+                list.push(v);
+            }
+        }
+        Ok(list)
+    }
+
+    pub fn save_target_analysis(conn: &Connection, ta: Value) -> Result<String> {
+        let id = ta
+            .get("id")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| {
+                format!(
+                    "ta_{}",
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_millis()
+                )
+            });
+        let mut ta_obj = ta;
+        if let Some(obj) = ta_obj.as_object_mut() {
+            obj.insert("id".to_string(), Value::String(id.clone()));
+        }
+        let data = serde_json::to_string(&ta_obj).unwrap_or_default();
+
+        if let Ok(r_conn) = super::module_db::ModuleDbManager::get_connection("reloading") {
+            let _ = r_conn.execute(
+                "INSERT OR REPLACE INTO target_analyses (id, data) VALUES (?1, ?2)",
+                params![id, data],
+            );
+        }
+        conn.execute(
+            "INSERT OR REPLACE INTO target_analyses (id, data) VALUES (?1, ?2)",
+            params![id, data],
+        )?;
+        Ok(id)
+    }
+
+    pub fn delete_target_analysis(conn: &Connection, id: &str) -> Result<String> {
+        if let Ok(r_conn) = super::module_db::ModuleDbManager::get_connection("reloading") {
+            let _ = r_conn.execute("DELETE FROM target_analyses WHERE id = ?1", params![id]);
+        }
+        conn.execute("DELETE FROM target_analyses WHERE id = ?1", params![id])?;
+        Ok(id.to_string())
+    }
+
+    // ─── Handload Manufacturing Batch ─────────────────────────────────────────
+    pub fn manufacture_handload_batch(
+        conn: &Connection,
+        ammo_id: i64,
+        quantity: i64,
+        deductions: Vec<Value>,
+    ) -> Result<Value> {
+        let mut new_ammo_count = 0;
+
+        // 1. Update Ammo count
+        let ammo_res: Result<String, _> = conn.query_row(
+            "SELECT data FROM ammo WHERE id = ?1",
+            params![ammo_id],
+            |r| r.get(0),
+        );
+        if let Ok(ammo_str) = ammo_res {
+            if let Ok(mut ammo_val) = serde_json::from_str::<Value>(&ammo_str) {
+                if let Some(aobj) = ammo_val.as_object_mut() {
+                    let current = aobj.get("count").and_then(|v| v.as_i64()).unwrap_or(0);
+                    new_ammo_count = current + quantity;
+                    aobj.insert("count".to_string(), serde_json::json!(new_ammo_count));
+                    let _ = Self::update_ammo(conn, ammo_id, ammo_val);
+                }
+            }
+        }
+
+        // 2. Deduct components
+        for d in deductions {
+            let cid = d
+                .get("componentId")
+                .or_else(|| d.get("component_id"))
+                .and_then(|v| v.as_i64())
+                .unwrap_or(0);
+            let qty_used = d
+                .get("quantityUsed")
+                .or_else(|| d.get("quantity_used"))
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0);
+            if cid > 0 && qty_used > 0.0 {
+                let comp_res: Result<String, _> = conn.query_row(
+                    "SELECT data FROM components WHERE id = ?1",
+                    params![cid],
+                    |r| r.get(0),
+                );
+                if let Ok(comp_str) = comp_res {
+                    if let Ok(mut comp_val) = serde_json::from_str::<Value>(&comp_str) {
+                        if let Some(cobj) = comp_val.as_object_mut() {
+                            let current = cobj.get("count").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                            let new_comp_count = (current - qty_used).max(0.0);
+                            cobj.insert("count".to_string(), serde_json::json!(new_comp_count));
+                            let _ = Self::update_component(conn, cid, comp_val);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Log audit activity
+        let iso_ts = current_iso_timestamp();
+        let _ = conn.execute(
+            "INSERT INTO activity_log (timestamp, action, data) VALUES (?1, ?2, ?3)",
+            params![
+                iso_ts,
+                "MANUFACTURE_HANDLOAD_BATCH",
+                serde_json::json!({
+                    "ammo_id": ammo_id,
+                    "quantity": quantity,
+                    "new_ammo_count": new_ammo_count,
+                })
+                .to_string()
+            ],
+        );
+
+        Ok(serde_json::json!({
+            "success": true,
+            "newAmmoCount": new_ammo_count,
+        }))
+    }
 }
+
+fn current_date_string() -> String {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
+    let days = (secs / 86400) as i64;
+    let z = days + 719468;
+    let era = if z >= 0 { z } else { z - 146096 } / 146097;
+    let doe = (z - era * 146097) as u32;
+    let yoe = (doe - doe / 1029 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+    format!("{:04}-{:02}-{:02}", y, m, d)
+}
+
+fn current_iso_timestamp() -> String {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
+    let days = (secs / 86400) as i64;
+    let rem_secs = (secs % 86400) as u32;
+    let hours = rem_secs / 3600;
+    let minutes = (rem_secs % 3600) / 60;
+    let seconds = rem_secs % 60;
+
+    let z = days + 719468;
+    let era = if z >= 0 { z } else { z - 146096 } / 146097;
+    let doe = (z - era * 146097) as u32;
+    let yoe = (doe - doe / 1029 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+    format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z", y, m, d, hours, minutes, seconds)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::storage::Database;
+
+    #[test]
+    fn test_complete_maintenance_task_updates_schedule_and_adds_log() {
+        let conn = Connection::open_in_memory().unwrap();
+        Database::init(&conn).unwrap();
+
+        let firearm = serde_json::json!({
+            "id": 1,
+            "make": "Glock",
+            "model": "19 Gen 5",
+            "serial_number": "ABC1234",
+            "caliber": "9mm",
+            "logs": [
+                { "id": 1, "type": "Range", "rounds_fired": 250, "date": "2026-09-01" },
+                { "id": 2, "type": "Range", "rounds_fired": 150, "date": "2026-09-10" }
+            ],
+            "maintenance_schedules": [
+                {
+                    "id": "task_recoil_spring",
+                    "task_name": "Replace Recoil Spring",
+                    "interval_rounds": 3000,
+                    "last_performed_rounds": 0,
+                    "last_performed_date": "2026-01-01"
+                }
+            ]
+        });
+
+        InventoryStore::insert_firearm(&conn, firearm).unwrap();
+
+        let log_data = serde_json::json!({
+            "action_performed": "Replaced recoil spring assembly",
+            "part_details": "OEM Glock RSA",
+            "cost": 18.50,
+            "date": "2026-09-15",
+            "notes": "Standard preventive maintenance"
+        });
+
+        let success = InventoryStore::complete_maintenance_task(&conn, 1, "task_recoil_spring", log_data).unwrap();
+        assert!(success);
+
+        let firearms = InventoryStore::get_firearms(&conn).unwrap();
+        assert_eq!(firearms.len(), 1);
+        let updated = &firearms[0];
+
+        // Total rounds is 250 + 150 = 400
+        let sched = &updated["maintenance_schedules"][0];
+        assert_eq!(sched["last_performed_rounds"], 400);
+        assert_eq!(sched["last_performed_date"], "2026-09-15");
+
+        let logs = updated["logs"].as_array().unwrap();
+        assert_eq!(logs.len(), 3);
+        let new_log = &logs[2];
+        assert_eq!(new_log["type"], "Repair");
+        assert_eq!(new_log["cost"], 18.50);
+        assert_eq!(new_log["installed_part_details"], "OEM Glock RSA");
+    }
+
+    #[test]
+    fn test_log_range_session_updates_firearm_and_deducts_ammo() {
+        let conn = Connection::open_in_memory().unwrap();
+        Database::init(&conn).unwrap();
+
+        let ammo = serde_json::json!({
+            "id": 10,
+            "manufacturer": "Federal",
+            "caliber": "9mm",
+            "grain": "124",
+            "count": 500
+        });
+        InventoryStore::insert_ammo(&conn, ammo).unwrap();
+
+        let firearm = serde_json::json!({
+            "id": 1,
+            "make": "Sig Sauer",
+            "model": "P320",
+            "caliber": "9mm",
+            "logs": []
+        });
+        InventoryStore::insert_firearm(&conn, firearm).unwrap();
+
+        let session_data = serde_json::json!({
+            "firearm_id": 1,
+            "ammo_id": 10,
+            "rounds_fired": 150,
+            "date": "2026-09-15",
+            "location": "Eagle Gun Range",
+            "notes": "Target practice"
+        });
+
+        let res = InventoryStore::log_range_session(&conn, session_data).unwrap();
+        assert_eq!(res["success"], true);
+        assert_eq!(res["firearm_rounds"], 150);
+        assert_eq!(res["ammo_remaining"], 350);
+
+        let ammo_list = InventoryStore::get_ammo(&conn).unwrap();
+        assert_eq!(ammo_list[0]["count"], 350);
+
+        let firearms = InventoryStore::get_firearms(&conn).unwrap();
+        let logs = firearms[0]["logs"].as_array().unwrap();
+        assert_eq!(logs.len(), 1);
+        assert_eq!(logs[0]["rounds_fired"], 150);
+        assert_eq!(logs[0]["ammo_used"], "Federal 9mm 124gr");
+    }
+
+    #[test]
+    fn test_config_kv_storage() {
+        let conn = Connection::open_in_memory().unwrap();
+        Database::init(&conn).unwrap();
+
+        let test_val = serde_json::json!(["reloading", "maintenance", "ballistics"]);
+        InventoryStore::set_config(&conn, "installed_modules", &test_val).unwrap();
+
+        let retrieved = InventoryStore::get_config(&conn, "installed_modules").unwrap();
+        assert_eq!(retrieved, Some(test_val));
+
+        let non_existent = InventoryStore::get_config(&conn, "does_not_exist").unwrap();
+        assert_eq!(non_existent, None);
+    }
+
+    #[test]
+    fn test_ballistic_profiles_crud() {
+        let conn = Connection::open_in_memory().unwrap();
+        Database::init(&conn).unwrap();
+
+        let prof = serde_json::json!({
+            "id": "bp_308_fgmm",
+            "name": "Federal Gold Medal 175gr SMK",
+            "caliber": ".308 Win",
+            "bulletWeight": 175,
+            "muzzleVelocity": 2600,
+            "ballisticCoefficient": 0.505
+        });
+
+        let id = InventoryStore::save_ballistic_profile(&conn, prof).unwrap();
+        assert_eq!(id, "bp_308_fgmm");
+
+        let list = InventoryStore::get_ballistic_profiles(&conn).unwrap();
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0]["name"], "Federal Gold Medal 175gr SMK");
+
+        InventoryStore::delete_ballistic_profile(&conn, "bp_308_fgmm").unwrap();
+        let empty_list = InventoryStore::get_ballistic_profiles(&conn).unwrap();
+        assert_eq!(empty_list.len(), 0);
+    }
+
+    #[test]
+    fn test_load_ladder_tests_crud() {
+        let conn = Connection::open_in_memory().unwrap();
+        Database::init(&conn).unwrap();
+
+        let test_obj = serde_json::json!({
+            "id": "ladder_65cm",
+            "test_name": "Varget Ladder Test",
+            "caliber": "6.5 Creedmoor",
+            "bullet": "Hornady 140gr ELD-M"
+        });
+
+        let id = InventoryStore::save_load_ladder_test(&conn, test_obj).unwrap();
+        assert_eq!(id, "ladder_65cm");
+
+        let list = InventoryStore::get_load_ladder_tests(&conn).unwrap();
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0]["test_name"], "Varget Ladder Test");
+
+        InventoryStore::delete_load_ladder_test(&conn, "ladder_65cm").unwrap();
+        let empty_list = InventoryStore::get_load_ladder_tests(&conn).unwrap();
+        assert_eq!(empty_list.len(), 0);
+    }
+
+    #[test]
+    fn test_manufacture_handload_batch_updates_ammo_and_components() {
+        let conn = Connection::open_in_memory().unwrap();
+        Database::init(&conn).unwrap();
+
+        let ammo = serde_json::json!({
+            "id": 5,
+            "caliber": ".308 Win",
+            "brand": "Handload",
+            "count": 50
+        });
+        InventoryStore::insert_ammo(&conn, ammo).unwrap();
+
+        let primer = serde_json::json!({
+            "id": 20,
+            "type": "Primer",
+            "count": 500
+        });
+        InventoryStore::insert_component(&conn, primer).unwrap();
+
+        let bullet = serde_json::json!({
+            "id": 21,
+            "type": "Bullet",
+            "count": 250
+        });
+        InventoryStore::insert_component(&conn, bullet).unwrap();
+
+        let deductions = vec![
+            serde_json::json!({ "componentId": 20, "quantityUsed": 100 }),
+            serde_json::json!({ "componentId": 21, "quantityUsed": 100 }),
+        ];
+
+        let res = InventoryStore::manufacture_handload_batch(&conn, 5, 100, deductions).unwrap();
+        assert_eq!(res["success"], true);
+        assert_eq!(res["newAmmoCount"], 150);
+
+        let updated_ammo = InventoryStore::get_ammo(&conn).unwrap();
+        assert_eq!(updated_ammo[0]["count"], 150);
+
+        let comps = InventoryStore::get_components(&conn).unwrap();
+        let p = comps.iter().find(|c| c["id"] == 20).unwrap();
+        let b = comps.iter().find(|c| c["id"] == 21).unwrap();
+        assert_eq!(p["count"], 400.0);
+        assert_eq!(b["count"], 150.0);
+    }
+}
+

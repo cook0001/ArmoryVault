@@ -45,14 +45,17 @@ describe('ModuleRegistry', () => {
     };
   });
 
-  it('exposes all 5 modular extensions with valid manifests', () => {
-    expect(AVAILABLE_MODULES.length).toBe(5);
+  it('exposes all 8 modular extensions with valid manifests', () => {
+    expect(AVAILABLE_MODULES.length).toBe(8);
     const ids = AVAILABLE_MODULES.map((m) => m.manifest.id);
     expect(ids).toContain('reloading');
     expect(ids).toContain('maintenance');
     expect(ids).toContain('ballistics');
     expect(ids).toContain('nfa');
     expect(ids).toContain('boundbook');
+    expect(ids).toContain('optics');
+    expect(ids).toContain('ranges');
+    expect(ids).toContain('labels');
 
     for (const mod of AVAILABLE_MODULES) {
       expect(mod.manifest.id).toBeDefined();

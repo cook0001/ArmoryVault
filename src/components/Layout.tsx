@@ -197,28 +197,31 @@ export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
   }
 
   const vaultNavItems = useMemo<LayoutNavItem[]>(() => {
+    const isReloading = isInstalled('reloading');
     const items: LayoutNavItem[] = [
       { path: '/', icon: <LayoutDashboard size={18} />, label: 'Dashboard' },
+      {
+        path: '/ammo',
+        icon: <CartridgesIcon size={18} />,
+        label: isReloading ? 'Ammo & Reloading' : 'Ammunition',
+        activePaths: isReloading ? ['/ammo', '/components'] : ['/ammo'],
+      },
+      {
+        path: '/accessories',
+        icon: <AccessoriesNavIcon size={18} />,
+        label: 'Accessories',
+      },
+      {
+        path: '/storage',
+        icon: <SafeIcon size={18} />,
+        label: 'Storage',
+      },
     ];
-    if (isInstalled('boundbook')) {
-      items.push({
-        path: '/bound-book',
-        icon: <BoundBookNavIcon size={18} />,
-        label: 'Bound Book',
-      });
-    }
-    const isReloading = isInstalled('reloading');
-    items.push({
-      path: '/ammo',
-      icon: <CartridgesIcon size={18} />,
-      label: isReloading ? 'Ammo & Reloading' : 'Ammunition',
-      activePaths: isReloading ? ['/ammo', '/components'] : ['/ammo'],
-    });
-    items.push({
-      path: '/accessories',
-      icon: <AccessoriesNavIcon size={18} />,
-      label: 'Accessories',
-    });
+    return items;
+  }, [isInstalled]);
+
+  const modulesNavItems = useMemo<LayoutNavItem[]>(() => {
+    const items: LayoutNavItem[] = [];
     if (isInstalled('maintenance')) {
       items.push({
         path: '/maintenance',
@@ -226,11 +229,13 @@ export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
         label: 'Maintenance',
       });
     }
-    return items;
-  }, [isInstalled]);
-
-  const toolsNavItems = useMemo<LayoutNavItem[]>(() => {
-    const items: LayoutNavItem[] = [];
+    if (isInstalled('boundbook')) {
+      items.push({
+        path: '/bound-book',
+        icon: <BoundBookNavIcon size={18} />,
+        label: 'Bound Book',
+      });
+    }
     if (isInstalled('ballistics')) {
       items.push({
         path: '/ballistics',
@@ -238,7 +243,6 @@ export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
         label: 'Ballistics',
       });
     }
-    items.push({ path: '/storage', icon: <SafeIcon size={18} />, label: 'Storage' });
     if (isInstalled('reloading')) {
       items.push({
         path: '/load-development',
@@ -278,12 +282,12 @@ export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
     // Dynamic modules installed from disk/remote not in static paths
     const staticPaths = new Set([
       '/',
-      '/bound-book',
       '/ammo',
       '/accessories',
-      '/maintenance',
-      '/ballistics',
       '/storage',
+      '/maintenance',
+      '/bound-book',
+      '/ballistics',
       '/load-development',
       '/nfa-tracker',
       '/optics',
@@ -350,10 +354,42 @@ export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
 
           <div className="sidebar-nav-divider" />
 
-          {/* Tools Nav Group */}
+          {/* Modules Nav Group */}
           <div className="sidebar-nav-group">
-            {!sidebarCollapsed && <div className="sidebar-group-label">Tools</div>}
-            {toolsNavItems.map((item) => (
+            {!sidebarCollapsed ? (
+              <div
+                className="sidebar-group-label"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingRight: '0.5rem',
+                }}
+              >
+                <span>Modules</span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openModuleCenter();
+                  }}
+                  title="Open Module Center"
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    padding: '2px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  <PlusCircle size={14} />
+                </button>
+              </div>
+            ) : null}
+
+            {modulesNavItems.map((item) => (
               <button
                 key={item.path}
                 className={`sidebar-nav-link ${isActive(item.path)}`}
@@ -364,6 +400,25 @@ export const Layout = ({ onLockVault }: { onLockVault?: () => void }) => {
                 {!sidebarCollapsed && <span>{item.label}</span>}
               </button>
             ))}
+
+            {modulesNavItems.length === 0 && (
+              <button
+                type="button"
+                className="sidebar-nav-link"
+                onClick={() => openModuleCenter()}
+                title="Browse & Install Modules"
+                style={{
+                  border: '1px dashed var(--border)',
+                  borderRadius: '6px',
+                  color: 'var(--text-muted)',
+                  fontSize: '0.8rem',
+                  marginTop: '0.25rem',
+                }}
+              >
+                <PlusCircle size={16} />
+                {!sidebarCollapsed && <span>Add Modules...</span>}
+              </button>
+            )}
           </div>
         </nav>
 
