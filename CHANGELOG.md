@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Core Program Isolation**: Default installed modules set to empty array (`DEFAULT_INSTALLED_MODULES = []`) so optional modules are installed only on-demand by the end user via the Module Center.
 - **Icon & UI Consistency**: Replaced raw `×` characters with vector `<X size={18} />` components across firearm details maintenance modals.
 - **Linux CI Dependencies**: Fixed apt package list in `.github/workflows/build-all.yml` by removing conflicting `libappindicator3-dev` and invalid package references to ensure clean Ubuntu 22.04 runner builds.
-- **Linux Native File Dialog Compatibility**: Configured `rfd` with `default-features = false, features = ["xdg-portal"]` to eliminate feature collision between GTK3 and XDG Desktop Portals during Linux compilation.
+- **Linux Native File Dialog Compatibility**: Configured both `tauri-plugin-dialog` and `rfd` with `default-features = false, features = ["xdg-portal"]` to eliminate feature collision between GTK3 and XDG Desktop Portals during Linux compilation.
 
 ## [2.11.0-beta.1] - 2026-09-15
 
