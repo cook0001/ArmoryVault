@@ -345,22 +345,15 @@ export const BallisticsCalculator = () => {
   };
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
+    <div className="page-container">
       {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '1.5rem',
-        }}
-      >
+      <div className="page-header">
         <div>
           <h1
             style={{
               color: 'var(--text-primary)',
               margin: 0,
-              fontSize: '1.6rem',
+              fontSize: '1.8rem',
               display: 'flex',
               alignItems: 'center',
               gap: '0.6rem',
@@ -373,9 +366,11 @@ export const BallisticsCalculator = () => {
             G1/G7 point-mass trajectory solver with comprehensive caliber ballistic library
           </p>
         </div>
-        <button className="btn-primary" onClick={() => setIsAddModalOpen(true)}>
-          <PlusCircle size={16} /> New Profile
-        </button>
+        <div className="header-actions">
+          <button className="btn-primary" onClick={() => setIsAddModalOpen(true)}>
+            <PlusCircle size={16} /> New Profile
+          </button>
+        </div>
       </div>
 
       {/* Quick Caliber Presets Library */}

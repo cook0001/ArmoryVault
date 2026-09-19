@@ -304,6 +304,10 @@ export const applyTheme = (config: Partial<ThemeConfig>): ThemeConfig => {
   root.style.setProperty('--border-highlight', preset.border);
   root.style.setProperty('--glow', `0 0 25px ${preset.glow}`);
   root.style.setProperty('--shadow-glow', `0 0 35px ${preset.glow}`);
+  root.style.setProperty('--accent-badge-bg', preset.badgeBg);
+  root.style.setProperty('--accent-border', preset.border);
+  root.style.setProperty('--accent-glow-raw', preset.glow);
+  root.style.setProperty('--accent-glow-shadow', `0 4px 16px ${preset.glow}`);
 
   // 2. Data attributes for declarative CSS styling
   root.setAttribute('data-accent', merged.accent);

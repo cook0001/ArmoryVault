@@ -327,6 +327,28 @@ export const SyncInbox = () => {
         }
       }
 
+      // 1b. Check if upcOrId is a LoadBench / ArmoryVault Handload QR or JSON payload
+      if (
+        upcOrId.trim().startsWith('{') ||
+        upcOrId.includes('"type":"handload"') ||
+        upcOrId.includes('LoadBench') ||
+        upcOrId.includes('load_project')
+      ) {
+        const parsedHandload = parseBarcodeData(upcOrId, ammoList);
+        if (parsedHandload.category === 'ammo' && parsedHandload.parsedAmmo) {
+          await window.api.removeSyncItem(item.id!);
+          navigate('/ammo', {
+            state: {
+              openAddModal: true,
+              upc: parsedHandload.parsedAmmo.upc_code || upcOrId,
+              parsedData: parsedHandload.parsedAmmo,
+              syncItemId: item.id,
+            },
+          });
+          return;
+        }
+      }
+
       // 2. Fallback to online lookup
       const data = await window.api.lookupUPC(upcOrId);
 

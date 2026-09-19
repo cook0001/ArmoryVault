@@ -58,6 +58,25 @@ function createWindow() {
     mainWindow = null;
   });
 
+  // Intercept window.open or target="_blank" clicks and open safely in external default browser
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('mailto:')) {
+      shell.openExternal(url);
+    }
+    return { action: 'deny' };
+  });
+
+  // Prevent navigation away from the local app runtime
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const isLocal = isDev ? url.startsWith('http://localhost:5173') : url.startsWith('app://');
+    if (!isLocal) {
+      event.preventDefault();
+      if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('mailto:')) {
+        shell.openExternal(url);
+      }
+    }
+  });
+
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
   } else {
@@ -791,11 +810,13 @@ app.whenReady().then(() => {
   };
 
   const getArmsTraderDbPath = () => {
+    if (process.env.ARMSTRADER_DB && fs.existsSync(process.env.ARMSTRADER_DB)) {
+      return process.env.ARMSTRADER_DB;
+    }
     const candidates = [
       path.resolve(__dirname, '../../../armstrader.store/armstrader.sqlite'),
       path.resolve(__dirname, '../../armstrader.store/armstrader.sqlite'),
       path.resolve(app.getPath('userData'), 'armstrader.sqlite'),
-      '/Users/danielc/Documents/armstrader.store/armstrader.sqlite',
     ];
     for (const c of candidates) {
       if (fs.existsSync(c)) return c;
@@ -2083,6 +2104,12 @@ app.whenReady().then(() => {
 
   startLocalServer();
   createWindow();
+
+  autoUpdater.allowPrerelease = true;
+
+  autoUpdater.on('error', (err) => {
+    log.warn('AutoUpdater background error (safely ignored):', err?.message || err);
+  });
 
   if (process.platform === 'darwin') {
     autoUpdater.autoDownload = false;

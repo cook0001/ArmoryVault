@@ -1,8 +1,69 @@
 # Changelog
 
-## [Unreleased]
+## [3.0.0-Electron] - 2026-09-18
+
+### Final Electron Release Notice
+
+- **Final Official Electron Release (`v3.0.0-Electron`)**:
+  - Marks the final milestone release of the Electron-based `ArmoryVault_Desktop` platform.
+  - All future active desktop development, features, and performance enhancements migrate entirely to the lightweight, native Rust-powered Tauri v2 client (`ArmoryVault_Desktop_Tauri`).
+
+### UI & Styling System Harmonization
+
+- **Global Theme Tokens & Compatibility CSS Variables (`src/index.css`, `src/utils/themeEngine.ts`, `index.html`)**:
+  - Defined missing `:root` compatibility CSS variables (`--card-bg`, `--bg-card`, `--border`, `--border-color`, `--text`, `--text-main`) to resolve unstyled backgrounds and collapsed borders across page and modal components.
+  - Added dynamic accent tokens (`--accent-badge-bg`, `--accent-border`, `--accent-glow-raw`, `--accent-glow-shadow`) exposed via `themeEngine.ts` and initialized in `index.html`.
+  - Harmonized buttons (`.btn-primary` uses `var(--accent)` and `var(--accent-hover)`), active sidebar nav links, active filter chips, active view-mode toggles, icon button hovers, form input focus rings (`.form-input`), upload zones (`.photo-upload`), modal backdrops, toast indicators, and `.vault-spinner` to dynamically follow user accent presets (OD Green, FDE, Crimson, Violet, Sand, Gunmetal, Blue, and Custom Hex).
+  - Enhanced canvas overrides for OLED (`#0c0c0c` true contrast modal backgrounds without washouts) and Flat Slate (`--bg-surface-elevated`).
+- **Page Container & Layout Rhythm Standardization**:
+  - `StorageOrganizer.tsx`: Replaced redundant nested padding with `.page-container` and `.page-header` with `.header-actions`.
+  - `LoadDevelopment.tsx`: Standardized outer wrapper to `<div className="page-container">` and `<div className="no-print page-header">`.
+  - `NfaTracker.tsx`: Standardized outer wrapper to `<div className="page-container">` and `<div className="no-print page-header">`.
+  - `BallisticsCalculator.tsx`: Standardized outer container to `<div className="page-container">` and `<div className="page-header">`.
+  - `VaultLogin.tsx`: Added `.bg-mesh` and `.bg-grid` background elements, dynamic `--bg-canvas`, and accent border styling to align with application aesthetic standards.
+- **Settings & Route Navigation Alignment (`src/components/settings/AppearanceSettingsSection.tsx`)**:
+  - Corrected startup route target values (`/`, `/ammo`, `/components`, `/accessories`, `/bound-book`, `/maintenance`, `/storage`, `/load-development`, `/ballistics`, `/nfa-tracker`), repairing broken links to reloading and compliance bound book.
+  - Switched privacy mode shield banner styling from static blue RGBA to dynamic `var(--accent-badge-bg)`.
+- **CSS Vendor Prefixing & Cross-Browser Styling Harmonization (`src/index.css`, `website/style.css`, `website/index.html`)**:
+  - Enforced strict vendor prefix ordering across all CSS declarations (`-webkit-backdrop-filter` preceding `backdrop-filter`, `-webkit-user-select` preceding `user-select`, and `background-clip: text`).
+  - Added cross-browser `-ms-overflow-style: none;` alongside `scrollbar-width: none;` for clean scrollbar suppression.
+  - Merged duplicate class attributes on landing page comparison table cells to maintain clean W3C validity and strict Biome compliance.
+  - Codified permanent vendor prefixing and zero-inline-styles policies into workspace `AGENTS.md` rules.
+- **Modular Reloading Performance & Data Caching (`src/modules/reloading/ReloadingComponents.tsx`)**:
+  - Synced module implementation with cached `useVaultData()`, instant `buildStorageIndex()` O(1) lookups, and memoized filters.
+
+### Electron Build & Security Hardening
+
+- **ASAR Payload Optimization & Dependency Hygiene (`package.json`)**:
+  - Segregated frontend-only packages (`lucide-react`, `react`, `react-dom`, `qrcode`, `react-qr-code`, `react-router-dom`, `react-window`) from `"dependencies"` into `"devDependencies"`.
+  - Dramatically shrank `app.asar` size from 46.1 MB to < 5 MB (>90% reduction) by eliminating duplicate uncompiled icon and React vendor trees in production distributions.
+  - Declared explicit `asarUnpack` patterns for native image pipeline dependencies (`sharp` and `@img/sharp-libvips-*`).
+  - Formalized explicit NSIS installer parameters for Windows releases.
+- **Renderer Window & Navigation Security Guards (`electron/main.js`)**:
+  - Implemented `setWindowOpenHandler` intercepting `window.open` and target `_blank` anchor clicks, preventing rogue Electron windows and safely routing external HTTP/HTTPS/mailto URLs to the user's default system browser via `shell.openExternal`.
+  - Added `will-navigate` lifecycle guard to lock navigation strictly to the local application runtime (`app://` and dev server).
+  - Sanitized `getArmsTraderDbPath` by removing hardcoded personal filesystem paths and introducing `process.env.ARMSTRADER_DB` override support.
+
+### Added
+
+- **LoadBench Handload QR & Batch Ingestion (`src/utils/BarcodeEngine.ts`, `src/pages/SyncInbox.tsx`, `src/pages/AmmoDashboard.tsx`, `src/components/sync/cards/SyncItemMediaCard.tsx`)**:
+  - Engineered direct recognition of LoadBench Ammo Can Label and Range Card QR payloads across both desktop scanning inputs and mobile sync queue.
+  - In `BarcodeEngine.ts`, added automated extraction of handload parameters (caliber, bullet name, grain weight, powder name, charge weight, primer, COAL, velocity, pressure, lot number, and notes) classifying them immediately as `category: 'ammo'` with `type: 'handload'`.
+  - In `SyncItemMediaCard.tsx`, added specialized emerald "LoadBench Handload Batch" preview card with 1-click "Accept Handload Batch" resolution directly navigating into the ammo editor.
+  - In `AmmoDashboard.tsx`, enabled instant detection of pasted or scanned LoadBench QR strings in the UPC input bar, prefilling the custom handload form without triggering unnecessary online commercial UPC lookups.
+- **LoadBench `.load` Project File & Handload Card Import Enhancement (`src/utils/csvImport.ts`, `src/components/modals/CsvImportModal.tsx`)**:
+  - Implemented automatic recognition and parsing of LoadBench `.load` project files and JSON batch archives directly in `CsvImportModal`.
+  - Added deep object property extraction (`cartridge.name`, `projectile.name`, `projectile.weight_grains`, `propellant.name`, `primer.name`, `simulated.muzzleVelocityFps`, etc.) preventing `[object Object]` stringification.
+  - Automatically identifies handload entries and sets `type: 'handload'` with simulated muzzle velocity, peak pressure, CBTO, and lot info documented in record notes.
+  - Expanded file dropzone and picker to accept `.load`, `.avr`, and `.json` in addition to standard CSV/TSV spreadsheets.
+- **Native LoadBench `.loadbench` & `.ldb` Project Recipe Format Ingestion (`src/utils/csvImport.ts`, `src/utils/BarcodeEngine.ts`, `src/components/modals/CsvImportModal.tsx`)**:
+  - Implemented full schema support for LoadBench custom recipe files (`.loadbench` and `.ldb`) with MIME type `application/vnd.loadbench.recipe+json`.
+  - Added extraction of nested reloader metadata (`metadata.author`, `metadata.lot_number`, `metadata.batch_size`, `metadata.target_firearm`), cartridge brass firings, projectile seating jump & CBTO, propellant charge, primer pocket size, simulated OBT harmonic nodes, and chronograph statistics (SD and ES).
+  - Updated `CsvImportModal` dropzone and file inputs to accept `.loadbench` and `.ldb` extensions directly alongside `.load`, `.avr`, `.json`, `.csv`, and `.tsv`.
+  - Upgraded `detectEntityType()` to detect assembled handload cartridges and route them directly to loaded ammo inventory.
 
 ### Changed
+
 - **Hosting & Catalog Integration**:
   - Updated modular extension catalog endpoints in `ModuleManager.js` to point to `https://armstrader.store/armoryvault/modules/modules-index.json`.
   - Migrated web portal documentation and links in `README.md` and `website/` to `https://armstrader.store/armoryvault`.
@@ -13,6 +74,7 @@
 ## [2.11.0] - 2026-09-14
 
 ### Performance & Client Architecture
+
 - **In-Memory Client State Caching & IPC Request Coalescing (`src/context/VaultDataContext.tsx`, `src/App.tsx`)**:
   - Engineered `VaultDataContext` providing centralized in-memory client state caching and request coalescing across IPC queries (`getFirearms`, `getAmmo`, `getAccessories`, `getComponents`, `getStorageLocations`).
   - Added request deduplication so simultaneous queries across mounting widgets share a single pending IPC promise instead of creating redundant serialization roundtrips.
@@ -23,6 +85,7 @@
   - Removed `<React.StrictMode>` double-mounting in development runtime, cutting initial page mounting CPU overhead, `useEffect` double-invocations, and IPC queries strictly in half.
 
 ### Features & UI Personalization
+
 - **Comprehensive Tactical UI Customization & Personalization Suite (`src/utils/themeEngine.ts`, `src/components/modals/SettingsModal.tsx`, `src/components/Layout.tsx`, `src/pages/Dashboard.tsx`, `src/pages/Accessories.tsx`, `src/pages/AmmoDashboard.tsx`, `src/pages/StorageOrganizer.tsx`, `src/index.css`, `index.html`)**:
   - **7 Military & Tactical Preset Color Accents + Custom Hex Picker**: Built an instant accent switcher offering Tactical Blue (`#3b82f6`), OD / Ranger Green (`#22c55e`), Flat Dark Earth / Coyote Tan (`#f59e0b`), Night Vision Crimson (`#ef4444`), Stealth Gunmetal (`#94a3b8`), Desert Sand (`#eab308`), Cyber Violet (`#8b5cf6`), and an interactive Hex/RGB color picker with automatic luminosity-balancing and border glow calculation.
   - **4 OLED & Ambient Canvas Background Styles**: Implemented declarative canvas styles including Tactical Mesh (ambient gradient glow), OLED Pure Black (`#000000` true contrast & power savings), Midnight Navy (`#050914`), and Flat Slate (`#0d1117`).
@@ -36,6 +99,7 @@
   - **1-Click Appearance Reset**: Fast reset button in Settings and Dashboard popovers to instantly restore all themes, typography, density, and widget visibility settings back to factory defaults.
 
 ### Features & Migrations
+
 - **Dedicated Module Storage Architecture (`electron/ModuleDataManager.js`, `electron/BackupManager.js`, `src/utils/moduleDataManager.test.ts`)**:
   - Decoupled extension module data (saved shooting ranges, handload reloading recipes, optics inventory, label templates, and maintenance presets) into dedicated readable JSON/CSV files in `userData/module_data/`.
   - Restored `config.json` to lightweight application preferences, eliminating configuration bloat and preventing module data from cluttering app settings.
@@ -67,6 +131,7 @@
   - Added atomic batch database importers (`importFirearmsBatch`, `importAmmoBatch`, `importAccessoriesBatch`, `importComponentsBatch`) in `electron/database.js` committing records to encrypted vault storage in a single file write.
 
 ### Architecture & Anti-Monolith Modular Standard
+
 - **Anti-Monolith Architecture Policy (`AGENTS.md`, `.agents/AGENTS.md`)**:
   - Enacted Rule 9 across ArmoryVault Desktop, Mobile/Companion, Modules, and web ecosystems establishing a strict anti-monolith policy: files exceeding 500–800 lines must be aggressively partitioned into focused sub-modules.
   - Mandated that complex modal dialogues, forms, and `createPortal` components reside in dedicated subfolder files (`components/modals/`, `components/firearm-details/modals/`, `components/settings/`) rather than being declared inline inside parent page components.
@@ -111,6 +176,7 @@
     - `index.ts`: Barrel export consolidating sync components for clean importing.
 
 ### Performance & Optimization
+
 - **88% Client JS Bundle Size Reduction & Lazy Loaded Modals (`src/components/Layout.tsx`, `src/main.tsx`, `vite.config.mts`)**:
   - Code-split heavy modal dialogues (`SettingsModal`, `SkuManagerModal`, `ActivityLogModal`, `RangeSessionModal`, `ChangePasswordModal`, `RecoveryKeyModal`, `ModuleCenterModal`) using `React.lazy()` and `<React.Suspense fallback={null}>`, ensuring modal JS code is only downloaded when opened.
   - Dynamically isolated `mockBackend.ts` so it is only loaded when `!window.api` (pure browser mode), preventing mock engines from polluting production Electron renderer bundles.
@@ -139,6 +205,7 @@
   - Implemented conditional mounting across heavy modal components (`SettingsModal`, `SkuManagerModal`, `ActivityLogModal`, `RangeSessionModal`, `ChangePasswordModal`, `RecoveryKeyModal`) in `Layout.tsx`, preventing inactive modals from persisting in the DOM.
 
 ### UI & Web Portal
+
 - **Streamlined ArmoryVault Web Portal & Retina Showcase (`website/index.html`, `website/style.css`, `website/app.js`)**:
   - Replaced simulated CSS mock command center window with a real high-resolution Retina screenshot of the live desktop application (`website/assets/screenshots/accessories.webp`).
   - Added click-to-expand native HTML5 `<dialog closedby="any">` high-resolution lightbox modal with keyboard (`Esc`/`Enter`) and backdrop click dismiss fallback.
@@ -146,6 +213,7 @@
   - Streamlined desktop top navigation bar to prevent visual crowding and added bidirectional referral integration with `armstrader.store`.
 
 ### Bug Fixes
+
 - **Universal Currency Formatting & String Concatenation Fix (`src/utils/currency.ts`, `electron/database.js`, UI components)**:
   - Created centralized currency utilities (`parseCurrency`, `parseCurrencyOrNull`, `formatCurrency`) with unit tests covering currency symbols, string parsing, empty strings, and malformed inputs.
   - Resolved string concatenation bug where prices stored as strings (e.g. `"375"`) concatenated in storage aggregations and displayed as `$037522500` or `$0200000`.
@@ -155,7 +223,9 @@
   - Fixed `getInstalledModulesList()` to strictly honor `config.installed_modules` when it is an array (including empty `[]` when the user has zero modules installed). Previously, an empty array `list.length === 0` caused a fallback that erroneously broadcast all 8 modules to paired mobile companion clients.
 
 ## [2.10.0] - 2026-09-13
+
 ### Added
+
 - **Official Documentation Website & Dynamic Version Synchronization (`website/`, `.github/workflows/website.yml`)**:
   - Updated live GitHub Pages documentation website (`https://cook0001.github.io/ArmoryVault/`) to reflect Desktop v2.10.0 and Companion v2.7.12 (versionCode 321).
   - Updated AppImage and Windows setup download instructions to 2.10.0 and expanded `sitemap.xml` with `/privacy.html`.
@@ -204,7 +274,9 @@
   - Registered `/labels` route and navigation bar item with `Printer` vector icon.
 
 ## [2.9.0] - 2026-09-13
+
 ### Added
+
 - **Pluggable Installable Modules Architecture & In-App Module Center (`src/modules/`, `ModuleCenterModal.tsx`)**:
   - Modularized advanced features into self-contained directories under `src/modules/<module_id>/` with independent `manifest.json` definitions, isolated versioning (`v1.0.0`), code-split dynamic route chunks, and custom command palette actions:
     - `reloading`: ReloadingComponents, LoadDevelopment, ReloadingComponentModal, BatchManufactureModal.
@@ -233,12 +305,15 @@
   - Protected `handleApproveAll` and individual approvals to safely skip uninstalled module payloads without data loss or exceptions.
 
 ### Changed
+
 - **Directory Structure & Modal Reorganization**:
   - Consolidated 15 modal dialogs and corresponding unit test suites into `src/components/modals/` with clean barrel exports.
   - Moved build and icon utility scripts to `scripts/tools/` and cleaned root directories.
 
 ## [2.8.3] - 2026-09-13
+
 ### Changed
+
 - **Build Infrastructure & Vite Native Loader Compatibility (`vite.config.mts`, `tsconfig.node.json`)**:
   - Migrated `vite.config.ts` to `vite.config.mts` using native `import.meta.dirname` path resolution, eliminating Vitest configuration loader deprecation warnings and ensuring forward-compatibility with future Vite native config loaders.
   - Updated `tsconfig.node.json` compiler inclusion to track `vite.config.mts`.
@@ -248,7 +323,9 @@
   - Cleaned up unused variables and imports in `src/components/AccessorySku.test.tsx`, `src/components/AmmoCanLabel.test.tsx`, `scripts/clean-fresh.js`, and `scripts/prepare-release.js`.
 
 ## [2.8.2] - 2026-09-12
+
 ### Fixed
+
 - **Mobile Inventory Cache Ammunition Data Synchronization (`electron/main.js`, `SyncInbox.tsx`)**:
   - Updated `/api/inventory/cache` endpoint to include all ammunition specification fields (`category`, `shell_length`, `shot_size`, `oz_payload`, `pellet_count`, `powder`, `powderCharge`, `primer`, `primer_type`, `notes`, `storageLocationId`, `costPerRound`, `bullet_manufacturer`, `isPlusP`).
   - Resolved regression where shotgun shells synced to mobile companion clients lacked shell length, shot size, pellet count, and payload attributes.
@@ -268,7 +345,9 @@
   - Synchronized Recommended Deployment Configuration to Desktop `v2.8.2` and Mobile Companion `v2.7.10` (`versionCode 319`).
 
 ## [2.8.1] - 2026-09-12
+
 ### Added
+
 - **Bill of Sale Document Archival & Desktop Synchronization**:
   - Added `save-base64-document` IPC handler in `electron/main.js` and exposed via `electron/preload.js` to securely persist transferred PDF documents into the desktop vault's `documents/` directory.
   - Enhanced `SyncInbox.tsx` (`handleApplyItem` and `handleApplyAll`):
@@ -278,6 +357,7 @@
   - Replaced raw emoji placeholders with Lucide vector icons (`FileText`).
 
 ### Fixed
+
 - **Ammo Card Header Layout & Text Overflow**:
   - Restructured ammo cards in `AmmoDashboard.tsx` to use a dedicated flex top bar for storage location badges and quick action buttons (`Tag`, `Printer`, `Save QR`, `Edit`, `Delete`).
   - Allocated full card width for caliber titles (e.g., `.30-06 Springfield`, `.45-70 Government`), completely eliminating visual clipping and collisions between location tags and action buttons.
@@ -289,7 +369,9 @@
   - Upgraded the empty state from an unstyled text line into a rich, tactical hero workspace with ambient illumination, clear feature descriptions, quick-action buttons, and three capability cards (Incremental Steps, Harmonic Nodes, Velocity & Group Analysis).
 
 ## [2.8.0] - 2026-09-12 (Official Unified Release)
+
 ### Unification & Modernization
+
 - **Unified Desktop Codebase**:
   - Promoted all features and architectural improvements to the official production release stream (`v2.8.0`). Permanently retired the Nightly channel.
   - Streamlined release packaging and CI scripts (`scripts/build-release.js`), eliminating nightly branching, flags, and retention filters.
@@ -303,7 +385,9 @@
   - Full automated test suite (117 tests passing).
 
 ## [2.8.0-nightly.8] - 2026-08-22 (Nightly Test Build)
+
 ### Added
+
 - **Mobile Firearm Intake & Spec Updates Ingestion (`src/pages/SyncInbox.tsx`)**:
   - Direct 1-tap ingest card for `new_firearm` and `firearm_update` sync payloads from mobile companion app.
   - Automatically saves base64 photo payloads to local media store, inserts new firearms, and links storage container assignments.
@@ -311,7 +395,9 @@
   - Automatic serial number deduplication and matching.
 
 ## [2.8.0-nightly.7]
+
 ### Preview & Architecture Upgrade Release
+
 - **Modular Database Engine & Schema Versioning**:
   - Refactored monolithic `database.js` into modular components: `VaultEncryption.js` (encryption, key management, schema migrations, and monotonic ID generation), `BackupManager.js` (date-stamped backups, zip archives, and safe restore), and `MediaManager.js` (photo/document asset storage and thumbnail generation).
   - Introduced automated Schema Migration Engine (`v0` -> `v1` -> `v2`) with monotonic `_nextId` counters per collection, atomic temp-file writes, and an optimistic concurrency `_lastModified` timestamp.
@@ -331,7 +417,9 @@
   - Added dedicated database unit tests (`src/utils/database.test.ts`) covering schema migrations, monotonic ID generation, batch manufacturing deductions, activity log caps, and sync deduplication (117 total passing tests).
 
 ## [2.8.0-nightly.6]
+
 ### Preview & Community Bug Testing Release
+
 - **First-Class Accessory Support for Gun Belts & Tactical Loadout Belts (Expanded: Western Drop Belts & Cartridge Loops)**:
   - Added dedicated **`Belt`** accessory category across ArmoryVault with custom vector SVG icon [`GunBeltIcon`](file:///Users/danielc/Documents/ArmoryVault_Desktop/src/components/CustomIcons.tsx) and Tactical Amber Gold (`#eab308`) accent styling.
   - **Comprehensive Belt Subtypes & Families**: Added support for **Western Buscadero Drop Belts (Single/Double Drop)** (The Hunter Company 150/155 series, Triple K #110 Wyoming, El Paso Saddlery 1880), **Straight Western Cartridge Belts** (Hunter 158 series, Kirkpatrick, Triple K Deluxe), **Cross-Chest Bandoliers & Shotshell Belts** (Triple K, Galco), **Folded Leather Money Belts / Prairie Belts** (SASS / Frontier), **Two-Piece MOLLE Battle Belts** (Blue Alpha Battle Belt Lite, AWS SMU, Ronin Senshi, Ferro Bison), **EDC Concealed Carry Ratchet Belts** (Kore Essentials X-Series, Nexbelt Titan/Supreme), **Low-Profile EDC Nylon Belts** (Tenicor Zero, Blue Alpha Low-Profile), **Reinforced Leather Gun Belts** (Daltech Force Steel Core, Bigfoot Gun Belts, Galco SB2/SB3), **Competition Rigs** (Double-Alpha DAA Lynx, Safariland 032 ELS), **Duty Belts** (Safariland 7920, Bianchi AccuMold), and **Padded War Belt Sleeves** (HSGI Sure-Grip, Viking Tactics Brokos).
@@ -361,7 +449,9 @@
 - **Type System Expansion**: Added `MalfunctionEntry`, `ChronoString`, `TargetAnalysis`, `StorageLocation`, `LoadLadderStep`, `LoadLadderTest`, `BallisticProfile`, `BallisticSolution`, and `InsuranceItem` interfaces to `src/types/index.ts`. Extended `SyncItem` with `chrono_string`, `target_analysis`, and `malfunction_report` sync types.
 
 ## [2.8.0-nightly.4]
+
 ### Preview & Community Bug Testing Release
+
 - **Comprehensive Action Type Architecture & 24 Maintenance Profiles**: Expanded the firearm action type dataset and added dedicated maintenance profiles with heuristic auto-detection across all 24 firearm operating mechanisms:
   - *Semi-Automatic & Auto-Loading*: `semi_pistol` (Short Recoil Handguns, Striker & DA/SA), `semi_rifle` (Direct Impingement AR-15/AR-10), `semi_piston_rifle` (Gas Piston AK-47/74, SCAR, Tavor, Bren 2), `semi_roller_delayed` (Delayed Blowback MP5/SP5, HK91, Banshee), `semi_direct_blowback` (Direct Blowback PCC & Carbine Ruger PCC, Scorpion), `semi_shotgun` (Gas & Inertia Shotguns Beretta A300/A400, Benelli M4/M2).
   - *Bolt Actions*: `bolt_action` (Modern Hunting & Tactical Push/CRF), `straight_pull_bolt` (Straight-Pull Blaser R8, Impulse, K31), `bolt_action_target` (Single Shot Target & Benchrest Rem 40-X, Anschütz), `vintage_bolt_crf` (Vintage Military CRF Mauser K98k, 1903A3, Mosin, Enfield).
@@ -372,7 +462,7 @@
 - **Clean Add/Edit Firearm Form Inputs**: Streamlined the `Make` and `Model` fields to clean text inputs without dropdown autocomplete clutter, and updated `Action Type` with the expanded dataset.
 - **Gunpowder Multi-Unit Telemetry (Pounds, Ounces, Grains)**: Built a comprehensive ballistic weight calculation engine (`src/utils/powderUnits.ts`) providing simultaneous multi-unit tracking across **Pounds (lbs)**, **Ounces (oz)**, and **Grains (gr)** (1 lb = 16 oz = 7,000 gr; 1 oz = 437.5 gr). Supports entering and storing powder in any of the three units with a live real-time conversion banner and cost-per-grain metric in `ReloadingComponentModal`. Displays total vault powder supply across all 3 units in `ReloadingComponents` and `AmmoDashboard`, gives load yield estimators (`~253 rds of .308 @ 41.5gr`), and provides precision grain-level deduction during batch handload manufacturing in `BatchManufactureModal`.
 - **Tactical Accessory Detail Cards & Dossier Modal (`AccessoryDetailModal`)**: Overhauled the display of accessories and optics across the Accessories catalog and Firearm Details page into rich tactical cards with custom color-coded type badges (Optic, Suppressor, Light, Magazine, Holster, Mount, Sling, Other), dedicated technical spec chips (Magnification, Lumens, Rated Calibers, Magazine Capacity, Platform Fits), round telemetry counters, NFA tax stamp indicators, valuation displays, and interactive mounted firearm chips. Clicking any card opens a full-spec `AccessoryDetailModal` with a multi-photo Lightbox gallery, comprehensive logistics breakdown, ATF registration tracker, and direct firearm links.
-- **Unified Anchored Dropdown System (`AutocompleteInput`)**: Replaced all native `<datalist>` and browser `<select>` dropdowns across the application (`FirearmForm`, `AmmoDashboard`, `ReloadingComponentModal`, `AccessoryModal`, `RangeSessionModal`, `BatchManufactureModal`, `FirearmDetails`, `Layout` Custom SKU manager, and `Dashboard` filters) with custom anchored glassmorphic dropdowns. Eliminates detached popup floating during container scrolling, adds keyboard navigation (<kbd>Up</kbd>, <kbd>Down</kbd>, <kbd>Enter</kbd>, <kbd>Esc</kbd>), instant chevron toggling, and real-time substring filtering.
+- **Unified Anchored Dropdown System (`AutocompleteInput`)**: Replaced all native `<datalist>` and browser `<select>` dropdowns across the application (`FirearmForm`, `AmmoDashboard`, `ReloadingComponentModal`, `AccessoryModal`, `RangeSessionModal`, `BatchManufactureModal`, `FirearmDetails`, `Layout` Custom SKU manager, and `Dashboard` filters) with custom anchored glassmorphic dropdowns. Eliminates detached popup floating during container scrolling, adds keyboard navigation (`Up`, `Down`, `Enter`, `Esc`), instant chevron toggling, and real-time substring filtering.
 - **Viewport Modal Portal Standard & Centering**: Wrapped all application modals and dialogs (`AccessoryModal`, `AmmoCanLabelModal`, `BatchManufactureModal`, `ChangePasswordModal`, `RecoveryKeyModal`, `RangeSessionModal`, `ReloadingComponentModal`, `Lightbox`, `FirearmDetails` sub-dialogs, `AmmoDashboard` forms, `SyncInbox` prompts) in React `createPortal(..., document.body)` with `position: fixed; inset: 0; z-index: 99999;` and backdrop blur, ensuring dialogs always render centered in the viewport regardless of scroll position.
 - **Intelligent Scroll Restoration Engine**: Built `useScrollRestoration` hook tracking continuous route scroll offsets with `sessionStorage` backing and `MutationObserver` synchronization, seamlessly restoring scroll positions when navigating back from detail views as asynchronous database cards render into the DOM.
 - **Interactive Mobile Device Pairing Workflow**: Added dedicated QR code pairing modal with real-time Wi-Fi listening badge, instant auto-closing upon companion app scan (`/api/ping`, `/api/inventory/summary`, `/api/inventory/cache`, `/api/pair`, `/api/sync`), and an auto-disappearing emerald success notification toast.
@@ -387,12 +477,16 @@
 - **Accessibility & Contrast Polish (Phase 3)**: Upgraded muted typography contrast (`--text-muted: #94a3b8`) for WCAG AAA compliance and implemented high-visibility `:focus-visible` outline rings for keyboard accessibility.
 
 ## [2.8.0-nightly.3]
+
 ### Preview & Community Bug Testing Release
+
 - **Dedicated Build Channels (Stable vs Nightly)**: Separated Electron packaging output into dedicated `dist-electron/stable` and `dist-electron/nightly` directories with standalone build runners (`scripts/build-stable.js`, `scripts/build-nightly.js`), expanded `package.json` channel commands (`package:stable:*`, `package:nightly:*`, `release:stable`, `release:nightly`), and updated interactive `scripts/prepare-release.js` with 1-click nightly prerelease bumping.
 - **Website Architecture Migration (`website/`)**: Moved the official ArmoryVault landing portal from `docs/` to its own top-level `website/` directory, supported with an automated GitHub Pages GitHub Actions deployment workflow (`.github/workflows/website.yml`).
 
 ## [2.8.0-nightly.2]
+
 ### Preview & Community Bug Testing Release
+
 - **Mobile Companion Remote Vault Lock & Sync Hardening**: Added `/api/vault/lock` and `/api/lock` HTTP endpoints and IPC broadcast listener allowing paired mobile companion apps to remotely lock the desktop vault over local Wi-Fi, immediately clearing decryption keys from PC memory and navigating the desktop UI to the secure `VaultLogin` screen.
 - **Official Web Portal Enhancements**:
   - Added PayPal donation button (`paypal.me/ArmoryVault`) across top navbar, mobile navigation drawer, support cards, and footer.
@@ -401,7 +495,9 @@
   - Updated mobile companion download spotlight with new high-definition tactical cyber shield branding.
 
 ## [2.8.0-nightly.1]
+
 ### Preview & Community Bug Testing Release
+
 - **Unified Ammo & Reloading Depot**: Merged separate Ammo and Reloading tabs into a single, cohesive command center in the top navigation bar. Features 3 integrated depot sub-views (`🎯 Live Ammunition`, `🧪 Reloading Supplies`, `📊 Combined Overview`), top caliber quick-stock showcase cards matching the website preview (colored accent borders, live counts, top load types, and stock goal gauges), unified tactical control deck, and full batch manufacture integration.
 - **Customizable Metric Cards & Visibility Toggles**: Added a `⚙️ Customize Cards` popover slider allowing users to toggle individual live ammo and reloading metric cards on or off with persistent `localStorage` preferences across both the Dashboard and Depot.
 - **Command Center Dashboard with Tactical Card & Table Views**: Complete redesign of the primary inventory dashboard. Includes a persistent Card View 🔲 vs Compact Table View 📋 switcher, unified control deck with 1-click Category Filter Chips (Handguns, Rifles, Shotguns, C&R / Vintage, NFA, ⚠️ Service Due), real-time search, status dropdown, live ammo inventory telemetry, lifetime rounds fired tracker, visual round wear gauges with maintenance progress meters, mounted accessories pill clouds, and a customizable metrics popover with persistent card visibility preferences.
@@ -413,36 +509,48 @@
 - **Website Preview & Nightly Download Hub**: Updated the official website with a dedicated Release Channel Switcher (`Stable` vs `Nightly / Beta`) with live asset resolution and direct bug reporting links.
 
 ## [2.7.1]
+
 ### Fixed & Improved
+
 - **Robust Full Zip Archive Backup Engine**: Replaced stream-based archiver with pure in-memory/synchronous `adm-zip` packaging. Resolves production ASAR stream locking and unhandled stream errors when creating full `.zip` archives.
 - **Enhanced Backup Feedback & Error Reporting**: Attached main window handle to system save dialogs and added rich error messages with cancel safety when generating full vault `.zip` backup archives.
 - **Official GitHub Pages Website & Community Feedback Hub**: Created a responsive, dark glassmorphism landing website in `docs/` ready for GitHub Pages hosting (`https://cook0001.github.io/ArmoryVault/`). Includes interactive UI showcases, range logger simulation demo, dedicated Apple Silicon (`arm64`) vs Intel (`x64`) macOS download buttons with system auto-detection, and a 1-click Feature Suggestion & Bug Reporting portal integrated with GitHub Issues.
 
 ## [2.7.0]
+
 ### Added
+
 - **Vintage & Military Surplus Firearm Autocomplete Support**: Added comprehensive datalist choices in `Add Firearm` for historic and collectible firearms across USGI arsenals (Springfield Armory, Inland, Rock-Ola, Underwood, Smith-Corona, Eddystone, H&R, Ithaca, Union Switch & Signal), European arsenals (Mauser Oberndorf/DWM, Enfield RSAF, Lithgow, Tula, Izhevsk, Waffenfabrik Bern, Carl Gustafs, Husqvarna, Terni, Steyr, Radom, Zastava), and collectible reproductions (Uberti, Pietta, Pedersoli, Cimarron).
 - **Curio & Relic (C&R) Models & Classifications**: Added models and firearm types including `Curio & Relic (C&R) Rifle/Handgun`, `Military Surplus Service Rifle/Handgun`, `Antique / Blackpowder`, with NRA Antique Condition standards (`NRA Excellent 98-100%`, `NRA Fine`, `NRA Very Good`, `NRA Good`, `CMP Service/Collector/Field/Rack Grade`, `All-Matching Numbers`).
 - **Comprehensive Historic Caliber Master List**: Added support and auto-categorization for classic military surplus calibers (.30-06 Springfield, .30 Carbine, .30-40 Krag, .303 British, 7.62x54mmR, 7.92x57mm 8mm Mauser, 6.5x55mm Swedish, 7.5x55mm Swiss GP11, 7.65x53mm Argentine, 7x57mm Mauser, 6.5x50mm/7.7x58mm Arisaka, 6.5x52mm Carcano, 8x56mmR Steyr, 8x50mmR Lebel, 7.5x54mm French, 7.62x25mm Tokarev, 9x18mm Makarov, 7.62x38mmR Nagant, 7.63x25mm Mauser, 7.65x21mm Luger, .455 Webley, .45-70 Govt, .405 Win, .30-30 Win).
 - **Specialized Vintage Maintenance Profiles**: Added 4 pre-configured maintenance schedules with auto-detection for M1 Garand, M1 Carbine, Vintage Controlled-Round-Feed Bolt Actions (Springfield 1903/1903A3, Mauser 98, Lee-Enfield, Mosin-Nagant, K31), and Box-Magazine Lever Actions (Winchester Model 1895, Savage 99).
 
 ## [2.6.1]
+
 ### Added
+
 - **Master Vault Password Management & Security Hub**: Users can now change their master encryption password anytime from Settings -> **Vault Security & Encryption**. Features secure envelope re-encryption of the AES-256 master key with PBKDF2 key derivation (100,000 rounds) and live password strength/matching validation.
 - **Dedicated Emergency Recovery Key Viewer & Text Backup**: Users can view, verify, copy, or download their permanent 64-character emergency recovery key (`ArmoryVault_Recovery_Key.txt`) at any time from Settings -> **View Vault Recovery Key**.
 - **Vault Re-Keying & Recovery Key Regeneration**: Added option to regenerate a brand new 64-character recovery key and re-encrypt the entire inventory database (accessible as a checkbox during password changes or via the standalone **Regenerate Key** tool). Invalides old compromised recovery codes and issues a fresh master key.
 
 ## [2.6.0]
+
 ### Added
+
 - **Dual Trigger Maintenance Scheduling (Round Count & Elapsed Days)**: Maintenance tasks now support dual wear and time triggers (e.g. 5,000 rounds OR 180 days). Includes a clean checkbox `[ ] Also trigger on elapsed time (Days)` in the schedule creator and dual progress bar countdown alerts on firearm detail cards.
 - **Custom Maintenance Schedule Presets & Templates**: Users can now save any firearm's configured maintenance schedule as a reusable custom template with 1-click. Saved templates can be applied (replace or append) to other firearms and managed directly within the Presets picker modal.
 - **Printable Gunsmith Service Record & Provenance Dossier**: Added a complete printable PDF/paper dossier for firearms featuring full specifications, lifetime round telemetry, reliability ratings, active wear schedules, chronological service ledger, and mounted equipment. Includes dedicated `@media print` layout.
 - **Mounted Accessory Round Telemetry**: Logging range sessions now automatically propagates and increments round counts across all mounted optics, suppressors, lights, and barrels. Displayed via dedicated round badges on accessory cards and tracked within the modal.
 - **Comprehensive & Proprietary Bullet Type Support**: Added full database, autocomplete datalist, and barcode intelligence support for 70+ standard, match, defensive, and proprietary bullet types across Hornady (ELD-X, ELD Match, V-Max, FTX, XTP, SST, Sub-X, CX), Federal (HST, Hydra-Shok, Syntech, Punch, Terminal Ascent, Trophy Bonded), Sierra (MatchKing, GameKing, BlitzKing, TGK), Speer (Gold Dot, Lawman, TNT), Barnes (TTSX, TSX, LRX, TAC-TX), Nosler (AccuBond, Partition, Ballistic Tip, E-Tip, RDF), Winchester (Silvertip, Ranger T, Defender, Power-Point, Deer Season XP), Remington (Core-Lokt, Golden Saber, AccuTip), Berger (VLD, Hybrid OTM), Lapua/Norma (Scenar, Oryx, Tipstrike, Naturalis), and Lehigh/Underwood (Xtreme Penetrator, Xtreme Defender, HoneyBadger).
+
 ### Improved & Fixed
+
 - **Bulk Pack Quantity & Barcode Parsing (e.g. 1,400 Rd Bucket)**: Fixed an issue in `BarcodeEngine.ts` where comma-separated quantities (such as Remington Golden Bullet `1,400 Rounds` / `1,400 RD` bucket UPC `047700415208`) were truncated to `400` due to integer regex stopping on commas. Added support for comma-formatted counts (`1,000`, `1,400`, `5,000`), improved `.22 LR` caliber detection, and added support for `PHP` / `CPHP` bullet types.
 
 ## [2.5.0]
+
 ### Added
+
 - **Range Trip Quick-Logger & Atomic Session Handler**: New quick logger modal accessible from sidebar Tools and Firearm Details. Atomically increments firearm round counts and decrements caliber-matched ammo stock in a single transaction with full cost and location logging.
 - **Offline Mobile Sync Support & Inventory Caching**: Added `/api/inventory/cache` endpoint allowing companion mobile apps to pull and cache firearms, ammo, components, and custom SKUs for offline usage at the range.
 - **Sync Inbox Range Session Review**: Companion app range session submissions now appear in `SyncInbox` with full firearm, ammo deduction, and round count details for user review with **Approve**, **Modify**, and **Decline** actions.
@@ -454,12 +562,15 @@
 - **Optional Collection Value Analytics**: Added an investment and collection value breakdown card (Firearms, Accessories, Ammunition, Reloading Supplies) on the main dashboard, controlled via a toggle switch in Settings.
 
 ### Improved
+
 - **Universal Scan Routing**: Enhanced `SyncInbox` universal barcode resolution to auto-route scanned custom accessory and reloading component SKUs with pre-filled metadata directly into their respective modals.
 - **Barcode & Label Integration**: Integrated `AV-AMMO-<id>` QR parsing into `SyncInbox` universal scan resolver for automated ammo adjustments.
 - **TypeScript Strictness & Validation**: Added strict interface types for `CustomSkuItem`, `MaintenanceScheduleItem`, `range_session`, and IPC API handlers.
 
 ## [2.4.0]
+
 ### Added
+
 - **Database In-Memory Cache**: The encrypted vault is now decrypted once on unlock and held in memory. Writes are debounced (2-second delay) and batched, eliminating redundant decrypt/encrypt cycles on every CRUD operation. This dramatically improves performance for users with large inventories.
 - **Caliber Helpers Module**: Extracted `getStandardPelletCount`, `generateInternalUPC`, `formatCaliber`, `getAmmoCategory`, and `escapeRegExp` from `AmmoDashboard.tsx` into a shared `src/utils/caliberHelpers.ts` module. Reduces the mega-component by ~100 lines and eliminates code duplication with `BarcodeEngine.ts`.
 - **React Error Boundary**: App-wide crash handler prevents blank white screens. If a component throws an error, users see a "Something went wrong" fallback with "Try Again" and "Return to Dashboard" recovery actions.
@@ -472,6 +583,7 @@
 - **Database Backup Restoration**: Added a complete backup restoration workflow in Settings supporting both encrypted `.enc` vault files and `.zip` full archives (extracting database, photos, and PDF documents). Includes automatic pre-restore safety backups.
 
 ### Improved
+
 - **`SyncItem` Type Safety**: Replaced the catch-all `[key: string]: any` index signature with explicit typed fields (`measurement`, `firearm_id`, `photo_data`, `log_type`) and a string union for `type`.
 - **`mockBackend.ts` Types**: Replaced `any[]` return types with proper `Accessory[]` and `ReloadingComponent[]` types from the type system.
 - **Accessory Quantity Type**: Replaced `'' as any` type escape hatch with `undefined` for the optional numeric `quantity` field.
@@ -480,17 +592,22 @@
 - **Centralized Data Export**: Consolidated the Firearms CSV Export button into Settings alongside the Insurance Report PDF and Full Zip Archive for a cleaner dashboard header.
 
 ### Fixed
+
 - **Custom SKU Database Overwrite**: Fixed a critical bug in `SyncInbox` where approving an incoming barcode sync scan wrote to `saveSkus` without first loading existing SKUs into local state, unintentionally wiping prior custom SKU mappings. In addition, `database.js`'s `saveSkus` now safely merges incoming SKU records with existing database records instead of replacing the entire map.
 - **CSV Export Corruption**: Fixed a bug where firearm models containing double-quote characters (e.g., `Ruger 10/22 "Takedown"`) would produce malformed CSV output. Fields are now escaped per RFC 4180.
 - **`.gitignore` Gaps**: Added missing entries for `.env`, `.env.*`, `*.enc` (encrypted vault data), and `*.bak` (legacy plaintext backups) to prevent accidental commits of sensitive data.
 - **Test Failures**: Fixed 4 pre-existing test failures in `Dashboard.test.tsx` and `FirearmForm.test.tsx` (missing jsdom environment, incomplete mock API, duplicate button queries).
 
 ## [2.3.2]
+
 ### Fixed
+
 - **UI Bug**: Fixed a CSS issue where Modals (like Accessory and Reloading Component popups) would render off-screen when the user scrolled down. Modals are now properly centered in the viewport with correct `overflow-y` handling.
 
 ## [2.3.1]
+
 ### Added
+
 - **macOS OTA Fallback**: macOS users will now receive "Update Ready" notifications with a direct link to manually download updates, bypassing the unsigned Squirrel.Mac errors.
 - **Universal Sync Inbox**: New central hub to intercept all uncategorized barcode scans from the mobile app.
 - **Smart Component Deduplication**: Resolving uncategorized scans now checks for manually added duplicates and prompts to merge them.
@@ -499,12 +616,14 @@
 - **Regex Sanitization**: Advanced string cleanup when parsing UPC data from upcitemdb to remove junk keywords and manufacturer redundancies.
 
 ### Changed
+
 - Refined Barcode Engine weighting so reloading powder and primers are no longer miscategorized as ammunition.
 - Re-architected API lookup flow to run through the Electron main process, eliminating CORS constraints from the renderer.
 - Market pricing logic shifted from "lowest recorded history" to "median current active offers" to ignore historical pricing glitches.
 - Components quantities now default to correct bulk amounts (e.g. 1000 for Primers) instead of 1.
 
 ### Fixed
+
 - Fixed CodeQL XSS vulnerability when decoding HTML entities in BarcodeEngine.
 - Fixed reloading powder parsing for Hodgdon / distributor barcodes.
 - Fixed TS compilation errors on release workflow.

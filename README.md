@@ -34,36 +34,45 @@ A secure, premium, cross-platform desktop application designed for serious firea
 
 - **Frontend**: React 19, TypeScript, Vite, Biome
 - **Styling**: Vanilla CSS (Tactical Glassmorphism) with Lucide Vector Icons & Custom Military SVGs
-- **Desktop Engine**: Electron with secure context-isolated IPC bridge
+- **Desktop Engine**: Electron with secure context-isolated IPC bridge (Final Electron Release `v3.0.0-Electron`)
 - **Document Engine**: Typst 0.15 native vector compiler with 3-tier resilient fallback
-- **Testing**: Vitest CI Suite (219 automated tests across 37 suites)
+- **Testing**: Vitest CI Suite (222 automated tests across 37 suites)
 - **Storage**: Native File-System & Encrypted AES-256-GCM persistence
-- **CI/CD**: `electron-builder`, `electron-updater`, and GitHub Pages
+- **CI/CD**: `electron-builder`, `electron-updater`, and GitHub Releases
+
+> [!NOTE]
+> **Final Electron Release & Tauri Migration**: `v3.0.0-Electron` marks the final official release of the Electron-based client. Active desktop development transitions to the lightweight, native Rust-powered Tauri v2 client (`ArmoryVault_Desktop_Tauri`), which shares the exact same encrypted application data directory with 100% seamless zero-data-loss compatibility.
 
 ## Installation
 
 ArmoryVault is an open-source project distributed directly via GitHub Releases.
 
 ### macOS
+
 1. Download `ArmoryVault-Mac-arm64.dmg` (Apple Silicon) or `ArmoryVault-Mac-x64.dmg` (Intel).
 2. Drag `ArmoryVault.app` into your **Applications** folder.
 3. If macOS Gatekeeper displays an unverified developer warning:
    - Open Terminal and run:
+
      ```bash
      xattr -cr /Applications/ArmoryVault.app
      ```
+
    - Alternatively, navigate to *System Settings > Privacy & Security* and click "Open Anyway".
 
 ### Windows
-1. Download `ArmoryVault-Setup-2.9.0.exe`.
+
+1. Download `ArmoryVault-Setup-3.0.0-Electron.exe`.
 2. Double-click the installer.
 3. If Microsoft Defender SmartScreen displays a warning, click **"More info"** followed by **"Run anyway"**.
 
 ### Linux (.AppImage)
-1. Download `ArmoryVault-2.9.0.AppImage`.
+
+1. Download `ArmoryVault-3.0.0-Electron.AppImage`.
 2. Grant execution permissions:
+
    ```bash
-   chmod +x ArmoryVault-2.9.0.AppImage && ./ArmoryVault-2.9.0.AppImage
+   chmod +x ArmoryVault-3.0.0-Electron.AppImage && ./ArmoryVault-3.0.0-Electron.AppImage
    ```
 
 ## Development Setup
@@ -71,25 +80,29 @@ ArmoryVault is an open-source project distributed directly via GitHub Releases.
 To run ArmoryVault locally for development:
 
 1. **Clone the repository:**
+
    ```bash
    git clone https://github.com/cook0001/ArmoryVault.git
    cd ArmoryVault
    ```
 
 2. **Install dependencies:**
+
    ```bash
    npm install
    ```
 
 3. **Start the Development Server:**
+
    ```bash
    npm run electron:dev
    ```
 
 4. **Run Linter & Test Suite:**
+
    ```bash
    npm run check       # Biome formatting & linter check
-   npm test            # Full Vitest automated test suite (25 suites, 147 tests)
+   npm test            # Full Vitest automated test suite (37 suites, 222 tests)
    npm run build       # TypeScript compiler (tsc -b) & Vite production build
    ```
 
@@ -106,7 +119,8 @@ To run ArmoryVault locally for development:
 | `npm run release` | Multi-Platform Release | Compiles and publishes release binaries |
 
 ### Automated CI/CD Pipeline
-- **Continuous Integration (`.github/workflows/ci.yml`)**: Runs linting, type-checking, and all 147 unit tests on every pull request and push.
+
+- **Continuous Integration (`.github/workflows/ci.yml`)**: Runs linting, type-checking, and all 222 unit tests on every pull request and push.
 - **Desktop Releases (`.github/workflows/release.yml`)**: Builds cross-platform binaries and publishes assets to GitHub Releases.
 - **Official Web Portal**: Hosted directly at [armstrader.store/armoryvault](https://armstrader.store/armoryvault).
 

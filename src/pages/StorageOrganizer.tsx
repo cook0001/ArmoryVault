@@ -256,25 +256,18 @@ export const StorageOrganizer = () => {
   });
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
+    <div className="page-container">
       {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '1.5rem',
-        }}
-      >
+      <div className="page-header">
         <div>
           <h1
             style={{
               color: 'var(--text-primary)',
               margin: 0,
-              fontSize: '1.6rem',
+              fontSize: '1.8rem',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.5rem',
+              gap: '0.6rem',
             }}
           >
             <Shield size={24} style={{ color: 'var(--accent)' }} />
@@ -284,7 +277,7 @@ export const StorageOrganizer = () => {
             {locations.length} locations • {totalItems} items assigned
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+        <div className="header-actions">
           <button
             type="button"
             className="btn-secondary"

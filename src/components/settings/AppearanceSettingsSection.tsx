@@ -536,21 +536,23 @@ export const AppearanceSettingsSection: React.FC<AppearanceSettingsSectionProps>
             outline: 'none',
           }}
         >
-          <option value="/">Dashboard (Overview & Quick Actions)</option>
-          <option value="/firearms">Firearms Collection</option>
+          <option value="/">Dashboard & Firearms Collection</option>
           <option value="/ammo">Ammunition Stockpile</option>
-          <option value="/reloading">Reloading Bench</option>
+          <option value="/components">Reloading Bench & Components</option>
           <option value="/accessories">Optics, Accessories & Gear</option>
-          <option value="/boundbook">ATF Bound Book (Compliance)</option>
+          <option value="/bound-book">ATF Bound Book (Compliance)</option>
           <option value="/maintenance">Maintenance & Service Logs</option>
           <option value="/storage">Storage & Safe Organizer</option>
+          <option value="/load-development">Load Development</option>
+          <option value="/ballistics">Ballistics Calculator</option>
+          <option value="/nfa-tracker">NFA / Tax Stamp Tracker</option>
         </select>
       </div>
 
       {/* 6. Discretion / Privacy Shield Mode */}
       <div
         style={{
-          background: theme.privacyMode ? 'rgba(59, 130, 246, 0.12)' : 'rgba(0, 0, 0, 0.2)',
+          background: theme.privacyMode ? 'var(--accent-badge-bg)' : 'rgba(0, 0, 0, 0.2)',
           border: theme.privacyMode ? '1px solid var(--accent)' : '1px solid var(--border-light)',
           borderRadius: '10px',
           padding: '0.85rem 1rem',

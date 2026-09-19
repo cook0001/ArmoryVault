@@ -148,23 +148,15 @@ export const NfaTracker = () => {
   };
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
+    <div className="page-container">
       {/* Top Header */}
-      <div
-        className="no-print"
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '1.5rem',
-        }}
-      >
+      <div className="no-print page-header">
         <div>
           <h1
             style={{
               color: 'var(--text-primary)',
               margin: 0,
-              fontSize: '1.6rem',
+              fontSize: '1.8rem',
               display: 'flex',
               alignItems: 'center',
               gap: '0.6rem',
@@ -179,7 +171,7 @@ export const NfaTracker = () => {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+        <div className="header-actions">
           <button
             className="btn-secondary"
             onClick={handlePrintTransportDossier}

@@ -227,23 +227,15 @@ export const LoadDevelopment = () => {
   }, [selectedTest]);
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
+    <div className="page-container">
       {/* Header */}
-      <div
-        className="no-print"
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '1.5rem',
-        }}
-      >
+      <div className="no-print page-header">
         <div>
           <h1
             style={{
               color: 'var(--text-primary)',
               margin: 0,
-              fontSize: '1.6rem',
+              fontSize: '1.8rem',
               display: 'flex',
               alignItems: 'center',
               gap: '0.6rem',
@@ -274,25 +266,13 @@ export const LoadDevelopment = () => {
             </span>
             <span style={{ color: 'var(--border-subtle)', opacity: 0.7 }}>•</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-              <LineChart size={13} color="#38bdf8" />
-              Velocity Curves
-            </span>
-            <span style={{ color: 'var(--border-subtle)', opacity: 0.7 }}>•</span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
               <DollarSign size={13} color="#f59e0b" />
               Reloading Economics
             </span>
           </div>
         </div>
 
-        <div
-          style={{
-            display: 'flex',
-            gap: '0.75rem',
-            alignItems: 'center',
-            flexShrink: 0,
-          }}
-        >
+        <div className="header-actions">
           <button
             className="btn-secondary"
             onClick={() => setShowCostCalculator(!showCostCalculator)}

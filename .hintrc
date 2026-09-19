@@ -1,5 +1,28 @@
 {
   "extends": [
     "development"
-  ]
+  ],
+  "hints": {
+    "compat-api/css": [
+      "default",
+      {
+        "ignore": [
+          "-webkit-app-region",
+          "scrollbar-width",
+          "scrollbar-width: none"
+        ]
+      }
+    ],
+    "compat-api/html": [
+      "default",
+      {
+        "ignore": [
+          "details[name]",
+          "img[fetchpriority]",
+          "meta[name=theme-color]"
+        ]
+      }
+    ],
+    "no-inline-styles": "off"
+  }
 }

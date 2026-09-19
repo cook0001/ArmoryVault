@@ -483,6 +483,41 @@ export const AmmoDashboard = () => {
       return;
     }
 
+    // 2b. Check LoadBench Handload QR / JSON payload
+    if (
+      upc.trim().startsWith('{') ||
+      upc.includes('"type":"handload"') ||
+      upc.includes('LoadBench')
+    ) {
+      const parsed = parseBarcodeData(upc, ammoList);
+      if (parsed.category === 'ammo' && parsed.parsedAmmo) {
+        setActiveAmmoTab('handload');
+        setFormData((prev) => ({
+          ...prev,
+          type: 'handload',
+          caliber: parsed.parsedAmmo?.caliber || prev.caliber,
+          grain: parsed.parsedAmmo?.grain || prev.grain,
+          projectile: parsed.parsedAmmo?.projectile || prev.projectile,
+          powder: parsed.parsedAmmo?.powder || prev.powder,
+          powderCharge: parsed.parsedAmmo?.powderCharge || prev.powderCharge,
+          primer: parsed.parsedAmmo?.primer || prev.primer,
+          oal: parsed.parsedAmmo?.oal || prev.oal,
+          count: parsed.parsedAmmo?.count || prev.count,
+          notes: parsed.parsedAmmo?.notes || prev.notes,
+          upc_code: parsed.parsedAmmo?.upc_code || '',
+        }));
+        if (parsed.parsedAmmo.count) {
+          setCalcRds(parsed.parsedAmmo.count);
+          setCalcBoxes(1);
+        }
+        setUpcStatus({
+          message: `LoadBench Handload Identified: ${parsed.bestTitle}`,
+          type: 'success',
+        });
+        return;
+      }
+    }
+
     try {
       const data = await window.api.lookupUPC(upc);
       if (data && data.items && data.items.length > 0) {

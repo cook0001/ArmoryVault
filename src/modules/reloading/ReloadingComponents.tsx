@@ -9,7 +9,7 @@ import {
   Trash2,
   Zap,
 } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
   BrassCaseIcon,
@@ -20,6 +20,7 @@ import {
 import { ReloadingComponentModal } from '@/components/modals/ReloadingComponentModal';
 import { StorageBadge } from '@/components/StorageBadge';
 import { useUndoToast } from '@/components/UndoToast';
+import { useVaultData } from '@/context/VaultDataContext';
 import { ReloadingComponent, StorageLocation } from '@/types';
 import { formatCurrency, parseCurrency } from '@/utils/currency';
 import { calcCostPerGrain, formatPowderMultiUnit, toGrains } from '@/utils/powderUnits';
@@ -28,11 +29,23 @@ import {
   removeItemFromAllStorage,
   saveStorageLocations,
 } from '@/utils/StorageSync';
+import { buildStorageIndex } from '@/utils/storageIndex';
 
 export const ReloadingComponents = () => {
   const { showUndo } = useUndoToast();
-  const [components, setComponents] = useState<ReloadingComponent[]>([]);
-  const [storageLocations, setStorageLocations] = useState<StorageLocation[]>([]);
+  const { components: vaultComponents, storageLocations: vaultStorageLocations } = useVaultData();
+
+  const [components, setComponents] = useState<ReloadingComponent[]>(() => vaultComponents || []);
+  const [storageLocations, setStorageLocations] = useState<StorageLocation[]>(
+    () => vaultStorageLocations || []
+  );
+
+  useEffect(() => {
+    if (vaultComponents && vaultComponents.length > 0) setComponents(vaultComponents);
+    if (vaultStorageLocations && vaultStorageLocations.length > 0)
+      setStorageLocations(vaultStorageLocations);
+  }, [vaultComponents, vaultStorageLocations]);
+
   const [selectedStorageLocationId, setSelectedStorageLocationId] = useState<string>('ALL');
   const [search, setSearch] = useState('');
 
@@ -76,43 +89,54 @@ export const ReloadingComponents = () => {
     }
   };
 
+  const storageIndex = useMemo(() => buildStorageIndex(storageLocations), [storageLocations]);
+
   const loadData = async () => {
     if (window.api && window.api.getComponents) {
-      const fetched = await window.api.getComponents();
-      setComponents(fetched);
-
-      if (window.api.getStorageLocations) {
-        const locs = await window.api.getStorageLocations();
-        setStorageLocations(locs || []);
-      }
+      const [fetched, locs] = await Promise.all([
+        window.api.getComponents(),
+        window.api.getStorageLocations ? window.api.getStorageLocations() : Promise.resolve([]),
+      ]);
+      setComponents(fetched || []);
+      setStorageLocations(locs || []);
     }
   };
 
-  const lowStockCount = components.filter(
-    (c) => c.min_threshold !== undefined && c.min_threshold > 0 && c.quantity <= c.min_threshold
-  ).length;
+  const lowStockCount = useMemo(
+    () =>
+      components.filter(
+        (c) => c.min_threshold !== undefined && c.min_threshold > 0 && c.quantity <= c.min_threshold
+      ).length,
+    [components]
+  );
 
-  const filteredComponents = components.filter((c) => {
-    if (selectedStorageLocationId !== 'ALL') {
-      const loc = getItemStorageLocation('component', c.id, storageLocations);
-      if (selectedStorageLocationId === 'UNASSIGNED') {
-        if (loc) return false;
-      } else if (loc?.id !== Number(selectedStorageLocationId)) {
-        return false;
-      }
-    }
-
+  const filteredComponents = useMemo(() => {
     const term = search.toLowerCase();
-    const matchesSearch =
-      c.manufacturer.toLowerCase().includes(term) ||
-      (c.name && c.name.toLowerCase().includes(term)) ||
-      c.type.toLowerCase().includes(term) ||
-      (c.caliber && c.caliber.toLowerCase().includes(term));
-    const matchesLowStock =
-      !onlyLowStock ||
-      (c.min_threshold !== undefined && c.min_threshold > 0 && c.quantity <= c.min_threshold);
-    return matchesSearch && matchesLowStock;
-  });
+    return components.filter((c) => {
+      if (selectedStorageLocationId !== 'ALL') {
+        const loc = storageIndex.getLocation('component', c.id);
+        if (selectedStorageLocationId === 'UNASSIGNED') {
+          if (loc) return false;
+        } else if (loc?.id !== Number(selectedStorageLocationId)) {
+          return false;
+        }
+      }
+
+      if (term) {
+        const matchesSearch =
+          c.manufacturer.toLowerCase().includes(term) ||
+          (c.name && c.name.toLowerCase().includes(term)) ||
+          c.type.toLowerCase().includes(term) ||
+          (c.caliber && c.caliber.toLowerCase().includes(term));
+        if (!matchesSearch) return false;
+      }
+
+      const matchesLowStock =
+        !onlyLowStock ||
+        (c.min_threshold !== undefined && c.min_threshold > 0 && c.quantity <= c.min_threshold);
+      return matchesLowStock;
+    });
+  }, [components, selectedStorageLocationId, storageIndex, search, onlyLowStock]);
 
   const handleEdit = (comp: ReloadingComponent) => {
     setFormData(comp);
@@ -507,11 +531,7 @@ export const ReloadingComponents = () => {
                                 </span>
                               )}
                               <StorageBadge
-                                location={getItemStorageLocation(
-                                  'component',
-                                  c.id,
-                                  storageLocations
-                                )}
+                                location={storageIndex.getLocation('component', c.id)}
                                 size="sm"
                               />
                             </div>
